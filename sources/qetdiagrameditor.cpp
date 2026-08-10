@@ -363,7 +363,7 @@ void QETDiagramEditor::setUpActions()
 
 		//Numerate conductor wire-end (ferrule) labels for the whole page
 	m_conductor_numerate_ends = new QAction(QET::Icons::ConductorSettings, tr("Numerar as pontas dos fios da página"), this);
-	m_conductor_numerate_ends->setStatusTip(tr("Marca cada ponta dos fios do fólio atual com a identificação do elemento e pino dessa mesma ponta", "status bar tip"));
+	m_conductor_numerate_ends->setStatusTip(tr("Marca cada ponta dos fios do fólio atual com a identificação do elemento e pino da ponta oposta (destino)", "status bar tip"));
 	connect(m_conductor_numerate_ends, &QAction::triggered, [this]() {
 		if (DiagramView *dv = currentDiagramView())
 			dv->numerateConductorEnds();
@@ -538,6 +538,30 @@ void QETDiagramEditor::setUpActions()
 		{
 			WiringListExport wle(project, this);
 			wle.toCsv();
+		}
+	});
+
+	// Print the wire-end (ferrule) tag list
+	m_project_print_wire_tags = new QAction(QET::Icons::DocumentSpreadsheet, tr("Imprimir lista de marcação de fios"), this);
+	m_project_print_wire_tags->setStatusTip(tr("Gera uma lista para impressão com a marcação de cada ponta de fio (etiquetas/ferrolhos)", "status bar tip"));
+	connect(m_project_print_wire_tags, &QAction::triggered, [this]() {
+		QETProject *project = this->currentProject();
+		if (project)
+		{
+			WiringListExport wle(project, this);
+			wle.printTagList();
+		}
+	});
+
+	// Export just the tag text, one per line, for label-printer software
+	m_project_export_wire_tags_csv = new QAction(QET::Icons::DocumentSpreadsheet, tr("Exportar tags dos fios para impressora de etiquetas"), this);
+	m_project_export_wire_tags_csv->setStatusTip(tr("CSV enxuto (uma coluna, uma linha por ponta) pronto para importar em software de impressora de ferrolho", "status bar tip"));
+	connect(m_project_export_wire_tags_csv, &QAction::triggered, [this]() {
+		QETProject *project = this->currentProject();
+		if (project)
+		{
+			WiringListExport wle(project, this);
+			wle.toTagListCsv();
 		}
 	});
 
@@ -936,6 +960,8 @@ void QETDiagramEditor::setUpMenu()
 	menu_project -> addAction(m_terminal_strip_dialog);
 	menu_project -> addAction(m_project_terminalBloc);
 	menu_project -> addAction(m_project_export_wiring_list);
+	menu_project -> addAction(m_project_print_wire_tags);
+	menu_project -> addAction(m_project_export_wire_tags_csv);
 	menu_project -> addAction(m_terminal_numbering);
 #ifdef QET_EXPORT_PROJECT_DB
 	menu_project -> addSeparator();
@@ -1732,6 +1758,8 @@ void QETDiagramEditor::slot_updateActions()
 	m_project_export_conductor_num-> setEnabled(opened_project);
 	m_terminal_strip_dialog       -> setEnabled(editable_project);
 	m_project_export_wiring_list  -> setEnabled(opened_project);
+	m_project_print_wire_tags     -> setEnabled(opened_project);
+	m_project_export_wire_tags_csv -> setEnabled(opened_project);
 	m_terminal_numbering          -> setEnabled(editable_project);
 #ifdef QET_EXPORT_PROJECT_DB
 	m_export_project_db           -> setEnabled(editable_project);

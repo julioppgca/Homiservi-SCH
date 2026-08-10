@@ -1522,7 +1522,17 @@ void Conductor::calculateEndLabelsPosition()
 				const QList<DynamicElementTextItem *> texts = element->dynamicTextItems();
 				if (!texts.isEmpty())
 				{
-					QRectF text_rect = texts.first()->sceneBoundingRect();
+					DynamicElementTextItem *report_text = texts.first();
+						// Shrink the renvoi's own auto-generated report
+						// number (out/in page arrows) to match the small,
+						// unobtrusive style used for wire-end labels.
+					if (report_text->font().pointSize() != 5)
+					{
+						QFont report_font = report_text->font();
+						report_font.setPointSize(5);
+						report_text->setFont(report_font);
+					}
+					QRectF text_rect = report_text->sceneBoundingRect();
 					item -> setPos(text_rect.topRight() + QPointF(4, 0));
 					return;
 				}

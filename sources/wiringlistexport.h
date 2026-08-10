@@ -51,7 +51,36 @@ public:
     */
     QString toCsvString() const;
 
+    /**
+        Open a print preview for the wire-end (ferrule) tag list: one row
+        per conductor END (two rows per wire), each showing that end's own
+        position and the target-designation tag to print/crimp there - the
+        same "-<element><pin>" text shown on screen by ConductorEndLabeling.
+    */
+    void printTagList();
+    /**
+        Build the tag-list report as an HTML table and return it as a
+        string (no GUI). Used by printTagList() and available for testing.
+    */
+    QString toTagListHtml() const;
+
+    /**
+        Save a minimal, single-column CSV with just the printed tag text -
+        one row per conductor end, no other fields - ready to feed into
+        ferrule/label-printer software (Phoenix Contact, Weidmüller,
+        HellermannTyton, Brady...), which typically expect exactly this
+        shape rather than the general documentation CSV from toCsv().
+    */
+    void toTagListCsv();
+    /**
+        Build the single-column tag CSV and return it as a string (no GUI).
+        Used by toTagListCsv() and available for testing.
+    */
+    QString toTagListCsvString() const;
+
 private:
+    static QString formatTag(const QString &label, const QString &terminal);
+
     QETProject *m_project;
     QWidget *m_parent;
 
@@ -61,6 +90,14 @@ private:
 
     QMap<QString, ElementInfo> collectElementsInfo(const QDomElement &root) const;
     QList<ConductorData> collectConductors(const QDomElement &root) const;
+    /**
+        Shared by toCsvString() and toTagListHtml(): parses the project XML,
+        merges each pair of "half-wires" that cross a folio through a
+        report/off-page connector into one logical conductor between the
+        two real devices, and returns the resulting deduplicated, sorted
+        list.
+    */
+    QList<ConductorData> buildUniqueConductorList() const;
 };
 
 #endif // WIRINGLISTEXPORT_H

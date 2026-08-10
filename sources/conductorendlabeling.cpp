@@ -26,15 +26,15 @@
 
 /**
 	@param terminal a terminal belonging to some element on the diagram
-	@return the wire-end identifier for @p terminal, e.g. a terminal named
-	"A1" on element labeled "K1" returns "-K1A1". If @p terminal belongs to
-	a report/off-page connector ("renvoi") element, its own label is
-	meaningless for physical marking (it's not a real device) - and the
-	renvoi symbol already shows its own page cross-reference right there,
-	so nothing is added here beyond what applyToConductor() appends
-	(the conductor's tension, if any). Returns an empty string if the
-	terminal has no parent element (shouldn't happen for a terminal that
-	is actually wired).
+	@return the "target designation" identifier for @p terminal, EPLAN
+	"Ziel" style, e.g. a terminal named "A1" on element labeled "K1"
+	returns "-K1A1". If @p terminal belongs to a report/off-page connector
+	("renvoi") element, its own label is meaningless as a target (it's not
+	a real device), so the folio its linked counterpart lives on is used
+	instead, e.g. "→F2" - genuinely useful here since this function is used
+	to describe *the far end* at the other, real-device end of the wire.
+	Returns an empty string if the terminal has no parent element
+	(shouldn't happen for a terminal that is actually wired).
 */
 QString ConductorEndLabeling::terminalCrossRefId(Terminal *terminal)
 {
@@ -44,21 +44,31 @@ QString ConductorEndLabeling::terminalCrossRefId(Terminal *terminal)
 	Element *element = terminal->parentElement();
 
 	if (element->linkType() & Element::AllReport)
-		return QString();
+	{
+		if (!element->linkedElements().isEmpty())
+		{
+			Element *counterpart = element->linkedElements().first();
+			if (Diagram *target_diagram = qobject_cast<Diagram *>(counterpart->scene()))
+			{
+				const QString folio = target_diagram->border_and_titleblock.finalfolio();
+				if (!folio.isEmpty())
+					return QStringLiteral("→F") + folio;
+			}
+		}
+		return QStringLiteral("→?");
+	}
 
 	return "-" + element->actualLabel() + terminal->name();
 }
 
 /**
 	@param conductor the conductor to (re)label
-	Sets textItemEnd1() to terminal1's own cross-reference id and
-	textItemEnd2() to terminal2's own id — each physical wire end is marked
-	with *where that same end plugs in*, e.g. the free end that plugs into
-	-K1/A1 is tagged "-K1A1". This is the standard ferrule-marking
-	convention: it tells whoever holds that loose wire end where it belongs,
-	which is the whole point once the two ends are printed on separate
-	ferrules/labels and no longer visually next to each other on a diagram.
-	Only pushes an undo command for an end whose text actually changes.
+	Sets textItemEnd1() to terminal2's cross-reference id (what's on the
+	*other* end, seen from terminal1) and textItemEnd2() to terminal1's id
+	(seen from terminal2) — EPLAN "Ziel" (target designation) convention:
+	each end shows where the wire *goes*, e.g. the end plugged into -D1/2,
+	whose far end is -K1/A1, is tagged "-K1A1". Only pushes an undo command
+	for an end whose text actually changes.
 */
 void ConductorEndLabeling::applyToConductor(Conductor *conductor)
 {
@@ -69,14 +79,13 @@ void ConductorEndLabeling::applyToConductor(Conductor *conductor)
 	if (!diagram)
 		return;
 
-	QString label_end1 = terminalCrossRefId(conductor->terminal1);
-	QString label_end2 = terminalCrossRefId(conductor->terminal2);
+	QString label_end1 = terminalCrossRefId(conductor->terminal2);
+	QString label_end2 = terminalCrossRefId(conductor->terminal1);
 
-		// A wire crossing folios (through a report/renvoi element) loses its
-		// local context on the far page, so surface the conductor's tension
-		// there when the user filled it in - the renvoi symbol itself
-		// already shows the page cross-reference, so this is the only thing
-		// added on that end (e.g. a 24V supply feed shows just "24V").
+		// At the renvoi's own end (not the real-device end), the far-side
+		// folio pointer would just repeat what the renvoi symbol itself
+		// already shows on screen - show the conductor's tension there
+		// instead, when the user filled it in (e.g. a 24V supply feed).
 	const QString tension = conductor->properties().m_tension_protocol.trimmed();
 	if (!tension.isEmpty())
 	{

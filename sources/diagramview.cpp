@@ -1036,9 +1036,10 @@ void DiagramView::resetConductors()
 
 /**
 	@brief DiagramView::numerateConductorEnds
-	Apply wire-end (ferrule) marking to every conductor of the current page:
-	each end is labeled with its own identifier ("-<element label><pin
-	name>"). The whole batch is pushed as a single undo step.
+	Apply target-designation marking (EPLAN "Ziel" style) to every conductor
+	of the current page: each end is labeled with the identifier ("-<element
+	label><pin name>") of whatever is wired to the opposite end. The whole
+	batch is pushed as a single undo step.
 */
 void DiagramView::numerateConductorEnds()
 {

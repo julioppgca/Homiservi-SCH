@@ -5,6 +5,10 @@
 #include <QTextStream>
 #include <QDomDocument>
 #include <QFile>
+#include <QTextDocument>
+#include <QPrinter>
+#include <QPrintPreviewDialog>
+#include <QPageLayout>
 #include <algorithm>
 
 WiringListExport::WiringListExport(QETProject *project, QWidget *parent) :
@@ -177,12 +181,12 @@ void WiringListExport::toCsv()
     QMessageBox::information(m_parent, tr("Export réussi"), tr("Le plan de câblage a été exporté avec succès !"));
 }
 
-QString WiringListExport::toCsvString() const
+QList<ConductorData> WiringListExport::buildUniqueConductorList() const
 {
-    if (!m_project) return QString();
+    if (!m_project) return {};
 
     QDomDocument doc = m_project->toXml();
-    if (doc.isNull()) return QString();
+    if (doc.isNull()) return {};
 
     QSet<QString> conductorDefinitionTypes;
     QDomElement rootElem = doc.documentElement();
@@ -364,6 +368,14 @@ QString WiringListExport::toCsvString() const
         return a.terminalname2 < b.terminalname2;
     });
 
+    return uniqueConductors;
+}
+
+QString WiringListExport::toCsvString() const
+{
+    const QList<ConductorData> uniqueConductors = buildUniqueConductorList();
+    if (uniqueConductors.isEmpty()) return QString();
+
     QString csv;
     QTextStream out(&csv);
     out << tr("Page", "Wiring list CSV header") << ";"
@@ -389,4 +401,124 @@ QString WiringListExport::toCsvString() const
     }
 
     return csv;
+}
+
+QString WiringListExport::formatTag(const QString &label, const QString &terminal)
+{
+    return QStringLiteral("-") + label + terminal;
+}
+
+QString WiringListExport::toTagListHtml() const
+{
+    const QList<ConductorData> uniqueConductors = buildUniqueConductorList();
+    if (uniqueConductors.isEmpty()) return QString();
+
+    QString html;
+    QTextStream out(&html);
+    out << "<html><head><style>"
+           "body { font-family: sans-serif; font-size: 9pt; }"
+           "h2 { font-size: 12pt; }"
+           "table { border-collapse: collapse; width: 100%; }"
+           "th, td { border: 1px solid #888888; padding: 3px 6px; text-align: left; }"
+           "th { background-color: #dddddd; }"
+           "</style></head><body>";
+    out << "<h2>" << tr("Lista de marcação de fios") << " — " << m_project->title() << "</h2>";
+    out << "<table><thead><tr>"
+           "<th>" << tr("Folha") << "</th>"
+           "<th>" << tr("Ponta (local)") << "</th>"
+           "<th>" << tr("Marcação a imprimir") << "</th>"
+           "<th>" << tr("Tensão/Protocolo") << "</th>"
+           "<th>" << tr("Cor do fio") << "</th>"
+           "<th>" << tr("Seção do fio") << "</th>"
+           "<th>" << tr("Função") << "</th>"
+           "</tr></thead><tbody>";
+
+        // One row per conductor END: each row is what goes on the physical
+        // ferrule/tag for that end - "local" says where this specific end
+        // plugs in, "target" is the printed marking, i.e. the identifier of
+        // the OTHER end (EPLAN "Ziel"/target-designation convention, same
+        // as the on-screen labels from ConductorEndLabeling).
+    for (const ConductorData &c : uniqueConductors) {
+        const QString local1 = formatTag(c.element1_label, c.terminalname1);
+        const QString local2 = formatTag(c.element2_label, c.terminalname2);
+
+        out << "<tr><td>" << c.folio << "</td><td>" << local1 << "</td><td>" << local2 << "</td>"
+            << "<td>" << c.tension_protocol << "</td><td>" << c.conductor_color << "</td>"
+            << "<td>" << c.conductor_section << "</td><td>" << c.function << "</td></tr>";
+        out << "<tr><td>" << c.folio << "</td><td>" << local2 << "</td><td>" << local1 << "</td>"
+            << "<td>" << c.tension_protocol << "</td><td>" << c.conductor_color << "</td>"
+            << "<td>" << c.conductor_section << "</td><td>" << c.function << "</td></tr>";
+    }
+
+    out << "</tbody></table></body></html>";
+    return html;
+}
+
+void WiringListExport::printTagList()
+{
+    if (!m_project) return;
+
+    const QString html = toTagListHtml();
+    if (html.isEmpty()) {
+        QMessageBox::warning(m_parent, tr("Erro"), tr("Não foi possível ler a estrutura do projeto, ou não há condutores para listar."));
+        return;
+    }
+
+    QTextDocument document;
+    document.setHtml(html);
+
+    QPrinter printer(QPrinter::HighResolution);
+    printer.setPageOrientation(QPageLayout::Landscape);
+
+    QPrintPreviewDialog preview(&printer, m_parent);
+    preview.setWindowTitle(tr("Lista de marcação de fios"));
+    preview.resize(1000, 700);
+    connect(&preview, &QPrintPreviewDialog::paintRequested, &preview, [&document](QPrinter *p) {
+        document.print(p);
+    });
+    preview.exec();
+}
+
+QString WiringListExport::toTagListCsvString() const
+{
+    const QList<ConductorData> uniqueConductors = buildUniqueConductorList();
+    if (uniqueConductors.isEmpty()) return QString();
+
+    QString csv;
+    QTextStream out(&csv);
+    for (const ConductorData &c : uniqueConductors) {
+        out << formatTag(c.element1_label, c.terminalname1) << "\n";
+        out << formatTag(c.element2_label, c.terminalname2) << "\n";
+    }
+    return csv;
+}
+
+void WiringListExport::toTagListCsv()
+{
+    if (!m_project) return;
+
+    const QString csv = toTagListCsvString();
+    if (csv.isEmpty()) {
+        QMessageBox::warning(m_parent, tr("Erro"), tr("Não foi possível ler a estrutura do projeto, ou não há condutores para listar."));
+        return;
+    }
+
+    QFileDialog dialog(m_parent);
+    dialog.setAcceptMode(QFileDialog::AcceptSave);
+    dialog.setWindowTitle(tr("Exportar tags para impressora de etiquetas"));
+    dialog.setDefaultSuffix("csv");
+    dialog.setNameFilter(tr("Arquivos CSV (*.csv)"));
+
+    if (dialog.exec() != QDialog::Accepted) return;
+    const QString fileName = dialog.selectedFiles().first();
+
+    QFile file(fileName);
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        QMessageBox::warning(m_parent, tr("Erro"), tr("Não foi possível abrir o arquivo para escrita."));
+        return;
+    }
+    QTextStream out(&file);
+    out << csv;
+    file.close();
+    QMessageBox::information(m_parent, tr("Exportação concluída"), tr("As tags foram exportadas com sucesso!"));
 }

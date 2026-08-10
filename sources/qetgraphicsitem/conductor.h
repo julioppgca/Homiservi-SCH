@@ -77,11 +77,12 @@ class Conductor : public QGraphicsObject
 		int type() const override { return Type; }
 		Diagram *diagram() const;
 		ConductorTextItem *textItem() const;
-			/// Wire-end (ferrule) label anchored near terminal1, showing
-			/// terminal1's own identifier ("-<label><pin>").
+			/// Target-designation label (EPLAN "Ziel" style) anchored near
+			/// terminal1, showing terminal2's identifier ("-<label><pin>")
+			/// - i.e. where this end of the wire goes.
 		ConductorTextItem *textItemEnd1() const;
-			/// Wire-end (ferrule) label anchored near terminal2, showing
-			/// terminal2's own identifier.
+			/// Target-designation label anchored near terminal2, showing
+			/// terminal1's identifier.
 		ConductorTextItem *textItemEnd2() const;
 		void calculateEndLabelsPosition();
 		void updatePath(const QRectF & = QRectF());
@@ -193,8 +194,9 @@ class Conductor : public QGraphicsObject
 		ConductorProperties m_properties;
 			/// Text input for non simple, non-singleline conductors
 		ConductorTextItem *m_text_item;
-			/// Wire-end (ferrule) labels, one anchored near each terminal,
-			/// each showing that same terminal's own element+pin identifier
+			/// Target-designation labels (EPLAN "Ziel" style), one anchored
+			/// near each terminal, each showing the *opposite* terminal's
+			/// element+pin identifier - where that end of the wire goes
 		ConductorTextItem *m_text_item_end1;
 		ConductorTextItem *m_text_item_end2;
 			/// Segments composing the conductor
