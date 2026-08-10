@@ -130,6 +130,7 @@ class DiagramView : public QGraphicsView
 		void adjustSceneRect();
 		void updateWindowTitle();
 		void resetConductors();
+		void numerateConductorEnds();
 	
 	private slots:
 		void adjustGridToZoom();

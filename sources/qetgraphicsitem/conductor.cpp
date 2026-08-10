@@ -28,6 +28,7 @@
 #include "../qetgraphicsitem/terminal.h"
 #include "../ui/conductorpropertiesdialog.h"
 #include "conductortextitem.h"
+#include "dynamicelementtextitem.h"
 #include "element.h"
 #include "../QetGraphicsItemModeler/qetgraphicshandleritem.h"
 #include "../utils/qetutils.h"
@@ -82,6 +83,8 @@ Conductor::Conductor(Terminal *p1, Terminal* p2) :
 	terminal2(p2),
 	m_mouse_over(false),
 	m_text_item(nullptr),
+	m_text_item_end1(nullptr),
+	m_text_item_end2(nullptr),
 	segments(nullptr),
 	m_moving_segment(false),
 	modified_path(false),
@@ -125,6 +128,11 @@ Conductor::Conductor(Terminal *p1, Terminal* p2) :
 		// Add the text field
 	m_text_item = new ConductorTextItem(m_properties.text, this);
 	connect(m_text_item, &ConductorTextItem::textEdited, this, &Conductor::displayedTextChanged);
+
+		// Add the two cross-reference end labels (DIN-style wire marking).
+		// Left empty by default; populated by the batch numbering action.
+	m_text_item_end1 = new ConductorTextItem(QString(), this);
+	m_text_item_end2 = new ConductorTextItem(QString(), this);
 
 		//Set the default conductor properties.
 	if (p1->diagram())
@@ -171,6 +179,7 @@ void Conductor::updatePath(const QRectF &rect) {
 	else
 		generateConductorPath(p1, terminal1 -> orientation(), p2, terminal2 -> orientation());
 	calculateTextItemPosition();
+	calculateEndLabelsPosition();
 	QGraphicsObject::update(rect);
 }
 
@@ -596,6 +605,22 @@ ConductorTextItem *Conductor::textItem() const
 }
 
 /**
+	@return the cross-reference label anchored near terminal1
+*/
+ConductorTextItem *Conductor::textItemEnd1() const
+{
+	return(m_text_item_end1);
+}
+
+/**
+	@return the cross-reference label anchored near terminal2
+*/
+ConductorTextItem *Conductor::textItemEnd2() const
+{
+	return(m_text_item_end2);
+}
+
+/**
 	Methode de validation d'element XML
 	@param e Un element XML sense represente un Conducteur
 	@return true si l'element XML represente bien un Conducteur ; false sinon
@@ -1011,6 +1036,30 @@ bool Conductor::fromXml(QDomElement &dom_element)
 	bool retval = pathFromXml(dom_element);
 
 	m_text_item -> fromXml(dom_element);
+
+		// Load the two cross-reference end labels, if present (additive,
+		// backward-compatible: absent on files saved before this feature).
+	auto loadEndLabel = [&dom_element](ConductorTextItem *item, const QString &prefix)
+	{
+		if (!item)
+			return;
+		if (dom_element.hasAttribute(prefix + "text"))
+			item -> setPlainText(dom_element.attribute(prefix + "text"));
+		if (dom_element.hasAttribute(prefix + "userx"))
+		{
+			item -> setPos(dom_element.attribute(prefix + "userx").toDouble(),
+						   dom_element.attribute(prefix + "usery").toDouble());
+			item -> forceMovedByUser(true);
+		}
+		if (dom_element.hasAttribute(prefix + "rotation"))
+		{
+			item -> setRotation(dom_element.attribute(prefix + "rotation").toDouble());
+			item -> forceRotateByUser(true);
+		}
+	};
+	loadEndLabel(m_text_item_end1, "end1_");
+	loadEndLabel(m_text_item_end2, "end2_");
+
 	ConductorProperties pr;
 	pr.fromXml(dom_element);
 
@@ -1107,6 +1156,24 @@ QDomElement Conductor::toXml(QDomDocument &dom_document,
 	}
 	if(m_text_item->wasRotatedByUser())
 		dom_element.setAttribute("rotation", QString::number(m_text_item->rotation()));
+
+		// Export the two cross-reference end labels, only when they actually
+		// hold a value, to avoid bloating the XML for projects not using them.
+	auto saveEndLabel = [&dom_element](ConductorTextItem *item, const QString &prefix)
+	{
+		if (!item || item->toPlainText().isEmpty())
+			return;
+		dom_element.setAttribute(prefix + "text", item->toPlainText());
+		if (item->wasMovedByUser())
+		{
+			dom_element.setAttribute(prefix + "userx", QString::number(item->pos().x()));
+			dom_element.setAttribute(prefix + "usery", QString::number(item->pos().y()));
+		}
+		if (item->wasRotatedByUser())
+			dom_element.setAttribute(prefix + "rotation", QString::number(item->rotation()));
+	};
+	saveEndLabel(m_text_item_end1, "end1_");
+	saveEndLabel(m_text_item_end2, "end2_");
 
 	return(dom_element);
 }
@@ -1421,6 +1488,72 @@ void Conductor::calculateTextItemPosition()
 }
 
 /**
+	@brief Conductor::calculateEndLabelsPosition
+	Anchor the two cross-reference end labels (m_text_item_end1 near terminal1,
+	m_text_item_end2 near terminal2) right next to their respective terminal
+	dock point, offset away from the terminal so they don't overlap it.
+	A label the user already dragged manually (wasMovedByUser()) is left alone.
+*/
+void Conductor::calculateEndLabelsPosition()
+{
+	if (!m_text_item_end1 || !m_text_item_end2 || !diagram())
+		return;
+
+		// Sync visibility with the diagram-wide display setting (labels
+		// stay hidden on screen by default; the text itself is always kept
+		// up to date regardless, for the wiring list export).
+	bool show = diagram()->drawConductorEndLabels();
+	m_text_item_end1->setVisible(show);
+	m_text_item_end2->setVisible(show);
+
+	auto positionEndLabel = [](ConductorTextItem *item, Terminal *terminal)
+	{
+		if (!terminal || item->wasMovedByUser())
+			return;
+
+			// On a report/off-page connector ("renvoi"), sit right after its
+			// own auto-generated report number instead of floating near the
+			// terminal dock point: it reads as a natural continuation of
+			// that existing label rather than a separate floating bubble.
+		if (Element *element = terminal->parentElement())
+		{
+			if (element->linkType() & Element::AllReport)
+			{
+				const QList<DynamicElementTextItem *> texts = element->dynamicTextItems();
+				if (!texts.isEmpty())
+				{
+					QRectF text_rect = texts.first()->sceneBoundingRect();
+					item -> setPos(text_rect.topRight() + QPointF(4, 0));
+					return;
+				}
+			}
+		}
+
+		QPointF anchor = terminal->dockConductor();
+		QPointF offset;
+		switch (terminal->orientation())
+		{
+			case Qet::North:
+				offset = QPointF(3, -(item->boundingRect().height() + 2));
+				break;
+			case Qet::South:
+				offset = QPointF(3, 2);
+				break;
+			case Qet::East:
+				offset = QPointF(3, -(item->boundingRect().height() / 2));
+				break;
+			case Qet::West:
+				offset = QPointF(-(item->boundingRect().width() + 3), -(item->boundingRect().height() / 2));
+				break;
+		}
+		item -> setPos(anchor + offset);
+	};
+
+	positionEndLabel(m_text_item_end1, terminal1);
+	positionEndLabel(m_text_item_end2, terminal2);
+}
+
+/**
 	Sauvegarde le profil courant du conducteur pour l'utiliser ulterieurement
 	dans priv_modifieConductor.
 	Save the current conductors profile for later use in priv_modifieConductor.
@@ -1605,6 +1738,24 @@ void Conductor::setProperties(const ConductorProperties &property)
 	font.setPointSize(m_properties.text_size);
 	m_text_item->setFont(font);
 	m_text_item->setColor(m_properties.text_color);
+
+		// Wire-end labels use a small, muted style of their own (not the
+		// conductor's configured text size/color): they're meant to be
+		// unobtrusive on screen even when shown, since their real purpose
+		// is the printed wiring/ferrule list rather than on-screen reading.
+	QFont end_label_font = font;
+	end_label_font.setPointSize(5);
+	const QColor end_label_color(140, 140, 140);
+	if (m_text_item_end1)
+	{
+		m_text_item_end1->setFont(end_label_font);
+		m_text_item_end1->setColor(end_label_color);
+	}
+	if (m_text_item_end2)
+	{
+		m_text_item_end2->setFont(end_label_font);
+		m_text_item_end2->setColor(end_label_color);
+	}
 
 	if (m_properties.type != ConductorProperties::Multi)
 		m_text_item->setVisible(false);

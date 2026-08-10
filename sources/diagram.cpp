@@ -77,6 +77,7 @@ Diagram::Diagram(QETProject *project) :
 	QSettings settings;
 	draw_grid_ = settings.value(QStringLiteral("diagrameditor/grid_display_startup"), true).toBool();
 	draw_guides_ = settings.value(QStringLiteral("diagrameditor/guides_display_startup"), false).toBool();
+	draw_conductor_end_labels_ = settings.value(QStringLiteral("diagrameditor/conductor_end_labels_display_startup"), false).toBool();
 
 	setItemIndexMethod(QGraphicsScene::NoIndex);
 	/* Set to no index,
@@ -2433,6 +2434,23 @@ void Diagram::setDrawTerminalNames(bool dt) {
 */
 void Diagram::setDrawColoredConductors(bool dcc) {
 	draw_colored_conductors_ = dcc;
+}
+
+/**
+	@brief Diagram::setDrawConductorEndLabels
+	Show or hide the per-conductor wire-end (ferrule) labels on screen. The
+	label text itself is unaffected: it stays computed/available for the
+	wiring list export whether or not it's displayed on the diagram.
+	@param dcel true to display the labels, false to hide them
+*/
+void Diagram::setDrawConductorEndLabels(bool dcel) {
+	draw_conductor_end_labels_ = dcel;
+	foreach (Conductor *c, conductors()) {
+		if (ConductorTextItem *e1 = c->textItemEnd1())
+			e1->setVisible(dcel);
+		if (ConductorTextItem *e2 = c->textItemEnd2())
+			e2->setVisible(dcel);
+	}
 }
 
 /**

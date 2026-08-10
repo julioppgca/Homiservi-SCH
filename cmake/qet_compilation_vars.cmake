@@ -162,6 +162,8 @@ set(QET_SRC_FILES
   ${QET_DIR}/sources/bordertitleblock.h
   ${QET_DIR}/sources/conductorautonumerotation.cpp
   ${QET_DIR}/sources/conductorautonumerotation.h
+  ${QET_DIR}/sources/conductorendlabeling.cpp
+  ${QET_DIR}/sources/conductorendlabeling.h
   ${QET_DIR}/sources/conductornumexport.cpp
   ${QET_DIR}/sources/wiringlistexport.h
   ${QET_DIR}/sources/wiringlistexport.cpp

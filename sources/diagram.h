@@ -129,6 +129,9 @@ class Diagram : public QGraphicsScene
 		bool draw_terminals_;
 		bool draw_terminal_names_;
 		bool draw_colored_conductors_;
+			/// Whether the per-conductor wire-end (ferrule) labels are shown
+			/// on screen; false by default to keep the schematic uncluttered.
+		bool draw_conductor_end_labels_;
 
 		QString m_conductors_autonum_name;
 		DiagramEventInterface *m_event_interface;
@@ -231,6 +234,8 @@ class Diagram : public QGraphicsScene
 		void setDrawTerminalNames(bool);
 		bool drawColoredConductors() const;
 		void setDrawColoredConductors(bool);
+		bool drawConductorEndLabels() const;
+		void setDrawConductorEndLabels(bool);
 	
 		QString title() const;
 		bool toPaintDevice(QPaintDevice &, int = -1, int = -1,
@@ -445,6 +450,17 @@ inline bool Diagram::drawTerminalNames() const
 inline bool Diagram::drawColoredConductors() const
 {
 	return(draw_colored_conductors_);
+}
+
+/**
+	@brief Diagram::drawConductorEndLabels
+	@return true if the per-conductor wire-end (ferrule) labels are shown on
+	screen, false otherwise (they're always computed/available for export
+	regardless of this display setting).
+*/
+inline bool Diagram::drawConductorEndLabels() const
+{
+	return(draw_conductor_end_labels_);
 }
 
 #endif

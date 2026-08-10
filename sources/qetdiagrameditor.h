@@ -163,6 +163,7 @@ class QETDiagramEditor : public QETMainWindow
 		QAction
 		*m_edit_diagram_properties, ///< Show a dialog to edit diagram properties
 		*m_conductor_reset,         ///< Reset paths of selected conductors
+		*m_conductor_numerate_ends, ///< Numerate cross-reference end labels of every conductor on the page
 		*m_cut,                     ///< Cut selection to clipboard
 		*m_copy;                    ///< Copy selection to clipboard
 		
@@ -197,6 +198,7 @@ class QETDiagramEditor : public QETMainWindow
 		*m_grey_background,		///< Switch the background color in white or grey
 		*m_draw_grid,			///< Switch the background grid display or not
 		*m_draw_guides = nullptr,	///< Switch the custom guides display or not
+		*m_draw_conductor_end_labels = nullptr,	///< Switch the on-screen display of conductor wire-end labels or not
 		*m_project_edit_properties,	///< Edit the properties of the current project.
 		*m_project_add_diagram,		///< Add a diagram to the current project.
 		*m_remove_diagram_from_project,	///< Delete a diagram from the current project

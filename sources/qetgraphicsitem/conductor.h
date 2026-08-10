@@ -77,6 +77,13 @@ class Conductor : public QGraphicsObject
 		int type() const override { return Type; }
 		Diagram *diagram() const;
 		ConductorTextItem *textItem() const;
+			/// Wire-end (ferrule) label anchored near terminal1, showing
+			/// terminal1's own identifier ("-<label><pin>").
+		ConductorTextItem *textItemEnd1() const;
+			/// Wire-end (ferrule) label anchored near terminal2, showing
+			/// terminal2's own identifier.
+		ConductorTextItem *textItemEnd2() const;
+		void calculateEndLabelsPosition();
 		void updatePath(const QRectF & = QRectF());
 
 		//This method do nothing, it's only made to be used with Q_PROPERTY
@@ -186,6 +193,10 @@ class Conductor : public QGraphicsObject
 		ConductorProperties m_properties;
 			/// Text input for non simple, non-singleline conductors
 		ConductorTextItem *m_text_item;
+			/// Wire-end (ferrule) labels, one anchored near each terminal,
+			/// each showing that same terminal's own element+pin identifier
+		ConductorTextItem *m_text_item_end1;
+		ConductorTextItem *m_text_item_end2;
 			/// Segments composing the conductor
 		ConductorSegment *segments;
 			/// Attributes related to mouse interaction

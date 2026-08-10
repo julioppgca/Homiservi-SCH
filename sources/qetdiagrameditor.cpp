@@ -361,6 +361,14 @@ void QETDiagramEditor::setUpActions()
 			dv->resetConductors();
 	});
 
+		//Numerate conductor wire-end (ferrule) labels for the whole page
+	m_conductor_numerate_ends = new QAction(QET::Icons::ConductorSettings, tr("Numerar as pontas dos fios da página"), this);
+	m_conductor_numerate_ends->setStatusTip(tr("Marca cada ponta dos fios do fólio atual com a identificação do elemento e pino dessa mesma ponta", "status bar tip"));
+	connect(m_conductor_numerate_ends, &QAction::triggered, [this]() {
+		if (DiagramView *dv = currentDiagramView())
+			dv->numerateConductorEnds();
+	});
+
 		//AutoConductor
 	m_auto_conductor = new QAction   (QET::Icons::Autoconnect, tr("Création automatique de conducteur(s)","Tool tip of auto conductor"), this);
 	m_auto_conductor->setStatusTip (tr("Utiliser la création automatique de conducteur(s) quand cela est possible", "Status tip of auto conductor"));
@@ -418,6 +426,20 @@ void QETDiagramEditor::setUpActions()
 		foreach (ProjectView *prjv, this->openedProjects())
 			foreach (Diagram *d, prjv->project()->diagrams()) {
 				d->setDisplayGuides(checked);
+			}
+	});
+
+		// Show or hide the wire-end (ferrule) labels on screen. The labels
+		// are always computed by the numbering action either way; this only
+		// toggles whether they clutter the schematic view.
+	m_draw_conductor_end_labels = new QAction(QET::Icons::ConductorSettings, tr("Mostrar identificação nas pontas dos fios"), this);
+	m_draw_conductor_end_labels->setStatusTip(tr("Exibe ou oculta, no próprio esquema, a identificação de elemento e pino em cada ponta dos fios", "status bar tip"));
+	m_draw_conductor_end_labels->setCheckable(true);
+	m_draw_conductor_end_labels->setChecked(settings.value("diagrameditor/conductor_end_labels_display_startup", false).toBool());
+	connect(m_draw_conductor_end_labels, &QAction::triggered, [this](bool checked) {
+		foreach (ProjectView *prjv, this->openedProjects())
+			foreach (Diagram *d, prjv->project()->diagrams()) {
+				d->setDrawConductorEndLabels(checked);
 			}
 	});
 
@@ -817,12 +839,14 @@ void QETDiagramEditor::setUpToolBar()
 	view_tool_bar -> addSeparator();
 	view_tool_bar -> addAction(m_draw_grid);
 	view_tool_bar -> addAction(m_draw_guides);
+	view_tool_bar -> addAction(m_draw_conductor_end_labels);
 	view_tool_bar -> addAction (m_grey_background);
 	view_tool_bar -> addSeparator();
 	view_tool_bar -> addActions(m_zoom_action_toolBar);
 
 	diagram_tool_bar -> addAction (m_edit_diagram_properties);
 	diagram_tool_bar -> addAction (m_conductor_reset);
+	diagram_tool_bar -> addAction (m_conductor_numerate_ends);
 	diagram_tool_bar -> addAction (m_auto_conductor);
 	diagram_tool_bar -> addAction (m_auto_break_conductor);
 
@@ -887,6 +911,7 @@ void QETDiagramEditor::setUpMenu()
 	menu_edition -> addActions(m_selection_actions_group.actions());
 	menu_edition -> addSeparator();
 	menu_edition -> addAction(m_conductor_reset);
+	menu_edition -> addAction(m_conductor_numerate_ends);
 	menu_edition -> addSeparator();
 	menu_edition -> addAction(m_edit_diagram_properties);
 	menu_edition -> addActions(m_row_column_actions_group.actions());
@@ -936,6 +961,7 @@ void QETDiagramEditor::setUpMenu()
 	menu_affichage -> addSeparator();
 	menu_affichage -> addAction(m_draw_grid);
 	menu_affichage -> addAction(m_draw_guides);
+	menu_affichage -> addAction(m_draw_conductor_end_labels);
 	menu_affichage -> addAction(m_grey_background);
 	menu_affichage -> addSeparator();
 	menu_affichage -> addActions(m_zoom_actions_group.actions());
@@ -1756,6 +1782,7 @@ void QETDiagramEditor::slot_updateComplexActions()
 	{
 		QList <QAction *> action_list;
 		action_list << m_conductor_reset
+			    << m_conductor_numerate_ends
 			    << m_find_element
 			    << m_cut
 			    << m_copy
@@ -1777,6 +1804,7 @@ void QETDiagramEditor::slot_updateComplexActions()
 	//Number of selected conductors
 	int selected_conductors_count = diagram_->selectedConductors().count();
 	m_conductor_reset->setEnabled(!ro && selected_conductors_count);
+	m_conductor_numerate_ends->setEnabled(!ro);
 
 	// number of selected elements
 	int selected_elements_count = dc.count(DiagramContent::Elements);

@@ -16,6 +16,7 @@
 	along with QElectroTech.  If not, see <http://www.gnu.org/licenses/>.
 */
 #include "diagramview.h"
+#include "conductorendlabeling.h"
 #include "qetproject.h"
 #include "QPropertyUndoCommand/qpropertyundocommand.h"
 #include "diagramcommands.h"
@@ -1031,6 +1032,25 @@ void DiagramView::resetConductors()
 
 	if (conductors_and_profiles.isEmpty()) return;
 	m_diagram -> undoStack().push(new ResetConductorCommand(conductors_and_profiles));
+}
+
+/**
+	@brief DiagramView::numerateConductorEnds
+	Apply wire-end (ferrule) marking to every conductor of the current page:
+	each end is labeled with its own identifier ("-<element label><pin
+	name>"). The whole batch is pushed as a single undo step.
+*/
+void DiagramView::numerateConductorEnds()
+{
+	if (!m_diagram || m_diagram -> isReadOnly()) return;
+
+	const QList<Conductor *> conductors = m_diagram -> conductors();
+	if (conductors.isEmpty()) return;
+
+	m_diagram -> undoStack().beginMacro(tr("Numerar as pontas dos fios"));
+	for (Conductor *conductor : conductors)
+		ConductorEndLabeling::applyToConductor(conductor);
+	m_diagram -> undoStack().endMacro();
 }
 
 /**
