@@ -21,6 +21,8 @@
 #include "../qetproject.h"
 #include "templatescollection.h"
 
+#include <QRegularExpressionValidator>
+
 /**
 	@brief TitleBlockTemplateLocationSaver::TitleBlockTemplateLocationSaver
 	Constructor
@@ -80,6 +82,12 @@ void TitleBlockTemplateLocationSaver::setLocation(const TitleBlockTemplateLocati
 void TitleBlockTemplateLocationSaver::init()
 {
 	new_name_ = new QLineEdit();
+		// Reject path separators: an unsanitized name (e.g. containing "/")
+		// turns the save target into a non-existent subdirectory, which
+		// fails to write silently and later confuses the user into thinking
+		// the save-as dialog is stuck re-asking for a name (see saveAs() in
+		// qettemplateeditor.cpp for the full failure chain this prevents).
+	new_name_ -> setValidator(new QRegularExpressionValidator(QRegularExpression("[^/\\\\]*"), new_name_));
 	connect(templates_, SIGNAL(currentIndexChanged(int)), this, SLOT(updateNewName()));
 	form_layout_ -> addRow(tr("ou nouveau nom", "used in save as form"), new_name_);
 	updateTemplates();

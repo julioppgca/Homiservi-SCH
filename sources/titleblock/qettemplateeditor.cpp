@@ -774,7 +774,21 @@ bool QETTitleBlockTemplateEditor::saveAs(const TitleBlockTemplateLocation &locat
 	elmt.setAttribute("name", location.name());
 	doc.appendChild(elmt);
 
-	collection -> setTemplateXmlDescription(location.name(), elmt);
+		// setTemplateXmlDescription()'s success MUST be checked: if the write
+		// silently fails (e.g. invalid characters in the name turning the
+		// target path into a non-existent subdirectory), and this is treated
+		// as success anyway, the next Save wrongly detects the never-created
+		// file as "not writable" and bounces back into the save-as name
+		// dialog - which reads to the user as "it keeps asking for the name
+		// again" instead of a clear error.
+	if (!collection -> setTemplateXmlDescription(location.name(), elmt)) {
+		QET::QetMessageBox::warning(
+			this,
+			tr("Erro ao salvar", "dialog title"),
+			tr("Não foi possível salvar o modelo \"%1\". Verifique se o nome não contém caracteres inválidos (como / ou \\) e se você tem permissão de escrita no local escolhido.").arg(location.name())
+		);
+		return(false);
+	}
 
 	opened_from_file_ = false;
 	location_ = location;

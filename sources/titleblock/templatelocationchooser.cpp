@@ -137,7 +137,15 @@ void TitleBlockTemplateLocationChooser::updateCollections()
 	int index = 0;
 	foreach(TitleBlockTemplatesCollection *collection,
 			QETApp::availableTitleBlockTemplatesCollections()) {
-		collections_ -> addItem(collection -> title());
+			// Flag read-only collections (typically the system-wide
+			// "common" one, e.g. installed under /usr/local and owned by
+			// root) directly in the label: picking one to save into would
+			// otherwise fail with a permission error that's easy to
+			// mistake for a bug in the save-as flow itself.
+		QString label = collection -> title();
+		if (collection -> isReadOnly())
+			label += tr(" (somente leitura)", "title block collection combo box entry suffix");
+		collections_ -> addItem(label);
 		collections_index_.insert(index, collection);
 		++ index;
 	}
