@@ -17,8 +17,10 @@
 */
 #include "elementsmover.h"
 #include "qetproject.h"
+#include "autobreakconductor.h"
 #include "conductorautonumerotation.h"
 #include "diagram.h"
+#include "itemgroups.h"
 #include "qetgraphicsitem/conductor.h"
 #include "qetgraphicsitem/conductortextitem.h"
 #include "qetgraphicsitem/diagramimageitem.h"
@@ -60,6 +62,8 @@ bool ElementsMover::isReady() const
 */
 int ElementsMover::beginMovement(Diagram *diagram, QGraphicsItem *driver_item)
 {
+	m_driver_held = false;
+
 		// They must be no movement in progress
 	if (m_movement_running) return(-1);
 
@@ -85,6 +89,17 @@ int ElementsMover::beginMovement(Diagram *diagram, QGraphicsItem *driver_item)
 	m_moved_content = DiagramContent(diagram);
 	m_moved_content.removeNonMovableItems();
 
+		//A grouped driver left out of the move belongs to a group that one
+		//locked member holds in place: it stays with the group
+	m_driver_held = driver_item
+			&& !ItemGroups::groupOf(driver_item).isNull()
+			&& !m_moved_content.items().contains(driver_item);
+	if (m_driver_held && m_status_bar) {
+		m_status_bar->showMessage(QObject::tr(
+			"Ce groupe ne peut pas être déplacé : "
+			"la position d'un de ses éléments est verrouillée."));
+	}
+
 		//Remove element text and text group, if the parent element is selected.
 	const auto element_text{m_moved_content.m_element_texts};
 	for(const auto &deti : element_text) {
@@ -106,6 +121,17 @@ int ElementsMover::beginMovement(Diagram *diagram, QGraphicsItem *driver_item)
 	m_movement_running = true;
 
 	return(m_moved_content.count());
+}
+
+/**
+	@brief ElementsMover::holds
+	@return true if @a item is the item the user drags and it must not move:
+	it is in a group that a locked member keeps in place (#1146). Each item
+	that drives a movement asks before moving itself.
+*/
+bool ElementsMover::holds(const QGraphicsItem *item) const
+{
+	return m_driver_held && item && item == m_movement_driver;
 }
 
 /**
@@ -178,6 +204,19 @@ void ElementsMover::endMovement()
 		undo_object->setText(quc->text());
 	}
 
+		//Auto-break conductors: for each moved element, break any conductor
+		//whose path passes through a terminal dock point, and reconnect through
+		//the element.  The element is already at its final position on screen.
+	if (m_diagram->project()->autoBreakConductor())
+	{
+		QList<Conductor *> conductors_handled;
+		QSet<Terminal *> used_terminals;
+		for (Element *e : m_moved_content.m_elements) {
+			autoBreakConductors(m_diagram, e, undo_object,
+					    conductors_handled, used_terminals);
+		}
+	}
+
 		//There is only one element moved, and project authorize auto conductor,
 		//we try auto connection of conductor;
 	typedef DiagramContent dc;
@@ -241,7 +280,8 @@ void ElementsMover::endMovement()
 	m_movement_running = false;
 	m_moved_content.clear();
 
-	if (m_status_bar) {
+		//Keep saying why a held group did not move
+	if (m_status_bar && !m_driver_held) {
 		m_status_bar->clearMessage();
 	}
 }

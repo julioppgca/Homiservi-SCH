@@ -279,6 +279,12 @@ private:
 
 };
 
+/**
+	@brief The MirrorElementsCommand class
+	Mirror the selected parts horizontally (left <-> right) across the
+	vertical line through the center of the selection, so the selection
+	keeps its place in the scene.
+*/
 class MirrorElementsCommand : public ElementEditionCommand
 {
 public:
@@ -288,8 +294,15 @@ public:
 private:
 	ElementScene *m_scene =nullptr;
 	QList<QGraphicsItem*> m_items;
+	qreal m_axis_x = 0;
 };
 
+/**
+	@brief The FlipElementsCommand class
+	Flip the selected parts vertically (top <-> bottom) across the
+	horizontal line through the center of the selection, so the selection
+	keeps its place in the scene.
+*/
 class FlipElementsCommand : public ElementEditionCommand
 {
 public:
@@ -299,6 +312,40 @@ public:
 private:
 	ElementScene *m_scene =nullptr;
 	QList<QGraphicsItem*> m_items;
+	qreal m_axis_y = 0;
+};
+
+/**
+	@brief The ScaleElementCommand class
+	Scales the whole element about its hotspot by a fixed factor, as one
+	undo step. Drawn parts are scaled the way the resize handles scale them;
+	texts, dynamic text fields and terminals are set explicitly, so their
+	font sizes, terminal name offsets and line end sizes follow too, and a
+	terminal lands exactly on its new position.
+*/
+class ScaleElementCommand : public ElementEditionCommand
+{
+	public:
+		ScaleElementCommand(ElementScene *scene, qreal factor,
+							bool scale_text, QUndoCommand *parent = nullptr);
+		void undo() override;
+		void redo() override;
+
+	private:
+		struct PropertyChange {
+			QObject *object;
+			QByteArray name;
+			QVariant before;
+			QVariant after;
+		};
+		void addChange(QObject *object, const char *name, const QVariant &after);
+		void scaleGeometry(qreal from, qreal to);
+
+		qreal m_factor;
+			/// Parts scaled through handleUserTransformation()
+		QList<CustomElementPart *> m_geometry_parts;
+			/// Values set directly, in the order they are applied
+		QList<PropertyChange> m_changes;
 };
 
 #endif

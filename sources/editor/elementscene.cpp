@@ -17,10 +17,13 @@
 */
 #include "elementscene.h"
 
+#include "../ElementsCollection/terminaluuids.h"
+#include "../borderproperties.h"
 #include "../NameList/ui/namelistdialog.h"
 #include "../NameList/ui/namelistwidget.h"
 #include "../QPropertyUndoCommand/qpropertyundocommand.h"
 #include "../QetGraphicsItemModeler/qetgraphicshandleritem.h"
+#include "../QetGraphicsItemModeler/textresizehandles.h"
 #include "editorcommands.h"
 #include "elementcontent.h"
 #include "elementprimitivedecorator.h"
@@ -69,10 +72,51 @@ ElementScene::ElementScene(QETElementEditor *editor, QObject *parent) :
 	initPasteArea();
 	m_undo_stack.setClean();
 	m_decorator_lock = new QMutex();
-	connect(&m_undo_stack, SIGNAL(indexChanged(int)),
-		this, SLOT(managePrimitivesGroups()));
-	connect(this, SIGNAL(selectionChanged()),
-			this, SLOT(managePrimitivesGroups()));
+	connect(&m_undo_stack, &QUndoStack::indexChanged, this, &ElementScene::managePrimitivesGroups);
+	connect(this, &ElementScene::selectionChanged, this, &ElementScene::managePrimitivesGroups);
+
+	QSettings settings;
+	m_background_frame_visible = settings.value(
+			QStringLiteral("elementeditor/background_frame_visible"), false).toBool();
+	BorderProperties bp = BorderProperties::defaultProperties();
+	m_background_frame_size = QSizeF(
+			settings.value(QStringLiteral("elementeditor/background_frame_width"),
+						   bp.columns_count * bp.columns_width).toReal(),
+			settings.value(QStringLiteral("elementeditor/background_frame_height"),
+						   bp.rows_count * bp.rows_height).toReal());
+}
+
+/**
+	@brief ElementScene::setBackgroundFrameVisible
+	Toggle the visual-only background frame used to proportion this
+	element's drawing against a representative folio surface. Like the
+	hotspot indicator, this frame is never written to the saved .elmt file.
+	@param visible
+*/
+void ElementScene::setBackgroundFrameVisible(bool visible)
+{
+	if (m_background_frame_visible == visible) {
+		return;
+	}
+	m_background_frame_visible = visible;
+	QSettings().setValue(QStringLiteral("elementeditor/background_frame_visible"), visible);
+	update();
+}
+
+/**
+	@brief ElementScene::setBackgroundFrameSize
+	@param size the new size (in scene/grid units) of the background frame
+*/
+void ElementScene::setBackgroundFrameSize(const QSizeF &size)
+{
+	if (m_background_frame_size == size) {
+		return;
+	}
+	m_background_frame_size = size;
+	QSettings settings;
+	settings.setValue(QStringLiteral("elementeditor/background_frame_width"), size.width());
+	settings.setValue(QStringLiteral("elementeditor/background_frame_height"), size.height());
+	update();
 }
 
 /**
@@ -102,10 +146,12 @@ void ElementScene::setElementData(ElementData data)
 ElementScene::~ElementScene()
 {
 	//Disconnect to avoid crash, see bug report N° 122.
-	disconnect(&m_undo_stack, SIGNAL(indexChanged(int)),
-		   this, SLOT(managePrimitivesGroups()));
+	disconnect(&m_undo_stack, &QUndoStack::indexChanged, this, &ElementScene::managePrimitivesGroups);
 	delete m_decorator_lock;
 
+		//Deleting the event interface resets the behavior; the editor
+		//is already being destroyed, so it must not hear about it.
+	blockSignals(true);
 	if (m_event_interface)
 		delete m_event_interface;
 
@@ -124,7 +170,7 @@ void ElementScene::mouseMoveEvent(QGraphicsSceneMouseEvent *e)
 {
 	if (m_event_interface) {
 		if (m_event_interface -> mouseMoveEvent(e)) {
-			emit mouseMoved(e -> scenePos());
+			emit mouseMoved(snapToGrid(e->scenePos()));
 			if (m_event_interface->isFinish()) {
 				delete m_event_interface;
 				m_event_interface = nullptr;
@@ -375,7 +421,10 @@ void ElementScene::clearEventInterface()
 */
 void ElementScene::setBehavior(ElementScene::Behavior b)
 {
+	if (b == m_behavior)
+		return;
 	m_behavior = b;
+	emit behaviorChanged();
 }
 
 ElementScene::Behavior ElementScene::behavior() const
@@ -482,8 +531,13 @@ const QDomDocument ElementScene::toXml(bool all_parts)
 		root.appendChild(m_element_data.kindInfoToXml(xml_document));
 	}
 
+		//Slave is in this list because the element editor offers the
+		//Informations tab for it, including the PLC-specific rows
+		//populateTree() adds for a PLC slave. Without it the editor would
+		//accept that data and silently drop it on save.
 	if (type_ == ElementData::Simple ||
 		type_ == ElementData::Master ||
+		type_ == ElementData::Slave ||
 		type_ == ElementData::Terminal ||
 		type_ == ElementData::Thumbnail)
 	{
@@ -907,8 +961,8 @@ void ElementScene::slot_editAuthorInformations()
 						   QDialogButtonBox::Ok
 						   | QDialogButtonBox::Cancel);
 	dialog_layout -> addWidget(dialog_buttons);
-	connect(dialog_buttons, SIGNAL(accepted()),&dialog_author, SLOT(accept()));
-	connect(dialog_buttons, SIGNAL(rejected()),&dialog_author, SLOT(reject()));
+	connect(dialog_buttons, &QDialogButtonBox::accepted, &dialog_author, &QDialog::accept);
+	connect(dialog_buttons, &QDialogButtonBox::rejected, &dialog_author, &QDialog::reject);
 
 	// start the dialogue
 	// lance le dialogue
@@ -1194,6 +1248,13 @@ ElementContent ElementScene::loadContent(const QDomDocument &xml_document)
 	if (root.tagName() != "definition" || root.attribute("type") != "element")
 		return(loaded_parts);
 
+		//Terminals saved without a uuid get the one a project gives them
+		//(see TerminalUuids::fillMissing()), not a random one: the same old
+		//symbol then has the same terminal uuids wherever it is copied.
+		//On a copy, the document is the caller's. A paste renews them all.
+	root = root.cloneNode(true).toElement();
+	TerminalUuids::fillMissingInDefinition(root);
+
 	//Load the graphic description of the element
 	for (QDomNode node = root.firstChild() ; !node.isNull() ; node = node.nextSibling())
 	{
@@ -1211,6 +1272,14 @@ ElementContent ElementScene::loadContent(const QDomDocument &xml_document)
 					continue;
 				CustomElementPart *cep = nullptr;
 				PartDynamicTextField *pdtf = nullptr;
+
+					//A shape with a "nan" or "inf" coordinate is not drawn
+					//on the folio either; loading it would only break the view
+				if (QET::hasNonFiniteGeometry(qde)) {
+					qWarning() << "Element editor: skipped a" << qde.tagName()
+							   << "with a non-finite coordinate";
+					continue;
+				}
 
 				if      (qde.tagName() == "line")       cep = new PartLine      (m_element_editor);
 				else if (qde.tagName() == "rect")       cep = new PartRectangle (m_element_editor);
@@ -1399,9 +1468,7 @@ void ElementScene::managePrimitivesGroups()
 	if (!m_decorator)
 	{
 		m_decorator = new ElementPrimitiveDecorator();
-		connect(m_decorator,
-			SIGNAL(actionFinished(ElementEditionCommand*)),
-			this, SLOT(stackAction(ElementEditionCommand *)));
+		connect(m_decorator, &ElementPrimitiveDecorator::actionFinished, this, &ElementScene::stackAction);
 		addItem(m_decorator);
 		m_decorator -> hide();
 	}
@@ -1432,7 +1499,47 @@ void ElementScene::managePrimitivesGroups()
 		m_decorator -> setPos(0, 0);
 		m_decorator -> setItems(selected_items);
 	}
+	manageTextResizeHandles(selected_items);
 	m_decorator_lock -> unlock();
+}
+
+/**
+	@brief ElementScene::manageTextResizeHandles
+	Show the corner handles that change the width of a text field when it
+	is the only selected item.
+	Called again when the undo stack changes, including from the push of a
+	resize itself: the handles of the same text are then kept, not deleted
+	while they are still emitting.
+	@param selected_items
+*/
+void ElementScene::manageTextResizeHandles(const QList<QGraphicsItem *> &selected_items)
+{
+	QGraphicsTextItem *text = nullptr;
+	if (selected_items.size() == 1 &&
+		selected_items.first()->type() == PartDynamicTextField::Type)
+	{
+		text = static_cast<PartDynamicTextField *>(selected_items.first());
+	}
+	if (m_text_resize_handles && m_text_resize_handles->parentItem() == text) {
+		m_text_resize_handles->updateHandlesPos();
+		return;
+	}
+
+	if (m_text_resize_handles) {
+		m_text_resize_handles->hide();
+		m_text_resize_handles->deleteLater();
+		m_text_resize_handles.clear();
+	}
+
+	if (text)
+	{
+		m_text_resize_handles = new TextResizeHandles(text);
+		connect(m_text_resize_handles, &TextResizeHandles::resizeFinished, this,
+				[this, text](qreal old_width, qreal new_width, QPointF old_pos, QPointF new_pos)
+		{
+			m_undo_stack.push(new TextResizeCommand(text, old_width, new_width, old_pos, new_pos));
+		});
+	}
 }
 
 /**

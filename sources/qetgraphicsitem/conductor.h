@@ -21,6 +21,7 @@
 #include "../conductorproperties.h"
 
 #include <QGraphicsPathItem>
+#include <QUuid>
 
 class ConductorProfile;
 class ConductorSegmentProfile;
@@ -85,6 +86,9 @@ class Conductor : public QGraphicsObject
 			/// terminal1's identifier.
 		ConductorTextItem *textItemEnd2() const;
 		void calculateEndLabelsPosition();
+		QUuid uuid() const {return m_uuid;}
+		void newUuid() {m_uuid = QUuid::createUuid(); m_persist_uuid = true;}	//create new uuid for this conductor
+		void setUuid(const QUuid &uuid) {m_uuid = uuid; m_persist_uuid = true;}	//saved from now on
 		void updatePath(const QRectF & = QRectF());
 
 		//This method do nothing, it's only made to be used with Q_PROPERTY
@@ -119,6 +123,8 @@ class Conductor : public QGraphicsObject
 	public:
 		QVector <QPointF> handlerPoints() const;
 		const QList<ConductorSegment *> segmentsList() const;
+		bool moveSegment(int index, qreal dx, qreal dy);
+		bool setPathPoints(const QList<QPointF> &scene_points);
 
 		void setPropertyToPotential(
 				const ConductorProperties &property,
@@ -131,6 +137,7 @@ class Conductor : public QGraphicsObject
 		void setProfiles(const ConductorProfilesGroup &);
 		ConductorProfilesGroup profiles() const;
 		void calculateTextItemPosition();
+		void updateTextVisibility();
 		virtual Highlight highlight() const;
 		virtual void setHighlighted(Highlight);
 		QSet<Conductor *> relatedPotentialConductors(
@@ -146,6 +153,7 @@ class Conductor : public QGraphicsObject
 		void setSequenceNum(const autonum::sequentialNumbers& sn);
 
 		QList<QPointF> junctions() const;
+		QPainterPath paintedPath() const;
 
 	private:
 		void setUpConnectionForFormula(
@@ -190,6 +198,10 @@ class Conductor : public QGraphicsObject
 		QVector<QetGraphicsHandlerItem *> m_handler_vector;
 		int m_vector_index = -1;
 		bool m_mouse_over;
+			///Hop path cache for paintedPath(), valid while no conductor geometry changed
+		mutable QPainterPath m_hops_path;
+		mutable quint64 m_hops_generation = 0;
+		mutable int m_hops_mode = -1;
 			/// Functional properties
 		ConductorProperties m_properties;
 			/// Text input for non simple, non-singleline conductors
@@ -218,6 +230,11 @@ class Conductor : public QGraphicsObject
 		Highlight must_highlight_;
 		bool m_valid;
 		bool m_freeze_label = false;
+		QUuid m_uuid;
+			/// false when m_uuid was synthesized by fromXml() because the
+			/// file had none -- toXml() must not persist that value, or
+			/// every reload mints and saves a new random one (see #754).
+		bool m_persist_uuid = true;
 
 			/// QPen et QBrush objects used to draw conductors
 		static QPen conductor_pen;
@@ -233,6 +250,7 @@ class Conductor : public QGraphicsObject
 		uint segmentsCount(QET::ConductorSegmentType = QET::Both) const;
 		QList<QPointF> segmentsToPoints() const;
 		QList<ConductorBend> bends() const;
+		bool bendMakesJunction(const Conductor *, const QPointF &, Qt::Corner) const;
 
 		void pointsToSegments(const QList<QPointF>&);
 		Qt::Corner currentPathType() const;

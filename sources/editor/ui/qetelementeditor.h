@@ -112,10 +112,12 @@ class QETElementEditor : public QMainWindow
 		void on_m_about_qt_action_triggered();
 		void on_m_import_dxf_triggered();
 		void on_m_import_scaled_element_triggered();
+		void scaleElement();
 
 	private:
 		bool canClose();
 		void readSettings();
+		void readSettingsState();
 		void writeSettings() const;
 		void setupActions();
 		void updateAction();
@@ -141,6 +143,7 @@ class QETElementEditor : public QMainWindow
 		QList<QAction *> m_context_menu_action_list;
 
 		QAction
+			*m_scale_element_action = nullptr,
 			*m_undo_action = nullptr,
 			*m_redo_action = nullptr;
 

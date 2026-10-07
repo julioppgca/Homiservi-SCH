@@ -1,4 +1,4 @@
-# Copyright 2006 The QElectroTech Team
+# Copyright 2006-2026 The QElectroTech Team
 # This file is part of QElectroTech.
 #
 # QElectroTech is free software: you can redistribute it and/or modify
@@ -28,5 +28,9 @@ add_definitions(-DQET_ALLOW_OVERRIDE_CD_OPTION)
 # Comment the line below to deactivate the --data-dir option
 add_definitions(-DQET_ALLOW_OVERRIDE_DD_OPTION)
 
-#comment the line below to disable the project database export
-#add_definitions(-DQET_EXPORT_PROJECT_DB) #error Todo
+# Enable project database export when requested by the build system.
+option(QET_EXPORT_PROJECT_DB "Enable project database export" OFF)
+
+if(QET_EXPORT_PROJECT_DB)
+    add_compile_definitions(QET_EXPORT_PROJECT_DB)
+endif()

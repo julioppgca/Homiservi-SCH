@@ -23,7 +23,10 @@
 #include "../elementview.h"
 #include "../../qetmessagebox.h"
 #include "../../qetapp.h"
+#include "../../qetmainwindow.h"
 #include "../../recentfiles.h"
+#include "../../elementscollectioncache.h"
+#include "../../factory/elementpicturefactory.h"
 #include "../graphicspart/customelementpart.h"
 #include "../elementitemeditor.h"
 #include "../styleeditor.h"
@@ -37,6 +40,7 @@
 #include "../esevent/eseventadddynamictextfield.h"
 #include "../../elementdialog.h"
 #include "../graphicspart/partterminal.h"
+#include "../terminalnamecheck.h"
 #include "../arceditor.h"
 #include "ellipseeditor.h"
 #include "lineeditor.h"
@@ -50,11 +54,18 @@
 #include "../../dxf/dxftoelmt.h"
 #include "../../qet_elementscaler/qet_elementscaler.h"
 #include "../UndoCommand/openelmtcommand.h"
+#include "scaleelementdialog.h"
+#include "../../toolbarsettings.h"
 
 #include <QSettings>
 #include <QActionGroup>
 #include <QFileDialog>
 #include <QSvgGenerator>
+#include <QHBoxLayout>
+#include <QDialog>
+#include <QDialogButtonBox>
+#include <QDoubleSpinBox>
+#include <QFormLayout>
 
 /**
  * @brief QETElementEditor::QETElementEditor
@@ -77,8 +88,10 @@ QETElementEditor::QETElementEditor(QWidget *parent) :
 	//ui->m_display_menu->insertMenu(ui->m_zoom_in_action, menu);
 
 	setWindowState(Qt::WindowMaximized);
-	readSettings();
+	readSettings();  // restoreGeometry before show()
 	show();
+	readSettingsState();  // restoreState() must be called after show() in Qt6
+	ToolbarSettings::applyTo(this);
 }
 
 /**
@@ -345,6 +358,24 @@ bool QETElementEditor::toLocation(const ElementsLocation &location)
 									 tr("Impossible d'enregistrer l'élément", "message box content"));
 		return(false);
 	}
+
+		//setXml() just wrote the new drawing to disk, but the preview shown
+		//in the elements panel comes from two caches keyed by path+uuid that
+		//nothing here has told about the change: ElementPictureFactory's
+		//in-memory picture cache and ElementsCollectionCache's on-disk
+		//SQLite cache (see ElementsLocation::icon()). locationWasSaved()
+		//(elementscollectionwidget.cpp) re-reads the icon right after this
+		//call returns, but both caches still hand back the pre-edit pixmap,
+		//so the panel keeps showing the stale preview until the whole
+		//collection is reloaded. Drop and rebuild them here.
+	ElementPictureFactory::instance()->dropCache(location);
+	if (ElementsCollectionCache *cache = QETApp::collectionCache()) {
+		if (cache->fetchData(location)) {
+			cache->cacheName(location.toString(), location.uuid());
+			cache->cachePixmap(location.toString(), location.uuid());
+		}
+	}
+
 	return(true);
 }
 
@@ -573,9 +604,11 @@ void QETElementEditor::updateInformations()
 			|| selection_xml_name == "ellipse"
 			|| selection_xml_name == "arc")
 		{
-			clearToolsDock();
 			//We add the editor widget
 			ElementItemEditor *editor = static_cast<ElementItemEditor*>(m_editors[selection_xml_name]);
+			if (m_tools_dock_stack -> widget(1) != editor) {
+				clearToolsDock();
+			}
 
 #if TODO_LIST
 #pragma message("@TODO Check if it takes longer than setting the parts again to the editor.")
@@ -608,11 +641,15 @@ void QETElementEditor::updateInformations()
 					success = editor -> setParts(cep_list);
 				}
 				if (success) {
-					m_tools_dock_stack -> insertWidget(1, editor);
+					if (m_tools_dock_stack -> widget(1) != editor) {
+						m_tools_dock_stack -> insertWidget(1, editor);
+					}
 					m_tools_dock_stack -> setCurrentIndex(1);
 				}
 				else {
 					qDebug() << "Editor refused part.";
+					clearToolsDock();
+					m_tools_dock_stack->setCurrentIndex(0);
 				}
 			}
 			return;
@@ -626,8 +663,10 @@ void QETElementEditor::updateInformations()
 			// multi edit for polygons makes no sense
 			// TODO: maybe allowing multipart edit when number of points is the same?
 			//We add the editor widget
-			clearToolsDock();
 			ElementItemEditor *editor = static_cast<ElementItemEditor*>(m_editors[selection_xml_name]);
+			if (m_tools_dock_stack -> widget(1) != editor) {
+				clearToolsDock();
+			}
 			CustomElementPart* part = editor -> currentPart();
 			bool equal = part == cep_list.first();
 
@@ -637,11 +676,15 @@ void QETElementEditor::updateInformations()
 					success = editor -> setPart(cep_list.first());
 				}
 				if (success) {
-					m_tools_dock_stack -> insertWidget(1, editor);
+					if (m_tools_dock_stack -> widget(1) != editor) {
+						m_tools_dock_stack -> insertWidget(1, editor);
+					}
 					m_tools_dock_stack -> setCurrentIndex(1);
 				}
 				else {
 					qDebug() << "Editor refused part.";
+					clearToolsDock();
+					m_tools_dock_stack->setCurrentIndex(0);
 				}
 			}
 			return;
@@ -655,15 +698,21 @@ void QETElementEditor::updateInformations()
 
 	//There's several parts selecteds and all can be edited by style editor.
 	if (style_editable) {
-		clearToolsDock();
 		ElementItemEditor *selection_editor = m_editors["style"];
+		if (m_tools_dock_stack -> widget(1) != selection_editor) {
+			clearToolsDock();
+		}
 		if (selection_editor) {
 			if (selection_editor -> setParts(cep_list)) {
-				m_tools_dock_stack -> insertWidget(1, selection_editor);
+				if (m_tools_dock_stack -> widget(1) != selection_editor) {
+					m_tools_dock_stack -> insertWidget(1, selection_editor);
+				}
 				m_tools_dock_stack -> setCurrentIndex(1);
 			}
 			else {
 				qDebug() << "Editor refused part.";
+				clearToolsDock();
+				m_tools_dock_stack->setCurrentIndex(0);
 			}
 		}
 	}
@@ -719,6 +768,9 @@ void QETElementEditor::updateSelectionFromPartsList()
 	}
 	m_parts_list -> blockSignals(false);
 	m_elmt_scene -> blockSignals(false);
+		//selectionChanged was blocked above, so the selection decorator must be
+		//updated by hand, otherwise dragging moves only the part under the cursor
+	m_elmt_scene -> managePrimitivesGroups();
 	updateInformations();
 	updateAction();
 }
@@ -794,6 +846,53 @@ bool QETElementEditor::checkElement()
 		}
 	}
 
+	// Check terminal names: repeated names are an error, missing names a warning
+	if (QSettings().value(TerminalNameCheck::settings_key, true).toBool())
+	{
+		QList<PartTerminal *> terminals;
+		QStringList names;
+		for (auto qgi : m_elmt_scene -> items()) {
+			if (auto terminal = qgraphicsitem_cast<PartTerminal *>(qgi)) {
+				terminals << terminal;
+				names << terminal -> terminalName();
+			}
+		}
+
+		const auto repeated = TerminalNameCheck::repeatedNames(names);
+		if (!repeated.isEmpty())
+		{
+			errors << qMakePair (tr("Noms de bornes en double"),
+								 tr("<br><b>Erreur</b> :"
+								 "<br>Plusieurs bornes portent le même nom : %1."
+								 "<br><b>Solution</b> :"
+								 "<br>Donner un nom unique à chaque borne, par exemple N.1 et N.2."
+								 " Les bornes concernées sont sélectionnées.")
+								 .arg(TerminalNameCheck::describe(repeated).toHtmlEscaped()));
+
+			m_elmt_scene -> clearSelection();
+			for (auto terminal : terminals) {
+				for (const auto &entry : repeated) {
+					if (terminal -> terminalName().trimmed() == entry.first) {
+						terminal -> setSelected(true);
+					}
+				}
+			}
+		}
+
+		const int unnamed = TerminalNameCheck::unnamedCount(names);
+		if (unnamed &&
+			!(m_elmt_scene->elementData().m_type & ElementData::AllReport) &&
+			m_elmt_scene->elementData().m_type != ElementData::ConductorDefinition &&
+			m_elmt_scene->elementData().m_type != ElementData::Thumbnail)
+		{
+			warnings << qMakePair (tr("Bornes sans nom"),
+								   tr("<br>%n borne(s) sans nom. Sans noms de bornes uniques,"
+								   " la liste de câblage (qui relie quoi à quoi) ne peut pas"
+								   " désigner chaque borne, et ne peut donc pas servir à"
+								   " câbler l'armoire en atelier.", "", unnamed));
+		}
+	}
+
 	if (!errors.count() && !warnings.count()) {
 		return(true);
 	}
@@ -848,7 +947,7 @@ bool QETElementEditor::event(QEvent *event)
 {
 	if (m_first_activation && event->type() == QEvent::WindowActivate) {
 		m_first_activation = false;
-		QTimer::singleShot(250, m_view, SLOT(zoomFit()));
+		QTimer::singleShot(250, m_view, &ElementView::zoomFit);
 	}
 
 	return QMainWindow::event(event);
@@ -885,6 +984,13 @@ void QETElementEditor::openElement(const QString &filepath)
  */
 void QETElementEditor::closeEvent(QCloseEvent *qce)
 {
+		//This editor is a plain QMainWindow, not a QETMainWindow, so the
+		//guard QETMainWindow::event() applies to the other editors is
+		//applied here instead -- before canClose(), which itself opens a
+		//modal dialog.
+	if (QETMainWindow::refuseCloseWhileModal(qce)) {
+		return;
+	}
 	if (canClose()) {
 		writeSettings();
 		setAttribute(Qt::WA_DeleteOnClose);
@@ -950,14 +1056,26 @@ void QETElementEditor::readSettings()
 		restoreGeometry(geometry.toByteArray());
 	}
 
-	QVariant state = settings.value("elementeditor/state");
-	if (state.isValid()) {
-		restoreState(state.toByteArray());
-	}
-
 	auto data = m_elmt_scene->elementData();
 	data.m_drawing_information = settings.value("elementeditor/default-informations", "").toString();
 	m_elmt_scene->setElementData(data);
+}
+
+/**
+ * @brief QETElementEditor::readSettingsState
+ * Restore the window state (docks, toolbars).
+ * Must be called AFTER show() in Qt6 for restoreState() to work correctly.
+ */
+void QETElementEditor::readSettingsState()
+{
+	QSettings settings;
+
+	QVariant state = settings.value("elementeditor/state");
+	if (state.isValid()) {
+		if (!restoreState(state.toByteArray())) {
+			settings.remove("elementeditor/state");
+		}
+	}
 }
 
 /**
@@ -1037,6 +1155,12 @@ void QETElementEditor::setupActions()
 	ShortcutManager::instance().registerAction(ui->m_mirror_action, "elementeditor.mirror", tr("Éditeur d'élément"), Qt::Key_M);
 	connect(ui->m_mirror_action, &QAction::triggered, [this]() {this -> elementScene() -> undoStack().push(new MirrorElementsCommand(this->elementScene()));});
 
+		//Scale the whole element by a factor that keeps its terminals on the grid
+	m_scale_element_action = new QAction(tr("Mettre l'élément à l'échelle..."), this);
+	ui->m_edit_menu->addAction(m_scale_element_action);
+	ShortcutManager::instance().registerAction(m_scale_element_action, "elementeditor.scale_element", tr("Éditeur d'élément"), QKeySequence());
+	connect(m_scale_element_action, &QAction::triggered, this, &QETElementEditor::scaleElement);
+
 
 		//Zoom action
 	ShortcutManager::instance().registerAction(ui->m_zoom_in_action, "elementeditor.zoom_in", tr("Éditeur d'élément"), QKeySequence::ZoomIn);
@@ -1078,6 +1202,47 @@ void QETElementEditor::setupActions()
 	parts_toolbar -> setObjectName("parts");
 	parts_toolbar -> addActions(m_add_part_action_grp -> actions());
 	addToolBar(Qt::LeftToolBarArea, parts_toolbar);
+
+		//Background frame action: a visual-only reference rectangle, never
+		//written to the saved .elmt file, to help proportion the drawing
+		//against a representative folio surface.
+	auto *toggle_background_frame_action = new QAction(QET::Icons::DocumentPrintFrame, tr("Afficher le cadre de fond"), this);
+	toggle_background_frame_action -> setCheckable(true);
+	toggle_background_frame_action -> setChecked(m_elmt_scene -> backgroundFrameVisible());
+	connect(toggle_background_frame_action, &QAction::toggled, m_elmt_scene, &ElementScene::setBackgroundFrameVisible);
+	ShortcutManager::instance().registerAction(toggle_background_frame_action, "elementeditor.toggle_background_frame", tr("Éditeur d'élément"), QKeySequence());
+	ui->m_display_menu->addAction(toggle_background_frame_action);
+	ui->m_view_toolbar->addAction(toggle_background_frame_action);
+
+	auto *configure_background_frame_action = new QAction(tr("Taille du cadre de fond..."), this);
+	connect(configure_background_frame_action, &QAction::triggered, this, [this]() {
+		QDialog dialog(this);
+		dialog.setWindowTitle(tr("Taille du cadre de fond"));
+		auto *layout = new QFormLayout(&dialog);
+
+		auto *width_spin = new QDoubleSpinBox(&dialog);
+		width_spin -> setRange(1.0, 100000.0);
+		width_spin -> setSuffix(tr(" px"));
+		width_spin -> setValue(m_elmt_scene -> backgroundFrameSize().width());
+		layout -> addRow(tr("Largeur"), width_spin);
+
+		auto *height_spin = new QDoubleSpinBox(&dialog);
+		height_spin -> setRange(1.0, 100000.0);
+		height_spin -> setSuffix(tr(" px"));
+		height_spin -> setValue(m_elmt_scene -> backgroundFrameSize().height());
+		layout -> addRow(tr("Hauteur"), height_spin);
+
+		auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
+		connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+		connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+		layout -> addRow(buttons);
+
+		if (dialog.exec() == QDialog::Accepted) {
+			m_elmt_scene -> setBackgroundFrameSize(QSizeF(width_spin -> value(), height_spin -> value()));
+		}
+	});
+	ShortcutManager::instance().registerAction(configure_background_frame_action, "elementeditor.configure_background_frame", tr("Éditeur d'élément"), QKeySequence());
+	ui->m_display_menu->addAction(configure_background_frame_action);
 }
 
 /**
@@ -1088,28 +1253,41 @@ void QETElementEditor::updateAction()
 {
 		//Action disabled if read only
 	auto ro_list = m_add_part_action_grp->actions();
-	ro_list << ui->m_select_all_act
-			<< ui->m_revert_selection_action
-			<< ui->m_paste_from_file_action
-			<< ui->m_paste_from_element_action;
+	ro_list << ui->m_paste_from_file_action
+			<< ui->m_paste_from_element_action
+			<< m_scale_element_action;
 	for (auto action : std::as_const(ro_list)) {
 		action->setDisabled(m_read_only);
 	}
 
-		//Action enabled if a primitive is selected
+		//Changing what is selected does not change the element, so these stay
+		//available when it is read only -- otherwise there is no way to pick
+		//out the primitive you want to copy out of it.
+	ui->m_select_all_act->setEnabled(true);
+	ui->m_revert_selection_action->setEnabled(true);
+
+		//Action enabled if a primitive is selected, and no part is being
+		//added: Space rotates the part being added, not the selection (#1177)
 	auto select_list = m_depth_action_group->actions();
-	select_list << ui->m_deselect_all_action
-				<< ui->m_cut_action
-				<< ui->m_copy_action
+	select_list << ui->m_cut_action
 				<< ui->m_delete_action
 				<< ui->m_rotate_action
 				<< ui->m_rotateFine_action
 				<< ui->m_flip_action
 				<< ui->m_mirror_action;
-	auto items_selected = !m_read_only && m_elmt_scene->selectedItems().count();
+	const bool has_selection = m_elmt_scene->selectedItems().count() > 0;
+	const bool adding_part = m_elmt_scene->behavior() == ElementScene::AddPart;
+	auto items_selected = !m_read_only && has_selection && !adding_part;
 	for (auto action : std::as_const(select_list)) {
 		action->setEnabled(items_selected);
 	}
+
+		//Copying only reads the element -- ElementScene::copy() serialises the
+		//selection to the clipboard and touches nothing else -- so it is
+		//allowed on a read-only element too. Cut, paste and delete above stay
+		//disabled, so the element itself is still protected.
+	ui->m_copy_action->setEnabled(has_selection);
+	ui->m_deselect_all_action->setEnabled(has_selection);
 
 		//Action about clipboard
 	auto clipboard_contain_elmt = !m_read_only && ElementScene::clipboardMayContainElement();
@@ -1134,6 +1312,7 @@ void QETElementEditor::setupConnection()
 	connect(m_elmt_scene, &ElementScene::partsZValueChanged,  this, &QETElementEditor::fillPartsList);
 	connect(m_parts_list, &QListWidget::itemSelectionChanged, this, &QETElementEditor::updateSelectionFromPartsList);
 	connect(QApplication::clipboard(),  &QClipboard::dataChanged, this, &QETElementEditor::updateAction);
+	connect(m_elmt_scene, &ElementScene::behaviorChanged,     this, &QETElementEditor::updateAction);
 
 	connect(m_elmt_scene, &ElementScene::selectionChanged, [this]() {
 		this->updateInformations();
@@ -1200,7 +1379,18 @@ void QETElementEditor::initGui()
 		//Live cursor position readout, in the same scene coordinates as the parts' X/Y properties
 	m_position_label = new QLabel(this);
 	m_position_label->setMinimumWidth(120);
-	statusBar()->addPermanentWidget(m_position_label);
+	
+	// Layout
+	QHBoxLayout *coordDisplayLayout = new QHBoxLayout();
+	coordDisplayLayout->setContentsMargins(0, 0, 0, 0);
+	coordDisplayLayout->addWidget(m_position_label);
+	coordDisplayLayout->addStretch();
+	// Widget
+	QWidget *coordDisplay = new QWidget;
+	coordDisplay->setLayout(coordDisplayLayout);
+	
+	statusBar()->addPermanentWidget(coordDisplay);
+	
 	connect(m_elmt_scene, &ElementScene::mouseMoved, this, [this](const QPointF &pos) {
 		m_position_label->setText(tr("X: %1  Y: %2")
 			.arg(pos.x(), 0, 'f', 1)
@@ -1619,6 +1809,28 @@ void QETElementEditor::on_m_import_dxf_triggered()
 
 		m_elmt_scene->undoStack().push(new OpenElmtCommand(xml_, m_elmt_scene));
 	}
+}
+
+/**
+	@brief QETElementEditor::scaleElement
+	Ask for a factor that keeps the terminals on the grid,
+	then scale the whole element by it.
+*/
+void QETElementEditor::scaleElement()
+{
+	QList<QPointF> terminals;
+	for (CustomElementPart *part : m_elmt_scene->primitives()) {
+		if (auto terminal = qgraphicsitem_cast<PartTerminal *>(part->toItem())) {
+			terminals << terminal->scenePos();
+		}
+	}
+
+	ScaleElementDialog dialog(terminals, this);
+	if (dialog.exec() != QDialog::Accepted || dialog.factor() == 1.0) {
+		return;
+	}
+	m_elmt_scene->undoStack().push(
+				new ScaleElementCommand(m_elmt_scene, dialog.factor(), dialog.scaleText()));
 }
 
 void QETElementEditor::on_m_import_scaled_element_triggered()

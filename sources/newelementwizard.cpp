@@ -25,6 +25,7 @@
 #include "qetmessagebox.h"
 #include "qfilenameedit.h"
 
+#include <QIcon>
 #include <QTreeView>
 #include <QVBoxLayout>
 #include <QLabel>
@@ -45,7 +46,7 @@ NewElementWizard::NewElementWizard(QWidget *parent, Qt::WindowFlags f) :
 	setWizardStyle(QWizard::MacStyle);
 #endif
 
-	setPixmap(LogoPixmap, QPixmap(":/ico/256x256/qelectrotech.png").scaled(64, 64, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+	setPixmap(LogoPixmap, QIcon::fromTheme("qelectrotech").pixmap(64, 64));
 	setWindowTitle(tr("Créer un nouvel élément : Assistant", "window title"));
 	setButtonText(QWizard::NextButton, tr("&Suivant >"));
 	addPage(buildStep1());
@@ -252,4 +253,10 @@ void NewElementWizard::createNewElement()
 	loc_.addToPath(m_chosen_file);
 	edit_new_element -> setLocation(loc_);
 	edit_new_element -> show();
+		// Without this, the just-closed wizard can leave the main window
+		// as the active/key window (bugtracker #281, reported on macOS):
+		// the new editor is created and shown, but stays behind the main
+		// window and doesn't surface in the Dock/Windows menu.
+	edit_new_element -> raise();
+	edit_new_element -> activateWindow();
 }

@@ -16,6 +16,8 @@
 	along with QElectroTech.  If not, see <http://www.gnu.org/licenses/>.
 */
 #include "../qetgraphicsitem/conductor.h"
+#include "../shownkinds.h"
+#include "../lastusedstyle.h"
 #include "../qetproject.h"
 #include "../QPropertyUndoCommand/qpropertyundocommand.h"
 #include "../autoNum/numerotationcontextcommands.h"
@@ -32,9 +34,33 @@
 #include "element.h"
 #include "../QetGraphicsItemModeler/qetgraphicshandleritem.h"
 #include "../utils/qetutils.h"
+#include "../wirehops.h"
 
 #include <QMultiHash>
 #include <QtDebug>
+
+namespace {
+		//Bumped whenever a conductor changes shape, moves, or enters or
+		//leaves a folio: the hops of every conductor may then change.
+		//0 is never current, so a fresh cache is always rebuilt.
+	quint64 s_conductor_geometry_generation = 1;
+	void conductorGeometryChanged() { ++s_conductor_geometry_generation; }
+
+		//The conductors of the last folio whose hops were computed, as
+		//scene points and plain path bounds. Rebuilt only when the folio
+		//or the generation changes, so a repaint (pan, zoom, selection)
+		//costs no scene query: asking the scene for the conductors in a
+		//rect strokes each one's shape, and on a folio of a few hundred
+		//conductors that made every repaint 0.6 s slower.
+	struct HopCandidate {
+		const Conductor *conductor;
+		QRectF rect;
+		QVector<QPointF> points;
+	};
+	const Diagram *s_hop_candidates_diagram = nullptr;
+	quint64 s_hop_candidates_generation = 0;
+	QVector<HopCandidate> s_hop_candidates;
+}
 
 #define PR(x) qDebug() << #x " = " << x;
 
@@ -94,6 +120,7 @@ Conductor::Conductor(Terminal *p1, Terminal* p2) :
 		//set Zvalue at 11 to be upper than the DiagramImageItem and element
 	setZValue(11);
 	m_previous_z_value = zValue();
+	m_uuid = QUuid::createUuid();
 
 		//Add this conductor to the list of conductors of each of the two terminals
 	bool ajout_p1 = terminal1 -> addConductor(this);
@@ -134,11 +161,17 @@ Conductor::Conductor(Terminal *p1, Terminal* p2) :
 	m_text_item_end1 = new ConductorTextItem(QString(), this);
 	m_text_item_end2 = new ConductorTextItem(QString(), this);
 
-		//Set the default conductor properties.
-	if (p1->diagram())
-		setProperties(p1->diagram()->defaultConductorProperties);
-	else if (p2->diagram())
-		setProperties(p2->diagram()->defaultConductorProperties);
+		//Set the default conductor properties. The color, specifically, is
+		//overridden by the last one applied via the F2 color editor this
+		//session (#879), the same way LastUsedStyle already does for shapes.
+	Diagram *dia = p1->diagram() ? p1->diagram() : p2->diagram();
+	if (dia)
+	{
+		ConductorProperties properties = dia->defaultConductorProperties;
+		if (LastUsedStyle::hasConductorColor())
+			properties.color = LastUsedStyle::conductorColor();
+		setProperties(properties);
+	}
 }
 
 /**
@@ -147,6 +180,7 @@ Conductor::Conductor(Terminal *p1, Terminal* p2) :
 */
 Conductor::~Conductor()
 {
+	conductorGeometryChanged();
 	removeHandler();
 	terminal1->removeConductor(this);
 	terminal2->removeConductor(this);
@@ -229,9 +263,6 @@ void Conductor::segmentsToPath()
 	@param o2 Orientation de la borne 2
 */
 void Conductor::updateConductorPath(const QPointF &p1, Qet::Orientation o1, const QPointF &p2, Qet::Orientation o2) {
-	Q_UNUSED(o1);
-	Q_UNUSED(o2);
-
 	ConductorProfile &conductor_profile = conductor_profiles[currentPathType()];
 
 	Q_ASSERT_X(conductor_profile.segmentsCount(QET::Both) > 1, "Conductor::priv_modifieConductor", "pas de points a modifier");
@@ -252,6 +283,25 @@ void Conductor::updateConductorPath(const QPointF &p1, Qet::Orientation o1, cons
 	// calculates the vertical and horizontal differences to be applied
 	qreal h_diff = (qAbs(new_rect.width())  - qAbs(profile_width) ) * getSign(profile_width);
 	qreal v_diff = (qAbs(new_rect.height()) - qAbs(profile_height)) * getSign(profile_height);
+
+	// A profile with no segment of non-zero length along an axis has nowhere
+	// to put a difference along that axis: it would be dropped and the last
+	// point would join the terminal diagonally. Every straight conductor
+	// loaded from a file is like this, as a zero-length segment is saved as
+	// horizontal (bugtracker #105). Generate a new path instead, as when
+	// there is no profile for this path type.
+	const auto can_absorb = [](qreal diff, const QList<ConductorSegmentProfile *> &segments_list) {
+		if (qAbs(diff) <= 0.01) return(true);
+		for (ConductorSegmentProfile *csp : segments_list) {
+			if (csp -> length) return(true);
+		}
+		return(false);
+	};
+	if (!can_absorb(h_diff, conductor_profile.horizontalSegments()) ||
+		!can_absorb(v_diff, conductor_profile.verticalSegments())) {
+		generateConductorPath(p1, o1, p2, o2);
+		return;
+	}
 
 	// applique les differences aux segments
 	// apply the differences to the segments
@@ -408,20 +458,48 @@ void Conductor::generateConductorPath(const QPointF &p1, Qet::Orientation o1, co
 
 	// commence le vrai trajet
 	// starts the real path
+	//
+	// Each cas "3"/"4" below inserts a two-point bridge along one axis, at a
+	// coordinate on the OTHER axis computed as a midpoint and then snapped
+	// to the grid by a loop that walks it strictly downward until it
+	// divides evenly. Whenever depart and arrivee already agree on the axis
+	// the bridge would run along, that bridge is unneeded -- the midpoint
+	// starts on the correct value already, but the snap can still walk it
+	// off, or, if it happens to already be on-grid, the two bridge points
+	// just duplicate depart and arrivee outright. Either way the result is
+	// a short out-and-back excursion, or a longer looping detour, at a join
+	// that needed no bridge in the first place (bugtracker #734). Skip the
+	// bridge in exactly that case; depart and arrivee already form the
+	// direct run. Which axis each cas guards on is noted at each site below
+	// -- descendant and montant are not mirror images of each other here.
 	if (depart.y() < arrivee.y()) {
 		// trajet descendant
 		if ((ori_depart == Qet::North && (ori_arrivee == Qet::South || ori_arrivee == Qet::West)) || (ori_depart == Qet::East && ori_arrivee == Qet::West)) {
-			// cas "3"
-			int ligne_inter_x = qRound(depart.x() + arrivee.x()) / 2;
-			while (ligne_inter_x % Diagram::xGrid) -- ligne_inter_x;
-			points << QPointF(ligne_inter_x, depart.y());
-			points << QPointF(ligne_inter_x, arrivee.y());
+			// cas "3": bridge is vertical, at a shared x between depart.y()
+			// and arrivee.y() -- unnecessary exactly when depart and
+			// arrivee already share an x. Compared qRound()ed, the same
+			// rounding the bridge coordinate itself is computed with below:
+			// an exact != would miss a pair that's already grid-equal after
+			// rounding but off by a sub-pixel remainder, and still route a
+			// degenerate bridge for it.
+			if (qRound(depart.x()) != qRound(arrivee.x())) {
+				int ligne_inter_x = qRound(depart.x() + arrivee.x()) / 2;
+				while (ligne_inter_x % Diagram::xGrid) -- ligne_inter_x;
+				points << QPointF(ligne_inter_x, depart.y());
+				points << QPointF(ligne_inter_x, arrivee.y());
+			}
 		} else if ((ori_depart == Qet::South && (ori_arrivee == Qet::North || ori_arrivee == Qet::East)) || (ori_depart == Qet::West && ori_arrivee == Qet::East)) {
-			// cas "4"
-			int ligne_inter_y = qRound(depart.y() + arrivee.y()) / 2;
-			while (ligne_inter_y % Diagram::yGrid) -- ligne_inter_y;
-			points << QPointF(depart.x(), ligne_inter_y);
-			points << QPointF(arrivee.x(), ligne_inter_y);
+			// cas "4": bridge is horizontal, at a shared y between
+			// depart.x() and arrivee.x() -- unnecessary exactly when depart
+			// and arrivee already share a y. (Always true in this branch,
+			// since "descendant" requires depart.y() < arrivee.y() strictly
+			// -- kept for symmetry with the "montant" branch below.)
+			if (qRound(depart.y()) != qRound(arrivee.y())) {
+				int ligne_inter_y = qRound(depart.y() + arrivee.y()) / 2;
+				while (ligne_inter_y % Diagram::yGrid) -- ligne_inter_y;
+				points << QPointF(depart.x(), ligne_inter_y);
+				points << QPointF(arrivee.x(), ligne_inter_y);
+			}
 		} else if ((ori_depart == Qet::North || ori_depart == Qet::East) && (ori_arrivee == Qet::North || ori_arrivee == Qet::East)) {
 			points << QPointF(arrivee.x(), depart.y()); // cas "2"
 		} else {
@@ -430,17 +508,28 @@ void Conductor::generateConductorPath(const QPointF &p1, Qet::Orientation o1, co
 	} else {
 		// trajet montant
 		if ((ori_depart == Qet::West && (ori_arrivee == Qet::East || ori_arrivee == Qet::South)) || (ori_depart == Qet::North && ori_arrivee == Qet::South)) {
-			// cas "3"
-			int ligne_inter_y = qRound(depart.y() + arrivee.y()) / 2;
-			while (ligne_inter_y % Diagram::yGrid) -- ligne_inter_y;
-			points << QPointF(depart.x(), ligne_inter_y);
-			points << QPointF(arrivee.x(), ligne_inter_y);
+			// cas "3": bridge is horizontal, at a shared y between
+			// depart.x() and arrivee.x() -- unnecessary exactly when depart
+			// and arrivee already share a y (the West->East case
+			// diagnosed for #734: two stubs extended onto the same y run
+			// straight into each other, no bridge needed). Compared
+			// qRound()ed, same as the other three guards.
+			if (qRound(depart.y()) != qRound(arrivee.y())) {
+				int ligne_inter_y = qRound(depart.y() + arrivee.y()) / 2;
+				while (ligne_inter_y % Diagram::yGrid) -- ligne_inter_y;
+				points << QPointF(depart.x(), ligne_inter_y);
+				points << QPointF(arrivee.x(), ligne_inter_y);
+			}
 		} else if ((ori_depart == Qet::East && (ori_arrivee == Qet::West || ori_arrivee == Qet::North)) || (ori_depart == Qet::South && ori_arrivee == Qet::North)) {
-			// cas "4"
-			int ligne_inter_x = qRound(depart.x() + arrivee.x()) / 2;
-			while (ligne_inter_x % Diagram::xGrid) -- ligne_inter_x;
-			points << QPointF(ligne_inter_x, depart.y());
-			points << QPointF(ligne_inter_x, arrivee.y());
+			// cas "4": bridge is vertical, at a shared x between depart.y()
+			// and arrivee.y() -- unnecessary exactly when depart and
+			// arrivee already share an x.
+			if (qRound(depart.x()) != qRound(arrivee.x())) {
+				int ligne_inter_x = qRound(depart.x() + arrivee.x()) / 2;
+				while (ligne_inter_x % Diagram::xGrid) -- ligne_inter_x;
+				points << QPointF(ligne_inter_x, depart.y());
+				points << QPointF(ligne_inter_x, arrivee.y());
+			}
 		} else if ((ori_depart == Qet::West || ori_depart == Qet::North) && (ori_arrivee == Qet::West || ori_arrivee == Qet::North)) {
 			points << QPointF(depart.x(), arrivee.y()); // cas "2"
 		} else {
@@ -548,8 +637,9 @@ void Conductor::paint(QPainter *painter, const QStyleOptionGraphicsItem *options
 
 	painter -> setPen(final_conductor_pen);
 
-		//Draw the conductor
-	painter -> drawPath(path());
+		//Draw the conductor, with a hop at each crossing if the project asks for them
+	const QPainterPath painted_path = paintedPath();
+	painter -> drawPath(painted_path);
 		//Draw the second color
 	if(m_properties.m_bicolor)
 	{
@@ -560,7 +650,7 @@ void Conductor::paint(QPainter *painter, const QStyleOptionGraphicsItem *options
 		final_conductor_pen.setDashPattern(dash_pattern);
 		painter->save();
 		painter->setPen(final_conductor_pen);
-		painter->drawPath(path());
+		painter->drawPath(painted_path);
 		painter->restore();
 	}
 
@@ -582,8 +672,23 @@ void Conductor::paint(QPainter *painter, const QStyleOptionGraphicsItem *options
 		painter -> setPen(final_conductor_pen);
 		painter -> setBrush(junction_brush);
 		painter -> setRenderHint(QPainter::Antialiasing, true);
+			// The junction dot has to read as a dot on top of the conductor
+			// that carries it, so it scales with the conductor width instead
+			// of being a fixed 3.0 across: on a wide conductor a 3.0 dot is
+			// narrower than the line and simply disappears (bugtracker #108).
+			//
+			// Floored at the historic 3.0 so nothing changes for the default
+			// width of 1.0 or anything thinner -- only the wide conductors
+			// the report is about are affected. m_properties.cond_size is
+			// used rather than the pen, whose width is inflated by 4 while
+			// the mouse is over the conductor.
+		const qreal junction_diameter = qMax(3.0, 3.0 * m_properties.cond_size);
+		const qreal junction_radius = junction_diameter / 2.0;
 		foreach(QPointF point, junctions_list) {
-			painter -> drawEllipse(QRectF(point.x() - 1.5, point.y() - 1.5, 3.0, 3.0));
+			painter -> drawEllipse(QRectF(point.x() - junction_radius,
+						      point.y() - junction_radius,
+						      junction_diameter,
+						      junction_diameter));
 		}
 	}
 
@@ -737,6 +842,7 @@ QVariant Conductor::itemChange(GraphicsItemChange change, const QVariant &value)
 	}
 	else if (change == QGraphicsItem::ItemSceneHasChanged)
 	{
+		conductorGeometryChanged();
 		calculateTextItemPosition();
 
 		if(!scene())
@@ -749,6 +855,9 @@ QVariant Conductor::itemChange(GraphicsItemChange change, const QVariant &value)
 	}
 	else if (change == QGraphicsItem::ItemPositionHasChanged && isSelected()) {
 		adjustHandlerPos();
+	}
+	else if (change == QGraphicsItem::ItemScenePositionHasChanged) {
+		conductorGeometryChanged();
 	}
 
 	return(QGraphicsObject::itemChange(change, value));
@@ -1030,8 +1139,26 @@ void Conductor::pointsToSegments(const QList<QPointF>& points_list) {
 */
 bool Conductor::fromXml(QDomElement &dom_element)
 {
-	setPos(dom_element.attribute("x", nullptr).toDouble(),
-		   dom_element.attribute("y", nullptr).toDouble());
+		//Older project files have no conductor uuid attribute at all --
+		//generate one on load, same treatment terminal uuids got when
+		//that field was introduced (see terminal1/terminal2 handling in
+		//toXml() below).
+	m_uuid = QUuid(dom_element.attribute(QStringLiteral("uuid")));
+	m_persist_uuid = !m_uuid.isNull();
+	if (m_uuid.isNull()) {
+			//Absent, empty or malformed: mint one. A null uuid is not a usable
+			//identity -- every conductor carrying one would collide with every
+			//other on the conductor table's primary key. It's runtime-only,
+			//though: toXml() must not write it back out, or a legacy file
+			//with no conductor uuids gets a freshly different one on every
+			//single load-and-resave (see #754).
+		m_uuid = QUuid::createUuid();
+	}
+
+		//"nan" and "inf" parse as numbers; a non-finite position is kept at 0
+	const qreal x = dom_element.attribute("x", nullptr).toDouble();
+	const qreal y = dom_element.attribute("y", nullptr).toDouble();
+	setPos(qIsFinite(x) ? x : 0, qIsFinite(y) ? y : 0);
 
 	bool retval = pathFromXml(dom_element);
 
@@ -1092,6 +1219,8 @@ QDomElement Conductor::toXml(QDomDocument &dom_document,
 {
 	QDomElement dom_element = dom_document.createElement("conductor");
 
+	if (m_persist_uuid)
+		dom_element.setAttribute("uuid", m_uuid.toString());
 	dom_element.setAttribute("x", QString::number(pos().x()));
 	dom_element.setAttribute("y", QString::number(pos().y()));
 	
@@ -1200,7 +1329,10 @@ bool Conductor::pathFromXml(const QDomElement &e) {
 		// cette longueur doit etre un reel
 		bool ok;
 		qreal segment_length = current_segment.attribute("length").toDouble(&ok);
-		if (!ok) continue;
+			// toDouble() accepts "nan" and "inf". A NaN length would also pass
+			// the coherence check below (every comparison with NaN is false)
+			// and turn the whole path into NaN.
+		if (!ok || !qIsFinite(segment_length)) continue;
 
 		if (current_segment.attribute("orientation") == "horizontal") {
 			segments_x << segment_length;
@@ -1298,6 +1430,74 @@ const QList<ConductorSegment *> Conductor::segmentsList() const
 }
 
 /**
+	@brief Conductor::moveSegment
+	Move one segment of this conductor by (dx, dy), the same primitive
+	handlerMouseMoveEvent()/handlerMouseReleaseEvent() apply on a manual
+	drag -- moveX()/moveY() each silently no-op on the wrong axis or a
+	static (terminal-anchored) segment, so both are always called and
+	whichever applies takes effect. Unlike a drag this commits the whole
+	move as a single undo step.
+	@param index a segmentsList() index
+	@param dx @param dy the movement, in the diagram's own coordinates
+	@return false if index is out of range
+*/
+bool Conductor::moveSegment(int index, qreal dx, qreal dy)
+{
+	const QList<ConductorSegment *> segs = segmentsList();
+	if (index < 0 || index >= segs.count()) return false;
+
+	before_mov_text_pos_ = m_text_item->pos();
+	ConductorSegment *seg = segs.at(index);
+	seg->moveX(dx);
+	seg->moveY(dy);
+	modified_path = true;
+	segmentsToPath();
+	calculateTextItemPosition();
+	saveProfile();
+	return true;
+}
+
+/**
+	@brief Conductor::setPathPoints
+	Replace this conductor's path by the one through @p scene_points, and
+	push one undo step for it -- the same ChangeConductorCommand a manual
+	handle drag or moveSegment() pushes, so the path is saved as a
+	modified one and survives a reload.
+	@param scene_points in scene coordinates, from terminal1's docking
+	point to terminal2's, every segment horizontal or vertical
+	@return false, changing nothing, if the points do not make such a path
+*/
+bool Conductor::setPathPoints(const QList<QPointF> &scene_points)
+{
+	if (scene_points.size() < 2 || !terminal1 || !terminal2) return false;
+	const auto isNear = [](const QPointF &a, const QPointF &b) {
+		return qAbs(a.x() - b.x()) < 0.5 && qAbs(a.y() - b.y()) < 0.5;
+	};
+	if (!isNear(scene_points.first(), terminal1->dockConductor()) ||
+		!isNear(scene_points.last(), terminal2->dockConductor()))
+		return false;
+	QList<QPointF> points;
+	for (int i = 0; i < scene_points.size(); ++i) {
+		const QPointF p = scene_points.at(i);
+		if (i && qAbs(p.x() - scene_points.at(i - 1).x()) > 0.01
+			  && qAbs(p.y() - scene_points.at(i - 1).y()) > 0.01)
+			return false;
+		points << mapFromScene(p);
+	}
+		// A two-point path has nothing to segment between: let the
+		// application draw it, as for a conductor with no profile.
+	if (points.size() < 3) return false;
+
+	before_mov_text_pos_ = m_text_item->pos();
+	pointsToSegments(points);
+	modified_path = true;
+	segmentsToPath();
+	calculateTextItemPosition();
+	saveProfile();
+	return true;
+}
+
+/**
 	@brief Conductor::length
 	@return the length of this conductor
 */
@@ -1390,6 +1590,20 @@ QPointF Conductor::posForText(Qt::Orientations &flag)
 }
 
 /**
+	@brief Conductor::updateTextVisibility
+	Show the text of this conductor if its properties ask for it and wire
+	numbers are not hidden (View > Show). With "one text per potential",
+	call calculateTextItemPosition() afterwards: it hides all texts of the
+	potential but the longest conductor's.
+*/
+void Conductor::updateTextVisibility()
+{
+	ShownKinds::setVisible(m_text_item,
+						   m_properties.type == ConductorProperties::Multi
+						   && m_properties.m_show_text);
+}
+
+/**
 	@brief Conductor::calculateTextItemPosition
 	Move the text at middle of conductor (if is vertical or horizontal)
 	otherwise, move conductor at the middle of the longest segment of conductor.
@@ -1416,10 +1630,11 @@ void Conductor::calculateTextItemPosition()
 
 			//At this point this conductor is the longest conductor we hide all text of conductor_list
 		foreach (Conductor *c, relatedPotentialConductors(false)) {
-					c -> textItem() -> setVisible(false);
+					ShownKinds::setVisible(c -> textItem(), false);
 		}
-			//Make sure text item is visible
-		m_text_item -> setVisible(true);
+			//Make sure text item is visible, unless wire numbers are hidden
+			//(View > Show)
+		ShownKinds::setVisible(m_text_item, true);
 	}
 
 		//position
@@ -1671,6 +1886,7 @@ void Conductor::setPath(const QPainterPath &path)
 
 	prepareGeometryChange();
 	m_path = path;
+	conductorGeometryChanged();
 	update();
 }
 
@@ -1767,11 +1983,7 @@ void Conductor::setProperties(const ConductorProperties &property)
 		m_text_item_end2->setColor(end_label_color);
 	}
 
-	if (m_properties.type != ConductorProperties::Multi)
-		m_text_item->setVisible(false);
-	else
-		m_text_item->setVisible(m_properties.m_show_text);
-
+	updateTextVisibility();
 	calculateTextItemPosition();
 	update();
 
@@ -1886,14 +2098,8 @@ QSet<Conductor *> Conductor::relatedPotentialConductors(const bool all_diagram, 
 			for (Conductor *c : other_conductors_list_t) {
 				other_conductors += c->relatedPotentialConductors(all_diagram, t_list);
 			}
-#if QT_VERSION < QT_VERSION_CHECK(5, 14, 0)	// ### Qt 6: remove
-			other_conductors += other_conductors_list_t.toSet();
-#else
-#if TODO_LIST
-#pragma message("@TODO remove code for QT 5.14 or later")
-#endif
+
 			other_conductors += QSet<Conductor*>(other_conductors_list_t.begin(),other_conductors_list_t.end());
-#endif
 		}
 	}
 
@@ -1981,16 +2187,139 @@ bool isContained(const QPointF &a, const QPointF &b, const QPointF &c) {
 }
 
 /**
-	@return la liste des positions des jonctions avec d'autres conducteurs
+	@brief Conductor::paintedPath
+	@return the path drawn for this conductor: path(), with a hop at each
+	place it crosses another conductor when the project draws hops
+	(issue #436, QETProject::wireHops()). Cached until a conductor changes
+	shape, moves, or enters or leaves a folio, so a repaint costs nothing.
+	A moved conductor still repaints the hops of the others: a crossing
+	lies inside the bounding rect of both conductors, which Qt repaints
+	when either moves.
+*/
+QPainterPath Conductor::paintedPath() const
+{
+	const Diagram *parent_diagram = diagram();
+	if (!parent_diagram || !parent_diagram->project()) {
+		return path();
+	}
+	const WireHops::Mode mode = parent_diagram->project()->wireHops();
+	if (mode == WireHops::Mode::None) {
+		return path();
+	}
+	if (m_hops_generation == s_conductor_geometry_generation
+		&& m_hops_mode == int(mode)) {
+		return m_hops_path;
+	}
+
+	if (s_hop_candidates_diagram != parent_diagram
+		|| s_hop_candidates_generation != s_conductor_geometry_generation)
+	{
+		s_hop_candidates.clear();
+		const QList<Conductor *> conductors = parent_diagram->conductors();
+		for (const Conductor *conductor : conductors)
+		{
+			HopCandidate candidate;
+			candidate.conductor = conductor;
+			candidate.rect = conductor->mapRectToScene(conductor->path().boundingRect());
+			for (const QPointF &point : conductor->segmentsToPoints()) {
+				candidate.points.append(conductor->mapToScene(point));
+			}
+			s_hop_candidates.append(candidate);
+		}
+		s_hop_candidates_diagram = parent_diagram;
+		s_hop_candidates_generation = s_conductor_geometry_generation;
+	}
+
+	m_hops_path = path();
+	m_hops_generation = s_conductor_geometry_generation;
+	m_hops_mode = int(mode);
+
+	const QList<QPointF> points = segmentsToPoints();
+	if (points.size() < 2) {
+		return m_hops_path;
+	}
+	QVector<QPointF> wire;
+	for (const QPointF &point : points) {
+		wire.append(mapToScene(point));
+	}
+
+		//A conductor crossing this one has path bounds overlapping its own;
+		//adjusted by 1 because a straight conductor's bounds have no width
+	const QRectF rect = mapRectToScene(path().boundingRect()).adjusted(-1, -1, 1, 1);
+	QList<QVector<QPointF>> others;
+	for (const HopCandidate &candidate : std::as_const(s_hop_candidates))
+	{
+		if (candidate.conductor != this
+			&& rect.intersects(candidate.rect.adjusted(-1, -1, 1, 1))) {
+			others.append(candidate.points);
+		}
+	}
+
+	const QList<QPointF> scene_hops = WireHops::crossings(wire, others, mode);
+	if (!scene_hops.isEmpty())
+	{
+		QList<QPointF> hops;
+		for (const QPointF &hop : scene_hops) {
+			hops.append(mapFromScene(hop));
+		}
+		m_hops_path = WireHops::path(QVector<QPointF>(points.begin(), points.end()), hops, mode);
+	}
+	return m_hops_path;
+}
+
+/**
+	@return true if \a scene_point, where this conductor bends with
+	\a bend_type, lies on one of the segments of \a c and \a c does not
+	bend the same way at the same point.
+*/
+bool Conductor::bendMakesJunction(const Conductor *c, const QPointF &scene_point,
+								  Qt::Corner bend_type) const
+{
+		// exprime le point dans les coordonnees de l'autre conducteur
+	const QPointF conductor_point = c -> mapFromScene(scene_point);
+	bool on_conductor = false;
+	for (ConductorSegment *segment : c -> segmentsList())
+	{
+		if (isContained(conductor_point, segment -> firstPoint(), segment -> secondPoint()))
+		{
+			on_conductor = true;
+			break;
+		}
+	}
+	if (!on_conductor)
+		return false;
+
+		// ce point commun ne doit pas etre une bifurcation identique a celle-ci
+	for (const ConductorBend &cb : c -> bends())
+	{
+		if (cb.first == conductor_point && cb.second == bend_type)
+			return false;
+	}
+	return true;
+}
+
+/**
+	@return the positions, in this conductor's coordinates, of the junction
+	dots this conductor draws: each of its bends that lies on another
+	conductor of the same potential, unless that conductor bends the same
+	way at the same point.
 */
 QList<QPointF> Conductor::junctions() const
 {
 	QList<QPointF> junctions_list;
 
-	// pour qu'il y ait des jonctions, il doit y avoir d'autres conducteurs et des bifurcations
-	QList<Conductor *> other_conductors = relatedConductors(this);
 	QList<ConductorBend> bends_list = bends();
-	if (other_conductors.isEmpty() || bends_list.isEmpty()) {
+	if (bends_list.isEmpty()) {
+		return(junctions_list);
+	}
+
+		// Every conductor of the potential on this folio, not only those on
+		// this conductor's own terminals: a bend can lie on a conductor it
+		// shares no terminal with, e.g. when the horizontal parts of a chain
+		// of conductors are dragged over each other (issue #1280).
+	const QList<Conductor *> other_conductors =
+			const_cast<Conductor *>(this)->relatedPotentialConductors(false).values();
+	if (other_conductors.isEmpty()) {
 		return(junctions_list);
 	}
 
@@ -2013,37 +2342,18 @@ QList<QPointF> Conductor::junctions() const
 		// si le point n'est pas une bifurcation, il ne peut etre une jonction (enfin pas au niveau de ce conducteur)
 		if (!is_bend) continue;
 
-		bool is_junction = false;
 		QPointF scene_point = mapToScene(point);
-		foreach(Conductor *c, other_conductors)
+
+		bool is_junction = false;
+		for (Conductor *c : other_conductors)
 		{
-				// exprime le point dans les coordonnees de l'autre conducteur
-			QPointF conductor_point = c -> mapFromScene(scene_point);
-				// recupere les segments de l'autre conducteur
-			QList<ConductorSegment *> c_segments = c -> segmentsList();
-			if (c_segments.isEmpty())
-				continue;
-				// parcoure les segments a la recherche d'un point commun
-			for (int j = 0 ; j < c_segments.count() ; ++ j)
+			if (bendMakesJunction(c, scene_point, current_bend_type))
 			{
-				ConductorSegment *segment = c_segments[j];
-					// un point commun a ete trouve sur ce segment
-				if (isContained(conductor_point, segment -> firstPoint(), segment -> secondPoint()))
-				{
-					is_junction = true;
-					// ce point commun ne doit pas etre une bifurcation identique a celle-ci
-					QList<ConductorBend> other_conductor_bends = c -> bends();
-					foreach(ConductorBend cb, other_conductor_bends)
-					{
-						if (cb.first == conductor_point && cb.second == current_bend_type)
-						{
-							is_junction = false;
-						}
-					}
-				}
-				if (is_junction) junctions_list << point;
+				is_junction = true;
+				break;
 			}
 		}
+		if (is_junction) junctions_list << point;
 	}
 	return(junctions_list);
 }
@@ -2231,6 +2541,38 @@ QPointF Conductor::movePointIntoPolygon(const QPointF &point, const QPainterPath
 	}
 }
 
+namespace {
+	/// The two ends of @p conductor on the folio, smaller first, compared
+	/// by x then y.
+	QPair<QPointF, QPointF> conductorEnds(const Conductor *conductor)
+	{
+		auto less = [](const QPointF &a, const QPointF &b) {
+			return a.x() < b.x() || (a.x() == b.x() && a.y() < b.y());
+		};
+		QPointF a = conductor->terminal1 ? conductor->terminal1->dockConductor() : QPointF();
+		QPointF b = conductor->terminal2 ? conductor->terminal2->dockConductor() : QPointF();
+		if (less(b, a))
+			std::swap(a, b);
+		return qMakePair(a, b);
+	}
+
+	/// True if @p a comes before @p b in an order that is the same in every
+	/// run: by where the conductor's ends are on the folio, then by uuid.
+	/// Not by uuid first: a project generated again by a script gets new
+	/// uuids each time, and a file with no conductor uuids gets new ones on
+	/// every load, while the drawing is the same.
+	bool stableConductorLess(const Conductor *a, const Conductor *b)
+	{
+		const auto ea = conductorEnds(a), eb = conductorEnds(b);
+		const qreal ka[4] = {ea.first.x(), ea.first.y(), ea.second.x(), ea.second.y()};
+		const qreal kb[4] = {eb.first.x(), eb.first.y(), eb.second.x(), eb.second.y()};
+		for (int i = 0; i < 4; ++i)
+			if (ka[i] != kb[i])
+				return ka[i] < kb[i];
+		return a->uuid() < b->uuid();
+	}
+}
+
 /**
 	@brief longestConductorInPotential
 	@param conductor : a conductor in the potential to search
@@ -2239,10 +2581,24 @@ QPointF Conductor::movePointIntoPolygon(const QPointF &point, const QPainterPath
 */
 Conductor * longestConductorInPotential(Conductor *conductor, bool all_diagram) {
 	Conductor *longest_conductor = conductor;
-	//Search the longest conductor
+	qreal longest_length = conductor->length();
+	//Search the longest conductor.
+	//Conductors of equal length are common (a symmetrical layout), and the
+	//set is iterated in pointer order, which changes from run to run: so a
+	//tie is broken by an order that does not, or the potential's text lands
+	//on a different conductor each time the same file is opened or exported.
 	foreach (Conductor *c, conductor -> relatedPotentialConductors(all_diagram))
-		if (c -> length() > longest_conductor -> length())
+	{
+		const qreal length = c->length();
+		if (qAbs(length - longest_length) < 1e-6) {
+			if (stableConductorLess(c, longest_conductor))
+				longest_conductor = c;
+		}
+		else if (length > longest_length) {
 			longest_conductor = c;
+			longest_length = length;
+		}
+	}
 
 	return longest_conductor;
 }

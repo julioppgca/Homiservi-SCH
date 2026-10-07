@@ -19,6 +19,7 @@
 
 #include "NameList/nameslist.h"
 #include "createdxf.h"
+#include "diagram.h"
 #include "qet.h"
 #include "qetapp.h"
 // uncomment the line below to get more debug information
@@ -26,6 +27,7 @@
 
 #include <QRegularExpression>
 #include <QRegularExpressionMatch>
+#include <algorithm>
 /**
 	@brief TitleBlockTemplate::TitleBlockTemplate
 	Constructor
@@ -396,16 +398,8 @@ void TitleBlockTemplate::parseRows(const QString &rows_string) {
 			 QRegularExpression::CaseInsensitiveOption);
 	bool conv_ok;
 
-#if QT_VERSION < QT_VERSION_CHECK(5, 14, 0)	// ### Qt 6: remove
-	QStringList rows_descriptions =
-			rows_string.split(QChar(';'), QString::SkipEmptyParts);
-#else
-#if TODO_LIST
-#pragma message("@TODO remove code for QT 5.14 or later")
-#endif
 	QStringList rows_descriptions =
 			rows_string.split(QChar(';'), Qt::SkipEmptyParts);
-#endif
 	foreach (QString rows_description, rows_descriptions) {
 		QRegularExpressionMatch match;
 		match = row_size_format.match(rows_description);
@@ -436,18 +430,12 @@ void TitleBlockTemplate::parseColumns(const QString &cols_string) {
 	rel_col_size_format.setPattern("^([rt])([0-9]+)%$");
 	rel_col_size_format.setPatternOptions(QRegularExpression::CaseInsensitiveOption);
 	bool conv_ok;
+#ifdef TITLEBLOCK_TEMPLATE_DEBUG
 	qDebug() <<"is QRegularExpression ok?";
-
-#if QT_VERSION < QT_VERSION_CHECK(5, 14, 0)	// ### Qt 6: remove
-	QStringList cols_descriptions =
-			cols_string.split(QChar(';'), QString::SkipEmptyParts);
-#else
-#if TODO_LIST
-#pragma message("@TODO remove code for QT 5.14 or later")
 #endif
+
 	QStringList cols_descriptions =
 			cols_string.split(QChar(';'), Qt::SkipEmptyParts);
-#endif
 	foreach (QString cols_description, cols_descriptions) {
 		QRegularExpressionMatch match_abc,match_rel;
 		match_abc = abs_col_size_format.match(cols_description);
@@ -960,42 +948,130 @@ int TitleBlockTemplate::columnTypeTotal(QET::TitleBlockColumnLength type) {
 }
 
 /**
-	@return the minimum width for this template
+	@brief TitleBlockTemplate::classifyWidthConstraint
+	Classifies this template's absolute-width (ABS) and
+	relative-to-total-length (RTT) columns, independently of whether a
+	minimum or a maximum width is being computed.
+
+	The classification is derived from the same inequality
+	minimumWidth() solves for a minimum width:
+	@code
+	TOT >= ((sum(RTT)/100)*TOT) + sum(ABS)
+	@endcode
+	Regardless of TOT, the RTT term above scales linearly with TOT. If
+	sum(RTT) alone already accounts for 100% or more of TOT, no choice
+	of TOT -- however large -- can make room for it (and for any ABS
+	columns on top of it): making the template wider grows the RTT
+	columns' pixel footprint by the same proportion, so the shortfall
+	never resolves. This function exists so both minimumWidth() and
+	maximumWidth() report that consistently, instead of maximumWidth()
+	incorrectly treating a misconfigured template as "no upper bound".
+
+	@param[out] abs_total set to columnTypeTotal(QET::Absolute).
+	@param[out] remaining_width_fraction set to the fraction of the
+	total template width left over once the RTT columns have taken
+	their share: (100.0 - sum(RTT)) / 100.0. Zero means the RTT
+	columns claim the entire width, leaving nothing for ABS columns;
+	negative means they claim more than the entire width, which is
+	unsatisfiable regardless of any ABS columns. Only meaningful when
+	this function returns std::nullopt.
+	@return WidthConstraintCase::RelativeWidthExceeds100Percent if
+	sum(RTT) exceeds 100% (unsatisfiable at any width, with or without
+	ABS columns), WidthConstraintCase::AbsoluteColumnsExceedRemainingWidth
+	if sum(RTT) equals exactly 100% and at least one ABS column is also
+	present (unsatisfiable at any width, since the RTT columns leave no
+	room for it), WidthConstraintCase::Unconstrained if sum(RTT) equals
+	exactly 100% with no ABS columns (every term vanishes, any width
+	holds -- an ordinary, valid template), or std::nullopt if this
+	template's columns admit a genuine finite width.
+*/
+std::optional<TitleBlockTemplate::WidthConstraintCase> TitleBlockTemplate::classifyWidthConstraint(int &abs_total, qreal &remaining_width_fraction)
+{
+	abs_total = columnTypeTotal(QET::Absolute);
+	remaining_width_fraction = (100.0 - columnTypeTotal(QET::RelativeToTotalLength)) / 100.0;
+
+	if (remaining_width_fraction < 0.0) {
+		return WidthConstraintCase::RelativeWidthExceeds100Percent;
+	}
+	if (remaining_width_fraction == 0.0) {
+		return abs_total == 0
+			? WidthConstraintCase::Unconstrained
+			: WidthConstraintCase::AbsoluteColumnsExceedRemainingWidth;
+	}
+	return std::nullopt; // a finite width exists: remaining_width_fraction > 0
+}
+
+/**
+	@brief TitleBlockTemplate::minimumWidth
+	@return the minimum width, in pixels, required for this template's
+	absolute-width (ABS) and relative-to-total-length (RTT) columns to
+	all fit.
+
+	Derivation: writing TOT for the (variable) total template width,
+	the minimum size enforced by the ABS and RTT columns is:
+	@code
+	TOT >= ((sum(RTT)/100)*TOT) + sum(ABS)
+	=> (1 - (sum(RTT)/100))*TOT >= sum(ABS)
+	=> TOT >= sum(ABS) / (1 - (sum(RTT)/100))
+	=> TOT >= sum(ABS) / ((100 - sum(RTT))/100)
+	@endcode
+	relative-to-remaining-length (RTR) columns do not constrain the
+	minimum width, since by definition they only ever claim a share of
+	whatever space is left over after the ABS and RTT columns are laid
+	out.
+
+	If no finite minimum width applies, returns one of
+	WidthConstraintCase::Unconstrained,
+	WidthConstraintCase::RelativeWidthExceeds100Percent, or
+	WidthConstraintCase::AbsoluteColumnsExceedRemainingWidth (cast to
+	int) instead -- see classifyWidthConstraint() and that enum's
+	documentation for when each case applies.
 */
 int TitleBlockTemplate::minimumWidth()
 {
-	// Abbreviations: ABS: absolute, RTT: relative to total, RTR:
-	// relative to remaining,
-	// TOT: total diagram/TBT width (variable).
-
-	// Minimum size may be enforced by ABS and RTT widths:
-	// TOT >= ((sum(REL)/100)*TOT)+sum(ABS)
-	// => (1 - (sum(REL)/100))TOT >= sum(ABS)
-	// => TOT >= sum(ABS) / (1 - (sum(REL)/100))
-	// => TOT >= sum(ABS) / ((100 - sum(REL))/100))
-	return(
-		qRound(
-			columnTypeTotal(QET::Absolute)
-			/
-			((100.0 - columnTypeTotal(QET::RelativeToTotalLength))
-			 / 100.0)
-		)
-	);
+	int abs_total;
+	qreal remaining_width_fraction;
+	if (auto width_case = classifyWidthConstraint(abs_total, remaining_width_fraction)) {
+		return static_cast<int>(*width_case);
+	}
+	return qRound(abs_total / remaining_width_fraction);
 }
 
 /**
 	@brief TitleBlockTemplate::maximumWidth
-	@return the maximum width for this template,
-	or -1 if it does not have any.
+	@return the maximum width, in pixels, this template may be
+	rendered at.
+
+	If this template is composed entirely of absolute-width (ABS)
+	columns, the maximum is fixed: the template cannot extend beyond
+	their sum, since nothing in it scales with the template's total
+	width. Otherwise, at least one column scales with the total width
+	(relative-to-total-length or relative-to-remaining-length), so
+	there is ordinarily no upper bound: returns
+	WidthConstraintCase::Unconstrained (cast to int) -- the common case
+	for most templates.
+
+	The exception is when this template's columns cannot be satisfied
+	by any width at all (see classifyWidthConstraint()) -- in that case
+	there is no width, however large, that works, and this returns
+	WidthConstraintCase::RelativeWidthExceeds100Percent or
+	WidthConstraintCase::AbsoluteColumnsExceedRemainingWidth (cast to
+	int) instead of Unconstrained, matching minimumWidth()'s handling
+	of the same cases.
 */
 int TitleBlockTemplate::maximumWidth()
 {
+	int abs_total;
+	qreal remaining_width_fraction;
+	if (auto width_case = classifyWidthConstraint(abs_total, remaining_width_fraction)) {
+		return static_cast<int>(*width_case);
+	}
 	if (columnTypeCount(QET::Absolute) == columns_width_.count()) {
 		// The template is composed of absolute widths only,
 		// therefore it may not extend beyond their sum.
-		return(columnTypeTotal(QET::Absolute));
+		return abs_total; // already computed by classifyWidthConstraint()
 	}
-	return(-1);
+	return static_cast<int>(WidthConstraintCase::Unconstrained);
 }
 
 /**
@@ -1515,8 +1591,10 @@ void TitleBlockTemplate::render(QPainter &painter,
 	int titleblock_height = height();
 
 	painter.save();
-		//Setup the QPainter
-	QPen pen(Qt::black);
+		//Setup the QPainter - use a color that contrasts with the background
+	QColor ink = Diagram::background_color.lightness() < 128
+		    ? QColor(Qt::white) : QColor(Qt::black);
+	QPen pen(ink);
 	painter.setPen(pen);
 
 	// draw the titleblock border
@@ -1568,12 +1646,16 @@ void TitleBlockTemplate::render(QPainter &painter,
 	Width of the titleblock to render
 	@param file_path :
 	@param color :
+	@param dxf_transform :
+	Applied to every DXF point after the title block is laid out, as the
+	QPainter is rotated for a title block at the right of the folio
 */
 void TitleBlockTemplate::renderDxf(QRectF &title_block_rect,
 				   const DiagramContext &diagram_context,
 				   int titleblock_width,
 				   QString &file_path,
-				   int color) const
+				   int color,
+				   const QTransform &dxf_transform) const
 {
 	QList<int> widths = columnsWidth(titleblock_width);
 
@@ -1585,12 +1667,13 @@ void TitleBlockTemplate::renderDxf(QRectF &title_block_rect,
 			*Createdxf::yScale;
 	double recWidth  = title_block_rect.width()  * Createdxf::xScale;
 	double recHeight = title_block_rect.height() * Createdxf::yScale;
-	Createdxf::drawRectangle(file_path,
-				 xCoord,
-				 yCoord,
-				 recWidth,
-				 recHeight,
-				 color);
+	Createdxf::drawPolyline(file_path,
+				dxf_transform.map(QPolygonF(QRectF(xCoord,
+								  yCoord,
+								  recWidth,
+								  recHeight))),
+				color,
+				true);
 
 	// run through each individual cell
 	for (int j = 0 ; j < rows_heights_.count() ; ++ j) {
@@ -1624,7 +1707,10 @@ void TitleBlockTemplate::renderDxf(QRectF &title_block_rect,
 			y = yCoord + recHeight - h - y*Createdxf::yScale;
 			w *= Createdxf::xScale;
 
-			Createdxf::drawRectangle(file_path, x, y, w, h, color);
+			Createdxf::drawPolyline(file_path,
+						dxf_transform.map(QPolygonF(QRectF(x, y, w, h))),
+						color,
+						true);
 			if (cells_[i][j] -> type() == TitleBlockCell::TextCell)
 			{
 				QString final_text =
@@ -1637,7 +1723,8 @@ void TitleBlockTemplate::renderDxf(QRectF &title_block_rect,
 						  y,
 						  w,
 						  h,
-						  color);
+						  color,
+						  dxf_transform);
 			}
 		}
 	}
@@ -1663,7 +1750,9 @@ void TitleBlockTemplate::renderCell(QPainter &painter,
 {
 	// draw the border rect of the current cell
 	QPen pen(QBrush(), 1, Qt::SolidLine, Qt::SquareCap, Qt::MiterJoin);
-	pen.setColor(Qt::black);
+	QColor ink = Diagram::background_color.lightness() < 128
+		    ? QColor(Qt::white) : QColor(Qt::black);
+	pen.setColor(ink);
 	painter.setPen(pen);
 	painter.drawRect(cell_rect);
 
@@ -1739,14 +1828,46 @@ QString TitleBlockTemplate::interpreteVariables(
 		const QString &string,
 		const DiagramContext &diagram_context) const
 {
+	// A variable nobody has given a value to yet -- e.g. one just added to
+	// the template, which is not in the folio's Custom tab until its
+	// properties are opened (#1113) -- must render blank rather than as its
+	// own name, the same as an auto-added but unset one already does (#973).
+	// Collect those from the template text before substituting, so a value
+	// that happens to contain "%something" is never touched.
+	// A bare "%name" is unset only if no key is a prefix of it, because the
+	// substitution below replaces "%key" wherever it appears.
+	static const QRegularExpression rx(
+		QStringLiteral("%\\{([a-z0-9_-]+)\\}|%([a-z0-9_-]+)"));
+	const QStringList keys =
+		diagram_context.keys(DiagramContext::DecreasingLength);
+	QStringList unset;
+	auto it = rx.globalMatch(string);
+	while (it.hasNext()) {
+		const QRegularExpressionMatch m = it.next();
+		const QString name = m.captured(1).isEmpty()
+				? m.captured(2) : m.captured(1);
+		bool known = diagram_context.contains(name);
+		if (!known && m.captured(1).isEmpty()) {
+			for (const QString &key : keys) {
+				if (name.startsWith(key)) { known = true; break; }
+			}
+		}
+		if (!known) unset << m.captured(0);
+	}
+
 	QString interpreted_string = string;
-	foreach (QString key,
-		 diagram_context.keys(DiagramContext::DecreasingLength)) {
+	foreach (QString key, keys) {
 		interpreted_string.replace("%{" % key % "}",
 					   diagram_context[key].toString());
 		interpreted_string.replace("%" % key,
 					   diagram_context[key].toString());
 	}
+	std::sort(unset.begin(), unset.end(),
+		  [](const QString &a, const QString &b) {
+			return a.length() > b.length();
+		  });
+	for (const QString &placeholder : unset)
+		interpreted_string.remove(placeholder);
 	return(interpreted_string);
 }
 
@@ -1755,13 +1876,16 @@ QString TitleBlockTemplate::interpreteVariables(
 	Get list of variables
 	@return The list of string with variables
 */
-QStringList TitleBlockTemplate::listOfVariables()
+QStringList TitleBlockTemplate::listOfVariables() const
 {
 	QStringList list;
-	// Match every "%{name}" placeholder. The bare "%name" form can't be
-	// extracted reliably without the variable list, and templates use the
-	// braced form, so only that is collected here.
-	static const QRegularExpression rx(QStringLiteral("%\\{([^}]+)\\}"));
+	// Match both the braced "%{name}" form and the bare "%name" form
+	// (bugtracker #245): a bare name is taken as the longest run of
+	// identifier characters right after the '%', which correctly stops at
+	// whitespace -- so "%name2 " and "%name2 %name3" are both detected,
+	// matching what previously only worked for the braced form.
+	static const QRegularExpression rx(
+		QStringLiteral("%\\{([^}]+)\\}|%([A-Za-z0-9_-]+)"));
 	// run through each individual cell
 	for (int j = 0 ; j < rows_heights_.count() ; ++ j) {
 		for (int i = 0 ; i < columns_width_.count() ; ++ i) {
@@ -1772,7 +1896,9 @@ QStringList TitleBlockTemplate::listOfVariables()
 			const QString cell_value = cells_[i][j] -> value.name();
 			auto it = rx.globalMatch(cell_value);
 			while (it.hasNext()) {
-				const QString name = it.next().captured(1);
+				const QRegularExpressionMatch m = it.next();
+				const QString name = m.captured(1).isEmpty()
+						? m.captured(2) : m.captured(1);
 				if (!name.isEmpty() && !list.contains(name))
 					list << name;
 			}
@@ -1850,6 +1976,7 @@ void TitleBlockTemplate::renderTextCell(QPainter &painter,
 	@param w
 	@param h
 	@param color
+	@param dxf_transform : see renderDxf()
 */
 void TitleBlockTemplate::renderTextCellDxf(
 		QString &file_path,
@@ -1859,7 +1986,8 @@ void TitleBlockTemplate::renderTextCellDxf(
 		qreal y,
 		qreal w,
 		qreal h,
-		int color) const
+		int color,
+		const QTransform &dxf_transform) const
 {
 	if (text.isEmpty()) return;
 	QFont text_font = TitleBlockTemplate::fontForCell(cell);
@@ -1909,32 +2037,64 @@ void TitleBlockTemplate::renderTextCellDxf(
 	}
 
 	//painter.setFont(text_font);
-	qreal ratio = 1.0;
 
-	if (cell.hadjust)
+		//A cell can hold several lines, which the screen shows one under the
+		//other (QPainter::drawText()). A DXF TEXT is a single line, and a line
+		//break inside one breaks the file (FINDINGS F052), so each line gets
+		//its own, stacked as the cell's vertical alignment says: the first at
+		//y1 when aligned to the top, the last at y1 when aligned to the
+		//bottom, the block centred on y1 otherwise. Spacing as the diagram
+		//texts' DXF export: 1.6 times the text height. A single line is
+		//written exactly as before.
+	const QStringList lines = text.split(QRegularExpression(QStringLiteral("\r\n|\r|\n")));
+	const qreal line_spacing = textHeight * Createdxf::yScale * 1.6;
+	const int last = lines.size() - 1;
+	const qreal rotation = qRadiansToDegrees(
+				qAtan2(dxf_transform.m12(), dxf_transform.m11()));
+	for (int i = 0 ; i < lines.size() ; ++i)
 	{
-	// Scale font width to fit string in cell width w
-	// As DXF font aspect ratio is implementation dependent we add a fudge-factor based on tests with AutoCAD
-		int len = text.length() * textHeight * Createdxf::xScale * 1.2;
+		const QString &line = lines.at(i);
+		if (line.isEmpty()) continue;
 
-		if(len > w)
-			ratio = (w/len);
+		qreal offset; // upward, from y1
+		if (vAlign == 3)
+			offset = -i * line_spacing;
+		else if (vAlign == 2)
+			offset = (last / 2.0 - i) * line_spacing;
+		else
+			offset = (last - i) * line_spacing;
+
+		qreal ratio = 1.0;
+
+		if (cell.hadjust)
+		{
+		// Scale font width to fit string in cell width w
+		// As DXF font aspect ratio is implementation dependent we add a fudge-factor based on tests with AutoCAD
+			int len = line.length() * textHeight * Createdxf::xScale * 1.2;
+
+			if(len > w)
+				ratio = (w/len);
+		}
+
+		// x offset value below currently set heuristically based on appearance...
+		const QPointF insert = dxf_transform.map(
+					QPointF(x - 2*Createdxf::xScale, y1 + offset));
+		const QPointF align = dxf_transform.map(QPointF(x2, y1 + offset));
+		Createdxf::drawTextAligned(
+					file_path,
+					line,
+					insert.x(),
+					insert.y(),
+					textHeight*Createdxf::yScale,
+					rotation,
+					0,
+					hAlign,
+					vAlign,
+					align.x(),
+					align.y(),
+					ratio,
+					color);
 	}
-
-	// x offset value below currently set heuristically based on appearance...
-	Createdxf::drawTextAligned(
-				file_path,
-				text,
-				x - 2*Createdxf::xScale,
-				y1,
-				textHeight*Createdxf::yScale,
-				0,
-				0,
-				hAlign,
-				vAlign,
-				x2,
-				ratio,
-				color);
 }
 
 /**

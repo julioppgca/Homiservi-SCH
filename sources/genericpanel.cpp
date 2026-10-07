@@ -35,7 +35,7 @@ GenericPanel::GenericPanel(QWidget *parent) :
 	first_activation_(true)
 {
 	header() -> hide();
-	setIconSize(QSize(50, 50));
+	setIconSize(QSize(16, 16));
 }
 
 /**
@@ -696,7 +696,13 @@ QTreeWidgetItem *GenericPanel::updateItem(QTreeWidgetItem *qtwi,
 					  bool freshly_created) {
 	Q_UNUSED(options);
 	Q_UNUSED(freshly_created);
-	QApplication::processEvents();
+		//No QApplication::processEvents() here. It dates from when this
+		//panel also listed the whole element collection, to keep the
+		//window alive while that reloaded; the collection has its own
+		//panel now. Running the event loop from inside the panel's own
+		//methods let a pending deleteLater() destroy the panel while
+		//addProject() was still using it: closing QElectroTech without
+		//saving an edited project read freed memory.
 	return(qtwi);
 }
 
@@ -730,11 +736,25 @@ void GenericPanel::projectInformationsChanged(QETProject *project) {
 /**
 	@brief GenericPanel::diagramAdded
 	@param project
-	@param diagram (unused)
+	@param diagram the newly added diagram to select in the tree
 */
 void GenericPanel::diagramAdded(QETProject *project, Diagram *diagram) {
-	Q_UNUSED(diagram)
 	addProject(project, nullptr, GenericPanel::AddChildDiagrams);
+	if (diagram) {
+		QTreeWidgetItem *projectItem = itemForProject(project);
+		if (projectItem) {
+			for (int i = 0; i < projectItem->childCount(); ++i) {
+				QTreeWidgetItem *child = projectItem->child(i);
+				if (child && child->type() == QET::Diagram
+				    && valueForItem<Diagram *>(child) == diagram) {
+					clearSelection();
+					setCurrentItem(child);
+					child->setSelected(true);
+					break;
+				}
+			}
+		}
+	}
 	emit(panelContentChanged());
 }
 
@@ -1033,7 +1053,7 @@ bool GenericPanel::event(QEvent *event) {
 	if (first_activation_) {
 		if (event -> type() == QEvent::WindowActivate
 				|| event -> type() == QEvent::Show) {
-			QTimer::singleShot(250, this, SLOT(emitFirstActivated()));
+			QTimer::singleShot(250, this, &GenericPanel::emitFirstActivated);
 			first_activation_ = false;
 		}
 	}
