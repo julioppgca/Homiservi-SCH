@@ -700,6 +700,13 @@ void CrossRefItem::setUpCrossBoundingRect(QPainter &painter)
 	//No need to calcul if nothing is linked
 	if (m_element->isFree()) return;
 
+		// Only updateLabel() (m_update_map == true) computes the geometry.
+		// From paint() it is already up to date, and calling
+		// prepareGeometryChange() there schedules another repaint: the view
+		// then repaints forever (one core busy) and m_shape_path grows on
+		// every frame.
+	if (!m_update_map) return;
+
 	QStringList no_str, nc_str;
 
 	// Helper lambda: build "[13-14] pos" string for an element.
@@ -1004,6 +1011,8 @@ void CrossRefItem::drawAsContacts(QPainter &painter)
 	}
 
 	bounding_rect.adjust(-list_margin_left, -4, list_margin_right, 4);
+		// See setUpCrossBoundingRect(): never change the geometry from paint().
+	if (!m_update_map) return;
 	prepareGeometryChange();
 	m_bounding_rect = bounding_rect;
 	m_shape_path.addRect(bounding_rect);

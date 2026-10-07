@@ -172,6 +172,7 @@ class QETApp : public QObject
 		*/
 		static QString lang_dir;
 		static QFont diagramTextsFont(qreal = -1.0);
+		static void diagramTextsFontChanged();
 		static QFont diagramTextsItemFont(qreal = -1.0);
 		static QFont dynamicTextsItemFont(qreal = -1.0);
 		static QFont indiTextsItemFont (qreal = -1.0);

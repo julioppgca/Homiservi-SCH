@@ -573,6 +573,7 @@ void GeneralConfigurationPage::on_m_font_pb_clicked()
 		settings.setValue("diagramitemsize", font.pointSize());
 		settings.setValue("diagramitemweight", font.weight());
 		settings.setValue("diagramitemstyle", font.styleName());
+		QETApp::diagramTextsFontChanged();
 		QString fontInfos = settings.value("diagramitemfont").toString() + " " +
 				settings.value("diagramitemsize").toString() + " (" +
 				settings.value("diagramitemstyle").toString() + ")";

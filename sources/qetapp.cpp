@@ -46,6 +46,7 @@
 #include "ui/configpage/toolbarsconfigpage.h"
 #include "ui/configpage/toolbarcommandsconfigpage.h"
 #include "ui/customizedialog.h"
+#include <QMutex>
 #include <QTabWidget>
 #include "machine_info.h"
 #include "TerminalStrip/ui/terminalstripeditorwindow.h"
@@ -1415,6 +1416,18 @@ bool QETApp::closeEveryEditor()
 	return(every_window_closed);
 }
 
+namespace {
+	/**
+		Cache of the fonts built by QETApp::diagramTextsFont(), by size.
+		Building one meant reading four QSettings values (registry reads on
+		Windows) and resolving a QFont, for every title block cell and
+		cross reference on every repaint. Cleared by
+		QETApp::diagramTextsFontChanged() when the settings change.
+	*/
+	QMutex diagram_texts_font_mutex;
+	QHash<qreal, QFont> diagram_texts_font_cache;
+}
+
 /**
 	@brief QETApp::diagramTextsFont
 	The font to use
@@ -1424,6 +1437,12 @@ bool QETApp::closeEveryEditor()
 */
 QFont QETApp::diagramTextsFont(qreal size)
 {
+	QMutexLocker locker(&diagram_texts_font_mutex);
+	const auto cached = diagram_texts_font_cache.constFind(size);
+	if (cached != diagram_texts_font_cache.constEnd()) {
+		return(*cached);
+	}
+
 	QSettings settings;
 
 	//Font to use
@@ -1448,8 +1467,21 @@ QFont QETApp::diagramTextsFont(qreal size)
 	if (diagram_texts_size <= 4.0) {
 		diagram_texts_font.setWeight(QFont::Light);
 	}
+	diagram_texts_font_cache.insert(size, diagram_texts_font);
 	return(diagram_texts_font);
 }
+
+/**
+	@brief QETApp::diagramTextsFontChanged
+	Forget the fonts cached by diagramTextsFont(); call it after changing
+	the "diagramitem*" settings.
+*/
+void QETApp::diagramTextsFontChanged()
+{
+	QMutexLocker locker(&diagram_texts_font_mutex);
+	diagram_texts_font_cache.clear();
+}
+
 /**
 	@brief QETApp::diagramTextsItemFont
 	the font to use in independent text items
@@ -1458,31 +1490,8 @@ QFont QETApp::diagramTextsFont(qreal size)
 */
 QFont QETApp::diagramTextsItemFont(qreal size)
 {
-	QSettings settings;
-
-	//Font to use
-	QString diagram_texts_item_family = settings.value("diagramitemfont",
-							   "Liberation Sans").toString();
-	qreal diagram_texts_item_size     = settings.value("diagramitemsize",
-							   9.0).toDouble();
-	auto diagram_texts_item_weight =
-			static_cast<QFont::Weight>(
-				settings.value("diagramitemweight", QFont::Normal).toInt());
-	QString diagram_texts_item_style  = settings.value("diagramitemstyle",
-							   "Regular").toString();
-
-	if (size != -1.0) {
-		diagram_texts_item_size = size;
-	}
-	QFont diagram_texts_item_font = QFont(diagram_texts_item_family);
-	diagram_texts_item_font.setPointSizeF(diagram_texts_item_size);
-	diagram_texts_item_font.setWeight(diagram_texts_item_weight);
-	diagram_texts_item_font.setStyleHint(QFont::SansSerif);
-	diagram_texts_item_font.setStyleName(diagram_texts_item_style);
-	if (diagram_texts_item_size <= 4.0) {
-		diagram_texts_item_font.setWeight(QFont::Light);
-	}
-	return(diagram_texts_item_font);
+		//Same settings, same font
+	return(diagramTextsFont(size));
 }
 /**
 	@brief QETApp::dynamicTextsFont
