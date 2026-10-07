@@ -668,6 +668,9 @@ void CrossRefItem::setUpCrossBoundingRect(QPainter &painter)
 
 	//Minor adjustement for better visual
 	default_bounding.adjust(0, 0, 4, 0);
+	// Geometry is only (re)computed from updateLabel(): changing it from
+	// paint() would schedule a new repaint, looping forever at 100% CPU.
+	if (!m_update_map) return;
 	m_shape_path.addRect(default_bounding);
 	prepareGeometryChange();
 	m_bounding_rect = default_bounding;
@@ -744,6 +747,7 @@ void CrossRefItem::drawAsContacts(QPainter &painter)
 	}
 
 	bounding_rect.adjust(-30, -4, 4, 4);
+	if (!m_update_map) return; // see setUpCrossBoundingRect()
 	prepareGeometryChange();
 	m_bounding_rect = bounding_rect;
 	m_shape_path.addRect(bounding_rect);
@@ -1271,9 +1275,12 @@ void CrossRefItem::AddExtraInfo(QPainter &painter, const QString& type)
 
 		text_bounding.adjust(-1,0,1,0); //adjust only for better visual
 
-		m_shape_path.addRect(text_bounding);
-		prepareGeometryChange();
-		m_bounding_rect = m_bounding_rect.united(text_bounding);
+		if (m_update_map) // see setUpCrossBoundingRect()
+		{
+			m_shape_path.addRect(text_bounding);
+			prepareGeometryChange();
+			m_bounding_rect = m_bounding_rect.united(text_bounding);
+		}
 		if (type == "comment") painter.drawRoundedRect(text_bounding,
 							       2,
 							       2);
@@ -1549,6 +1556,7 @@ void CrossRefItem::drawAsPlcTable(QPainter &painter)
 		}
 	}
 
+	if (!m_update_map) return; // see setUpCrossBoundingRect()
 	prepareGeometryChange();
 	m_bounding_rect = bg_rect;
 	m_shape_path.addRect(bg_rect);
