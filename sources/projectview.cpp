@@ -16,6 +16,7 @@
 	along with QElectroTech.  If not, see <http://www.gnu.org/licenses/>.
 */
 #include "projectview.h"
+#include "projecthistory.h"
 
 #include "ElementsCollection/xmlelementcollection.h"
 #include "autoNum/assignvariables.h"
@@ -723,6 +724,8 @@ QETResult ProjectView::doSave()
 		return(saveAs());
 	}
 
+		// keep the version still on disk before overwriting it
+	ProjectHistory::snapshot(m_project -> filePath());
 	// write to file
 	QETResult result = m_project -> write();
 	updateWindowTitle();

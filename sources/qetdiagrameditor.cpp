@@ -16,6 +16,8 @@
 	along with QElectroTech.  If not, see <http://www.gnu.org/licenses/>.
 */
 #include "qetdiagrameditor.h"
+#include "projecthistory.h"
+#include "ui/projecthistorydialog.h"
 #include "shownkinds.h"
 #ifdef QET_HAS_SCRIPTING
 #include "scripting/qetscripting.h"
@@ -109,6 +111,7 @@
 #include <QJsonObject>
 #include <QTime>
 #include <QStatusBar>
+#include <QStandardPaths>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QUrl>
@@ -715,6 +718,12 @@ void QETDiagramEditor::setUpActions()
 	m_remove_diagram_from_project = new QAction(QET::Icons::DiagramDelete, tr("Supprimer le folio"), this);
 	ShortcutManager::instance().registerAction(m_remove_diagram_from_project, "diagrameditor.remove_diagram_from_project", tr("Éditeur de schémas"), QKeySequence());
 	connect(m_remove_diagram_from_project, &QAction::triggered, this, &QETDiagramEditor::removeDiagramFromProject);
+
+		//Previous versions of the project file
+	m_project_history = new QAction(QET::Icons::DocumentOpenRecent, tr("Histórico de versões..."), this);
+	ShortcutManager::instance().registerAction(m_project_history, "diagrameditor.project_history", tr("Éditeur de schémas"), QKeySequence());
+	m_project_history->setStatusTip(tr("Lista as versões anteriores do arquivo do projeto, guardadas a cada salvamento, para abrir ou restaurar", "status bar tip"));
+	connect(m_project_history, &QAction::triggered, this, &QETDiagramEditor::showProjectHistory);
 
 		//Clean the current project
 	m_clean_project         = new QAction(QET::Icons::EditClear,             tr("Nettoyer le projet"),                   this);
@@ -1603,6 +1612,7 @@ void QETDiagramEditor::setUpMenu()
 	menu_project -> addAction(m_project_add_diagram);
 	menu_project -> addAction(m_remove_diagram_from_project);
 	menu_project -> addAction(m_clean_project);
+	menu_project -> addAction(m_project_history);
 	menu_project -> addSeparator();
 	menu_project -> addAction(m_add_summary);
 	menu_project -> addAction(m_add_nomenclature);
@@ -1836,6 +1846,78 @@ bool QETDiagramEditor::closeProject(QETProject *project)
 		return(closeProject(project_view));
 	}
 	return(true);
+}
+
+/**
+	@brief QETDiagramEditor::showProjectHistory
+	Show the versions ProjectHistory kept of the current project, then open
+	the chosen one as a read-only copy or restore it in place of the
+	project file (the project is closed and opened again).
+*/
+void QETDiagramEditor::showProjectHistory()
+{
+	QETProject *project = currentProject();
+	if (!project || project->filePath().isEmpty()) {
+		return;
+	}
+	const QString project_path = project->filePath();
+	const QFileInfo project_info(project_path);
+
+	ProjectHistoryDialog dialog(project_path, this);
+	if (dialog.exec() != QDialog::Accepted) {
+		return;
+	}
+	const ProjectHistory::Entry entry = dialog.selectedEntry();
+	const QString when = QLocale().toString(entry.saved_at, QStringLiteral("dd/MM/yyyy HH:mm"));
+
+	if (dialog.action() == ProjectHistoryDialog::OpenCopy)
+	{
+			//Outside the project folder, which may be synchronised
+		const QString dir = QStandardPaths::writableLocation(QStandardPaths::TempLocation)
+				+ QStringLiteral("/QElectroTech-historico");
+		const QString copy = dir + QLatin1Char('/') + project_info.completeBaseName()
+				+ entry.saved_at.toString(QStringLiteral(" (yyyy-MM-dd HH-mm-ss)."))
+				+ project_info.suffix();
+		if (ProjectView *open_copy = findProject(copy)) {
+			activateProject(open_copy);
+			return;
+		}
+		QDir().mkpath(dir);
+		QFile::remove(copy);
+		if (!QFile::copy(entry.file_path, copy)) {
+			QET::QetMessageBox::critical(this, tr("Histórico de versões"),
+				tr("Não foi possível copiar a versão de %1 para %2.").arg(when, copy));
+			return;
+		}
+		if (openAndAddProject(copy)) {
+			if (ProjectView *view = findProject(copy)) {
+				view->project()->setReadOnly(true);
+			}
+		}
+	}
+	else if (dialog.action() == ProjectHistoryDialog::Restore)
+	{
+		const auto answer = QET::QetMessageBox::question(this,
+			tr("Restaurar versão"),
+			tr("O projeto será fechado e o arquivo\n%1\nsubstituído pela versão"
+			   " de %2. A versão atual do arquivo entra no histórico antes,"
+			   " então esta restauração também pode ser desfeita.\n\nContinuar?")
+				.arg(QDir::toNativeSeparators(project_path), when),
+			QMessageBox::Yes | QMessageBox::Cancel, QMessageBox::Cancel);
+		if (answer != QMessageBox::Yes) {
+			return;
+		}
+			//May ask to save the changes, and the user may cancel
+		if (!closeProject(project)) {
+			return;
+		}
+		QString error;
+		if (!ProjectHistory::restore(entry, project_path, &error)) {
+			QET::QetMessageBox::critical(this, tr("Restaurar versão"),
+				tr("Não foi possível restaurar a versão de %1: %2").arg(when, error));
+		}
+		openAndAddProject(project_path);
+	}
 }
 
 /**
@@ -2634,6 +2716,7 @@ void QETDiagramEditor::slot_updateActions()
 	m_project_add_diagram         -> setEnabled(editable_project);
 	m_remove_diagram_from_project -> setEnabled(editable_project);
 	m_clean_project               -> setEnabled(editable_project);
+	m_project_history             -> setEnabled(opened_project && !currentProject()->filePath().isEmpty());
 	m_add_summary                 -> setEnabled(editable_project);
 	m_add_nomenclature            -> setEnabled(editable_project);
 	m_csv_export                  -> setEnabled(editable_project);
