@@ -39,7 +39,8 @@ class ProjectHistoryDialog : public QDialog
 		enum Action {
 			NoAction,
 			OpenCopy,	///< open the version beside the project, read-only
-			Restore		///< put the version in place of the project file
+			Restore,	///< put the version in place of the project file
+			Compare		///< list the differences with the open project
 		};
 
 		explicit ProjectHistoryDialog(const QString &project_path,
@@ -58,6 +59,7 @@ class ProjectHistoryDialog : public QDialog
 		QTreeWidget *m_list = nullptr;
 		QPushButton *m_open_copy = nullptr;
 		QPushButton *m_restore = nullptr;
+		QPushButton *m_compare = nullptr;
 };
 
 #endif // PROJECTHISTORYDIALOG_H

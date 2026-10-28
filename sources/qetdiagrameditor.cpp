@@ -17,6 +17,7 @@
 */
 #include "qetdiagrameditor.h"
 #include "projecthistory.h"
+#include "ui/projectdiffdock.h"
 #include "ui/projecthistorydialog.h"
 #include "shownkinds.h"
 #ifdef QET_HAS_SCRIPTING
@@ -724,6 +725,12 @@ void QETDiagramEditor::setUpActions()
 	ShortcutManager::instance().registerAction(m_project_history, "diagrameditor.project_history", tr("Éditeur de schémas"), QKeySequence());
 	m_project_history->setStatusTip(tr("Lista as versões anteriores do arquivo do projeto, guardadas a cada salvamento, para abrir ou restaurar", "status bar tip"));
 	connect(m_project_history, &QAction::triggered, this, &QETDiagramEditor::showProjectHistory);
+
+		//Differences with another version of the project file
+	m_project_compare = new QAction(tr("Comparar com arquivo..."), this);
+	ShortcutManager::instance().registerAction(m_project_compare, "diagrameditor.project_compare", tr("Éditeur de schémas"), QKeySequence());
+	m_project_compare->setStatusTip(tr("Lista os fólios, elementos e fios adicionados, removidos ou alterados em relação a outro arquivo do projeto", "status bar tip"));
+	connect(m_project_compare, &QAction::triggered, this, &QETDiagramEditor::compareProjectWithFile);
 
 		//Clean the current project
 	m_clean_project         = new QAction(QET::Icons::EditClear,             tr("Nettoyer le projet"),                   this);
@@ -1613,6 +1620,7 @@ void QETDiagramEditor::setUpMenu()
 	menu_project -> addAction(m_remove_diagram_from_project);
 	menu_project -> addAction(m_clean_project);
 	menu_project -> addAction(m_project_history);
+	menu_project -> addAction(m_project_compare);
 	menu_project -> addSeparator();
 	menu_project -> addAction(m_add_summary);
 	menu_project -> addAction(m_add_nomenclature);
@@ -1895,6 +1903,10 @@ void QETDiagramEditor::showProjectHistory()
 			}
 		}
 	}
+	else if (dialog.action() == ProjectHistoryDialog::Compare)
+	{
+		compareProject(project, entry.file_path, tr("versão de %1").arg(when));
+	}
 	else if (dialog.action() == ProjectHistoryDialog::Restore)
 	{
 		const auto answer = QET::QetMessageBox::question(this,
@@ -1918,6 +1930,47 @@ void QETDiagramEditor::showProjectHistory()
 		}
 		openAndAddProject(project_path);
 	}
+}
+
+/**
+	@brief QETDiagramEditor::compareProjectWithFile
+	Ask for another version of the current project and list the
+	differences with it.
+*/
+void QETDiagramEditor::compareProjectWithFile()
+{
+	QETProject *project = currentProject();
+	if (!project) {
+		return;
+	}
+	const QString dir = project->filePath().isEmpty()
+			? QString()
+			: QFileInfo(project->filePath()).absolutePath();
+	const QString path = QFileDialog::getOpenFileName(this,
+		tr("Comparar com arquivo"), dir,
+		tr("Projetos QElectroTech (*.qet);;Todos os arquivos (*)"));
+	if (path.isEmpty()) {
+		return;
+	}
+	compareProject(project, path, QFileInfo(path).fileName());
+}
+
+/**
+	@brief QETDiagramEditor::compareProject
+	Show in the "Diferenças" dock what changed from the project file at
+	reference_path to project, as it is now.
+*/
+void QETDiagramEditor::compareProject(QETProject *project,
+				      const QString &reference_path,
+				      const QString &reference_label)
+{
+	if (!m_project_diff_dock) {
+		m_project_diff_dock = new ProjectDiffDock(this);
+		addDockWidget(Qt::RightDockWidgetArea, m_project_diff_dock);
+	}
+	m_project_diff_dock->show();
+	m_project_diff_dock->raise();
+	m_project_diff_dock->compare(project, reference_path, reference_label);
 }
 
 /**
@@ -2717,6 +2770,7 @@ void QETDiagramEditor::slot_updateActions()
 	m_remove_diagram_from_project -> setEnabled(editable_project);
 	m_clean_project               -> setEnabled(editable_project);
 	m_project_history             -> setEnabled(opened_project && !currentProject()->filePath().isEmpty());
+	m_project_compare             -> setEnabled(opened_project);
 	m_add_summary                 -> setEnabled(editable_project);
 	m_add_nomenclature            -> setEnabled(editable_project);
 	m_csv_export                  -> setEnabled(editable_project);

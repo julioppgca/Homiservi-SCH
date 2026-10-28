@@ -176,6 +176,8 @@ set(QET_SRC_FILES
   ${QET_DIR}/sources/conductorautonumerotation.h
   ${QET_DIR}/sources/conductorendlabeling.cpp
   ${QET_DIR}/sources/conductorendlabeling.h
+  ${QET_DIR}/sources/projectdiff.cpp
+  ${QET_DIR}/sources/projectdiff.h
   ${QET_DIR}/sources/projecthistory.cpp
   ${QET_DIR}/sources/projecthistory.h
   ${QET_DIR}/sources/conductornumexport.cpp
@@ -793,6 +795,8 @@ set(QET_SRC_FILES
   ${QET_DIR}/sources/ui/backupdialog.h
   ${QET_DIR}/sources/ui/backuprestoredialog.cpp
   ${QET_DIR}/sources/ui/backuprestoredialog.h
+  ${QET_DIR}/sources/ui/projectdiffdock.cpp
+  ${QET_DIR}/sources/ui/projectdiffdock.h
   ${QET_DIR}/sources/ui/projecthistorydialog.cpp
   ${QET_DIR}/sources/ui/projecthistorydialog.h
   ${QET_DIR}/sources/ui/dialogwaiting.cpp

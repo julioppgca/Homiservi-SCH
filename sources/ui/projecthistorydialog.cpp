@@ -102,6 +102,9 @@ ProjectHistoryDialog::ProjectHistoryDialog(const QString &project_path,
 	m_open_copy = buttons->addButton(tr("Abrir cópia"), QDialogButtonBox::ActionRole);
 	m_open_copy->setToolTip(tr("Abre esta versão como outro projeto, somente"
 				   " leitura, para comparar ou copiar partes"));
+	m_compare = buttons->addButton(tr("Comparar com o atual"), QDialogButtonBox::ActionRole);
+	m_compare->setToolTip(tr("Lista o que mudou desta versão para o projeto aberto,"
+				 " alterações não salvas incluídas"));
 	m_restore = buttons->addButton(tr("Restaurar..."), QDialogButtonBox::ActionRole);
 	m_restore->setToolTip(tr("Põe esta versão no lugar do arquivo do projeto."
 				 " A versão atual entra no histórico antes."));
@@ -111,6 +114,7 @@ ProjectHistoryDialog::ProjectHistoryDialog(const QString &project_path,
 
 	connect(m_open_copy, &QPushButton::clicked, this, [this]{ choose(OpenCopy); });
 	connect(m_restore, &QPushButton::clicked, this, [this]{ choose(Restore); });
+	connect(m_compare, &QPushButton::clicked, this, [this]{ choose(Compare); });
 	connect(open_folder, &QPushButton::clicked, this, [this]{
 		const QString dir = ProjectHistory::historyDir(m_project_path);
 		QDir().mkpath(dir);
@@ -146,6 +150,7 @@ void ProjectHistoryDialog::updateButtons()
 	const bool selected = m_list->currentItem() != nullptr;
 	m_open_copy->setEnabled(selected);
 	m_restore->setEnabled(selected);
+	m_compare->setEnabled(selected);
 }
 
 void ProjectHistoryDialog::choose(Action action)

@@ -124,6 +124,8 @@ class QETDiagramEditor : public QETMainWindow
 		bool closeProject(ProjectView *);
 		bool closeProject(QETProject *);
 		void showProjectHistory();
+		void compareProjectWithFile();
+		void compareProject(QETProject *project, const QString &reference_path, const QString &reference_label);
 		void zoomGroupTriggered      (QAction *action);
 		void selectGroupTriggered    (QAction *action);
 		void addItemGroupTriggered   (QAction *action);
@@ -261,7 +263,8 @@ class QETDiagramEditor : public QETMainWindow
 		*m_project_export_wiring_list, ///< Action to export the wiring list
 		*m_project_print_wire_tags,	///< Action to print the wire-end (ferrule) tag list
 		*m_project_export_wire_tags_csv, ///< Action to export a minimal tag-only CSV for label-printer software
-		*m_project_history,           ///< Action to list, open or restore the previous versions of the project file
+		*m_project_history,
+		*m_project_compare,           ///< Action to list the differences with another version of the project file           ///< Action to list, open or restore the previous versions of the project file
 		*m_project_wiring_list_view,   ///< Action to show the wiring list read from the project database
 		*m_terminal_numbering,         ///< Action to launch terminal numbering
 		*m_reload_element_drawings,    ///< Action to redraw every placed element from its current definition
@@ -358,6 +361,7 @@ class QETDiagramEditor : public QETMainWindow
 		
 		QUndoGroup undo_group;
 		AutoNumberingDockWidget *m_autonumbering_dock;
+		class ProjectDiffDock *m_project_diff_dock = nullptr;
 		int activeSubWindowIndex;
 		SearchAndReplaceWidget m_search_and_replace_widget;
 };

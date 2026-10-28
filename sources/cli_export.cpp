@@ -32,6 +32,7 @@
 #include "qetgraphicsitem/diagramimageitem.h"
 #include "qetgraphicsitem/element.h"
 #include "qetgraphicsitem/terminal.h"
+#include "projectdiff.h"
 #include "qetproject.h"
 #include "titleblockproperties.h"
 #include "wiringlistexport.h"
@@ -83,6 +84,7 @@ const QHash<QString, QString> &exportFlags()
 		{"--export-nets", "nets"},
 		{"--export-links", "links"},
 		{"--info", "info"},
+		{"--diff", "diff"},
 		{"--check-elements", "check"},
 		{"--resave", "resave"},
 		{"--set-titleblock", "settb"},
@@ -980,6 +982,36 @@ bool isExportRequest(const QStringList &args)
 	return false;
 }
 
+/// Print what changed from the project at reference_path to project.
+int diffProjects(QETProject &project, const QString &reference_path)
+{
+	if (reference_path.isEmpty() || !QFileInfo::exists(reference_path)) {
+		err << "Usage: qelectrotech --diff <project.qet> <older.qet>\n";
+		return 2;
+	}
+	QETProject reference(reference_path);
+	if (reference.state() != QETProject::Ok) {
+		err << "Failed to open project: " << reference_path << "\n";
+		return 2;
+	}
+
+	const QList<ProjectDiff::Change> changes = ProjectDiff::compare(&reference, &project);
+	QTextStream out(stdout);
+	out.setEncoding(QStringConverter::Utf8);
+	static const char *kinds[] = {"+", "-", "~"};
+	for (const ProjectDiff::Change &change : changes) {
+		out << kinds[change.kind] << " [" << (change.folio_index + 1)
+		    << " " << change.folio_title << "]";
+		if (!change.cell.isEmpty() && change.item != ProjectDiff::Change::Folio)
+			out << " " << change.cell;
+		out << " " << change.name << "\n";
+		for (const QString &detail : change.details)
+			out << "      " << detail << "\n";
+	}
+	out.flush();
+	return changes.isEmpty() ? 0 : 1;
+}
+
 int run(const QStringList &args)
 {
 	// --show-terminals is a standalone switch (not tied to a position),
@@ -1035,6 +1067,11 @@ int run(const QStringList &args)
 	// --info writes JSON to stdout, or to an optional output file.
 	if (format == "info")
 		return exportInfo(project, rest.value(1));
+
+	// --diff <project.qet> <older.qet> lists what changed from the older
+	// version, like diff: exit 0 if nothing did, 1 if something did.
+	if (format == "diff")
+		return diffProjects(project, rest.value(1));
 
 	const QString output = rest.value(1);
 	if (output.isEmpty()) {
