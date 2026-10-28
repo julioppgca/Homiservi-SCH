@@ -18,6 +18,7 @@
 #include "qetdiagrameditor.h"
 #include "projecthistory.h"
 #include "ui/projectdiffdock.h"
+#include "ui/wiringeditordock.h"
 #include "ui/projecthistorydialog.h"
 #include "shownkinds.h"
 #ifdef QET_HAS_SCRIPTING
@@ -731,6 +732,25 @@ void QETDiagramEditor::setUpActions()
 	ShortcutManager::instance().registerAction(m_project_compare, "diagrameditor.project_compare", tr("Éditeur de schémas"), QKeySequence());
 	m_project_compare->setStatusTip(tr("Lista os fólios, elementos e fios adicionados, removidos ou alterados em relação a outro arquivo do projeto", "status bar tip"));
 	connect(m_project_compare, &QAction::triggered, this, &QETDiagramEditor::compareProjectWithFile);
+
+		//Editable wiring list of the current project
+	m_wiring_editor = new QAction(QET::Icons::DocumentSpreadsheet, tr("Editor de fiação"), this);
+	ShortcutManager::instance().registerAction(m_wiring_editor, "diagrameditor.wiring_editor", tr("Éditeur de schémas"), QKeySequence());
+	m_wiring_editor->setStatusTip(tr("Tabela de todos os fios do projeto, com edição de número, função, cor, seção, cabo e tensão, inclusive de vários fios de uma vez", "status bar tip"));
+	m_wiring_editor->setCheckable(true);
+	connect(m_wiring_editor, &QAction::triggered, this, [this](bool checked) {
+		if (!m_wiring_editor_dock) {
+			m_wiring_editor_dock = new WiringEditorDock(this);
+			addDockWidget(Qt::BottomDockWidgetArea, m_wiring_editor_dock);
+			connect(m_wiring_editor_dock, &QDockWidget::visibilityChanged,
+				m_wiring_editor, &QAction::setChecked);
+		}
+		m_wiring_editor_dock->setVisible(checked);
+		if (checked) {
+			m_wiring_editor_dock->setProject(currentProject());
+			m_wiring_editor_dock->raise();
+		}
+	});
 
 		//Clean the current project
 	m_clean_project         = new QAction(QET::Icons::EditClear,             tr("Nettoyer le projet"),                   this);
@@ -1632,6 +1652,7 @@ void QETDiagramEditor::setUpMenu()
 	menu_project -> addAction(m_project_print_wire_tags);
 	menu_project -> addAction(m_project_export_wire_tags_csv);
 	menu_project -> addAction(m_project_wiring_list_view);
+	menu_project -> addAction(m_wiring_editor);
 	menu_project -> addAction(m_terminal_numbering);
 	menu_project -> addAction(m_reload_element_drawings);
 #ifdef QET_HAS_SCRIPTING
@@ -2771,6 +2792,9 @@ void QETDiagramEditor::slot_updateActions()
 	m_clean_project               -> setEnabled(editable_project);
 	m_project_history             -> setEnabled(opened_project && !currentProject()->filePath().isEmpty());
 	m_project_compare             -> setEnabled(opened_project);
+	m_wiring_editor               -> setEnabled(opened_project);
+	if (m_wiring_editor_dock && m_wiring_editor_dock->isVisible())
+		m_wiring_editor_dock->setProject(currentProject());
 	m_add_summary                 -> setEnabled(editable_project);
 	m_add_nomenclature            -> setEnabled(editable_project);
 	m_csv_export                  -> setEnabled(editable_project);

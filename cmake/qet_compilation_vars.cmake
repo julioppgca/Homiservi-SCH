@@ -799,6 +799,8 @@ set(QET_SRC_FILES
   ${QET_DIR}/sources/ui/projectdiffdock.h
   ${QET_DIR}/sources/ui/projecthistorydialog.cpp
   ${QET_DIR}/sources/ui/projecthistorydialog.h
+  ${QET_DIR}/sources/ui/wiringeditordock.cpp
+  ${QET_DIR}/sources/ui/wiringeditordock.h
   ${QET_DIR}/sources/ui/dialogwaiting.cpp
   ${QET_DIR}/sources/ui/dialogwaiting.h
   ${QET_DIR}/sources/ui/duplicateoffsetdialog.cpp
