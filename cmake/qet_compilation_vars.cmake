@@ -422,6 +422,8 @@ set(QET_SRC_FILES
   ${QET_DIR}/sources/editor/elementview.h
   ${QET_DIR}/sources/editor/styleeditor.cpp
   ${QET_DIR}/sources/editor/styleeditor.h
+  ${QET_DIR}/sources/editor/modulegenerator.cpp
+  ${QET_DIR}/sources/editor/modulegenerator.h
 
   ${QET_DIR}/sources/editor/esevent/eseventaddarc.cpp
   ${QET_DIR}/sources/editor/esevent/eseventaddarc.h
@@ -480,6 +482,8 @@ set(QET_SRC_FILES
   ${QET_DIR}/sources/editor/ui/rectangleeditor.h
   ${QET_DIR}/sources/editor/ui/scaleelementdialog.cpp
   ${QET_DIR}/sources/editor/ui/scaleelementdialog.h
+  ${QET_DIR}/sources/editor/ui/modulegeneratordialog.cpp
+  ${QET_DIR}/sources/editor/ui/modulegeneratordialog.h
   ${QET_DIR}/sources/editor/ui/terminaleditor.cpp
   ${QET_DIR}/sources/editor/ui/terminaleditor.h
   ${QET_DIR}/sources/editor/ui/texteditor.cpp

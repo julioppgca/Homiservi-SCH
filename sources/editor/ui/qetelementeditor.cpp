@@ -55,6 +55,8 @@
 #include "../../qet_elementscaler/qet_elementscaler.h"
 #include "../UndoCommand/openelmtcommand.h"
 #include "scaleelementdialog.h"
+#include "modulegeneratordialog.h"
+#include "../UndoCommand/pastepartscommand.h"
 #include "../../toolbarsettings.h"
 
 #include <QSettings>
@@ -1161,6 +1163,12 @@ void QETElementEditor::setupActions()
 	ShortcutManager::instance().registerAction(m_scale_element_action, "elementeditor.scale_element", tr("Éditeur d'élément"), QKeySequence());
 	connect(m_scale_element_action, &QAction::triggered, this, &QETElementEditor::scaleElement);
 
+	m_generate_module_action = new QAction(QET::Icons::Terminal, tr("Gerar módulo ou conector..."), this);
+	m_generate_module_action->setStatusTip(tr("Desenha um módulo de CLP, conector ou régua com muitos bornes de uma vez, já numerados"));
+	ui->m_edit_menu->addAction(m_generate_module_action);
+	ShortcutManager::instance().registerAction(m_generate_module_action, "elementeditor.generate_module", tr("Éditeur d'élément"), QKeySequence());
+	connect(m_generate_module_action, &QAction::triggered, this, &QETElementEditor::generateModule);
+
 
 		//Zoom action
 	ShortcutManager::instance().registerAction(ui->m_zoom_in_action, "elementeditor.zoom_in", tr("Éditeur d'élément"), QKeySequence::ZoomIn);
@@ -1255,7 +1263,8 @@ void QETElementEditor::updateAction()
 	auto ro_list = m_add_part_action_grp->actions();
 	ro_list << ui->m_paste_from_file_action
 			<< ui->m_paste_from_element_action
-			<< m_scale_element_action;
+			<< m_scale_element_action
+			<< m_generate_module_action;
 	for (auto action : std::as_const(ro_list)) {
 		action->setDisabled(m_read_only);
 	}
@@ -1831,6 +1840,26 @@ void QETElementEditor::scaleElement()
 	}
 	m_elmt_scene->undoStack().push(
 				new ScaleElementCommand(m_elmt_scene, dialog.factor(), dialog.scaleText()));
+}
+
+/**
+	@brief QETElementEditor::generateModule
+	Ask for the pins of a module or connector, then paste the box, the
+	terminals and their names in the element as one undo step.
+*/
+void QETElementEditor::generateModule()
+{
+	ModuleGeneratorDialog dialog(this);
+	if (dialog.exec() != QDialog::Accepted) {
+		return;
+	}
+	ElementContent content;
+	m_elmt_scene->fromXml(ModuleGenerator::build(dialog.settings()), QPointF(), false, &content);
+	if (content.isEmpty()) {
+		return;
+	}
+	m_elmt_scene->clearSelection();
+	m_elmt_scene->undoStack().push(new PastePartsCommand(m_view, content));
 }
 
 void QETElementEditor::on_m_import_scaled_element_triggered()
