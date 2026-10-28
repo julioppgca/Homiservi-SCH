@@ -19,6 +19,8 @@
 
 #include "../conductormultiedit.h"
 #include "../diagram.h"
+#include "../potentialrules.h"
+#include "../qetproject.h"
 #include "../qetgraphicsitem/conductor.h"
 #include "conductorpropertieswidget.h"
 #include "../qtextorientationspinboxwidget.h"
@@ -363,7 +365,15 @@ QUndoCommand *ConductorPropertiesEditorWidget::associatedUndo() const
 	return ConductorMultiEdit::undo(
 		ConductorMultiEdit::targets(
 			selected, m_apply_all_cb && m_apply_all_cb->isChecked()),
-		m_shown, edited);
+		m_shown, edited,
+		[this](const ConductorProperties &before, ConductorProperties &after) {
+			if (m_conductors.isEmpty() || !m_conductors.first()
+			    || !m_conductors.first()->diagram())
+				return;
+			PotentialRules::applyOnEdit(
+				m_conductors.first()->diagram()->project()->potentialRules(),
+				before, after);
+		});
 }
 
 /**

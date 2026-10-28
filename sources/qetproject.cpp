@@ -1448,6 +1448,16 @@ void QETProject::setWiringRules(const WiringRules::Settings &rules)
 }
 
 /**
+	@brief QETProject::setPotentialRules
+	Set the colour and section rules of the wires of this project. No wire
+	changes: see PotentialRules::apply().
+*/
+void QETProject::setPotentialRules(const PotentialRules::Settings &rules)
+{
+	m_potential_rules = rules;
+}
+
+/**
 	@brief QETProject::autoBreakConductor
 	@return true if use of auto break conductor is authorized.
 	See also Q_PROPERTY autoBreakConductor
@@ -1559,6 +1569,7 @@ QDomDocument QETProject::toXml()
 	writeWireHopsXml(project_root);
 	writeSymbolTextsXml(project_root);
 	writeWiringRulesXml(project_root);
+	writePotentialRulesXml(project_root);
 
 	// Properties for news diagrams
 	QDomElement new_diagrams_properties = xml_doc.createElement("newdiagrams");
@@ -2071,6 +2082,7 @@ void QETProject::readProjectXml(QDomDocument &xml_project)
 	readWireHopsXml(xml_project);
 	readSymbolTextsXml(xml_project);
 	readWiringRulesXml(xml_project);
+	readPotentialRulesXml(xml_project);
 
 		//Load the default properties for the new diagrams
 	readDefaultPropertiesXml(xml_project);
@@ -2294,6 +2306,16 @@ void QETProject::readWiringRulesXml(QDomDocument &xml_project)
 }
 
 /**
+	@brief QETProject::readPotentialRulesXml
+	Read the colour and section rules of the wires (<potential_rules>).
+	@param xml_project : the xml description of the project
+*/
+void QETProject::readPotentialRulesXml(QDomDocument &xml_project)
+{
+	m_potential_rules = PotentialRules::fromXml(xml_project.documentElement());
+}
+
+/**
 	@brief QETProject::readDefaultPropertiesXml
 	load default properties for new diagram, found in the xml of this project
 	or by default find in the QElectroTech global conf
@@ -2498,6 +2520,16 @@ void QETProject::writeSymbolTextsXml(QDomElement &xml_element)
 void QETProject::writeWiringRulesXml(QDomElement &xml_element)
 {
 	WiringRules::toXml(m_wiring_rules, xml_element);
+}
+
+/**
+	@brief QETProject::writePotentialRulesXml
+	Export the colour and section rules of the wires as a
+	<potential_rules> child of  xml_element, only when there is one.
+*/
+void QETProject::writePotentialRulesXml(QDomElement &xml_element)
+{
+	PotentialRules::toXml(m_potential_rules, xml_element);
 }
 
 /**

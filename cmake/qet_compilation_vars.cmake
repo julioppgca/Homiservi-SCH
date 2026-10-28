@@ -180,6 +180,8 @@ set(QET_SRC_FILES
   ${QET_DIR}/sources/projectdiff.h
   ${QET_DIR}/sources/projecthistory.cpp
   ${QET_DIR}/sources/projecthistory.h
+  ${QET_DIR}/sources/potentialrules.cpp
+  ${QET_DIR}/sources/potentialrules.h
   ${QET_DIR}/sources/conductornumexport.cpp
   ${QET_DIR}/sources/wiringlistexport.h
   ${QET_DIR}/sources/wiringlistexport.cpp
@@ -801,6 +803,8 @@ set(QET_SRC_FILES
   ${QET_DIR}/sources/ui/projecthistorydialog.h
   ${QET_DIR}/sources/ui/wiringeditordock.cpp
   ${QET_DIR}/sources/ui/wiringeditordock.h
+  ${QET_DIR}/sources/ui/potentialrulesdialog.cpp
+  ${QET_DIR}/sources/ui/potentialrulesdialog.h
   ${QET_DIR}/sources/ui/dialogwaiting.cpp
   ${QET_DIR}/sources/ui/dialogwaiting.h
   ${QET_DIR}/sources/ui/duplicateoffsetdialog.cpp

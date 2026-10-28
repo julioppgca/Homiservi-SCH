@@ -19,6 +19,10 @@
 #include "projecthistory.h"
 #include "ui/projectdiffdock.h"
 #include "ui/wiringeditordock.h"
+#include "QPropertyUndoCommand/qpropertyundocommand.h"
+#include "qetgraphicsitem/independenttextitem.h"
+#include "undocommand/addgraphicsobjectcommand.h"
+#include "ui/potentialrulesdialog.h"
 #include "ui/projecthistorydialog.h"
 #include "shownkinds.h"
 #ifdef QET_HAS_SCRIPTING
@@ -732,6 +736,12 @@ void QETDiagramEditor::setUpActions()
 	ShortcutManager::instance().registerAction(m_project_compare, "diagrameditor.project_compare", tr("Éditeur de schémas"), QKeySequence());
 	m_project_compare->setStatusTip(tr("Lista os fólios, elementos e fios adicionados, removidos ou alterados em relação a outro arquivo do projeto", "status bar tip"));
 	connect(m_project_compare, &QAction::triggered, this, &QETDiagramEditor::compareProjectWithFile);
+
+		//Colour and section rules of the wires
+	m_potential_rules = new QAction(tr("Regras de cor e bitola..."), this);
+	ShortcutManager::instance().registerAction(m_potential_rules, "diagrameditor.potential_rules", tr("Éditeur de schémas"), QKeySequence());
+	m_potential_rules->setStatusTip(tr("Define a cor e a seção dos fios por tensão ou função (24 VCC azul 0,75 mm², PE verde-amarelo...), aplica nos fios e insere a legenda", "status bar tip"));
+	connect(m_potential_rules, &QAction::triggered, this, &QETDiagramEditor::showPotentialRules);
 
 		//Editable wiring list of the current project
 	m_wiring_editor = new QAction(QET::Icons::DocumentSpreadsheet, tr("Editor de fiação"), this);
@@ -1653,6 +1663,7 @@ void QETDiagramEditor::setUpMenu()
 	menu_project -> addAction(m_project_export_wire_tags_csv);
 	menu_project -> addAction(m_project_wiring_list_view);
 	menu_project -> addAction(m_wiring_editor);
+	menu_project -> addAction(m_potential_rules);
 	menu_project -> addAction(m_terminal_numbering);
 	menu_project -> addAction(m_reload_element_drawings);
 #ifdef QET_HAS_SCRIPTING
@@ -1875,6 +1886,73 @@ bool QETDiagramEditor::closeProject(QETProject *project)
 		return(closeProject(project_view));
 	}
 	return(true);
+}
+
+/**
+	@brief QETDiagramEditor::showPotentialRules
+	Edit the colour and section rules of the wires of the current project,
+	then apply them to every wire or insert their legend on the current
+	folio if asked.
+*/
+void QETDiagramEditor::showPotentialRules()
+{
+	QETProject *project = currentProject();
+	if (!project || project->isReadOnly()) {
+		return;
+	}
+
+	PotentialRulesDialog dialog(project->potentialRules(), this);
+	if (dialog.exec() != QDialog::Accepted) {
+		return;
+	}
+	const PotentialRules::Settings rules = dialog.settings();
+	if (rules != project->potentialRules()) {
+		project->setPotentialRules(rules);
+		project->setModified(true);
+	}
+
+	if (dialog.action() == PotentialRulesDialog::ApplyAll)
+	{
+		auto undo = new QUndoCommand(tr("Aplicar as regras de cor e bitola"));
+		int changed = 0;
+		for (Diagram *diagram : project->diagrams()) {
+			for (Conductor *conductor : diagram->conductors()) {
+				ConductorProperties properties = conductor->properties();
+				if (!PotentialRules::apply(rules, properties)) {
+					continue;
+				}
+				QVariant old_value, new_value;
+				old_value.setValue(conductor->properties());
+				new_value.setValue(properties);
+				new QPropertyUndoCommand(conductor, "properties", old_value, new_value, undo);
+				++changed;
+			}
+		}
+		if (changed) {
+			project->undoStack()->push(undo);
+		} else {
+			delete undo;
+		}
+		QET::QetMessageBox::information(this, tr("Regras de cor e bitola"),
+			changed ? tr("%n fio(s) alterado(s). Ctrl+Z desfaz.", nullptr, changed)
+				: tr("Nenhum fio precisou mudar."));
+	}
+	else if (dialog.action() == PotentialRulesDialog::InsertLegend)
+	{
+		DiagramView *view = currentDiagramView();
+		const QStringList lines = PotentialRules::legend(rules);
+		if (!view || lines.isEmpty()) {
+			QET::QetMessageBox::information(this, tr("Regras de cor e bitola"),
+				!view ? tr("Abra um fólio para inserir a legenda.")
+				      : tr("Nenhuma regra com cor ou seção para a legenda."));
+			return;
+		}
+		auto text = new IndependentTextItem(tr("Legenda de fiação") + QLatin1Char('\n')
+						    + lines.join(QLatin1Char('\n')));
+		const QPointF position = view->mapToScene(view->viewport()->rect().center());
+		view->diagram()->undoStack().push(
+			new AddGraphicsObjectCommand(text, view->diagram(), position));
+	}
 }
 
 /**
@@ -2793,6 +2871,7 @@ void QETDiagramEditor::slot_updateActions()
 	m_project_history             -> setEnabled(opened_project && !currentProject()->filePath().isEmpty());
 	m_project_compare             -> setEnabled(opened_project);
 	m_wiring_editor               -> setEnabled(opened_project);
+	m_potential_rules             -> setEnabled(editable_project);
 	if (m_wiring_editor_dock && m_wiring_editor_dock->isVisible())
 		m_wiring_editor_dock->setProject(currentProject());
 	m_add_summary                 -> setEnabled(editable_project);
