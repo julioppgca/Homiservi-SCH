@@ -56,6 +56,7 @@
 #include "../UndoCommand/openelmtcommand.h"
 #include "scaleelementdialog.h"
 #include "modulegeneratordialog.h"
+#include "terminaltabledialog.h"
 #include "../UndoCommand/pastepartscommand.h"
 #include "../../toolbarsettings.h"
 
@@ -1169,6 +1170,12 @@ void QETElementEditor::setupActions()
 	ShortcutManager::instance().registerAction(m_generate_module_action, "elementeditor.generate_module", tr("Éditeur d'élément"), QKeySequence());
 	connect(m_generate_module_action, &QAction::triggered, this, &QETElementEditor::generateModule);
 
+	m_terminal_table_action = new QAction(QET::Icons::Terminal, tr("Tabela de bornes..."), this);
+	m_terminal_table_action->setStatusTip(tr("Lista todas as bornes do elemento para editar nome, posição, orientação e tipo, e renomear em série"));
+	ui->m_edit_menu->addAction(m_terminal_table_action);
+	ShortcutManager::instance().registerAction(m_terminal_table_action, "elementeditor.terminal_table", tr("Éditeur d'élément"), QKeySequence());
+	connect(m_terminal_table_action, &QAction::triggered, this, &QETElementEditor::showTerminalTable);
+
 
 		//Zoom action
 	ShortcutManager::instance().registerAction(ui->m_zoom_in_action, "elementeditor.zoom_in", tr("Éditeur d'élément"), QKeySequence::ZoomIn);
@@ -1264,7 +1271,8 @@ void QETElementEditor::updateAction()
 	ro_list << ui->m_paste_from_file_action
 			<< ui->m_paste_from_element_action
 			<< m_scale_element_action
-			<< m_generate_module_action;
+			<< m_generate_module_action
+			<< m_terminal_table_action;
 	for (auto action : std::as_const(ro_list)) {
 		action->setDisabled(m_read_only);
 	}
@@ -1860,6 +1868,22 @@ void QETElementEditor::generateModule()
 	}
 	m_elmt_scene->clearSelection();
 	m_elmt_scene->undoStack().push(new PastePartsCommand(m_view, content));
+}
+
+/**
+	@brief QETElementEditor::showTerminalTable
+	Edit every terminal of the element in a table, applied as one undo
+	step.
+*/
+void QETElementEditor::showTerminalTable()
+{
+	TerminalTableDialog dialog(m_elmt_scene, this);
+	if (dialog.exec() != QDialog::Accepted) {
+		return;
+	}
+	if (QUndoCommand *undo = dialog.undoCommand()) {
+		m_elmt_scene->undoStack().push(undo);
+	}
 }
 
 void QETElementEditor::on_m_import_scaled_element_triggered()

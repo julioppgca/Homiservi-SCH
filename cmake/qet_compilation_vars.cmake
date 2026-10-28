@@ -484,6 +484,8 @@ set(QET_SRC_FILES
   ${QET_DIR}/sources/editor/ui/scaleelementdialog.h
   ${QET_DIR}/sources/editor/ui/modulegeneratordialog.cpp
   ${QET_DIR}/sources/editor/ui/modulegeneratordialog.h
+  ${QET_DIR}/sources/editor/ui/terminaltabledialog.cpp
+  ${QET_DIR}/sources/editor/ui/terminaltabledialog.h
   ${QET_DIR}/sources/editor/ui/terminaleditor.cpp
   ${QET_DIR}/sources/editor/ui/terminaleditor.h
   ${QET_DIR}/sources/editor/ui/texteditor.cpp
