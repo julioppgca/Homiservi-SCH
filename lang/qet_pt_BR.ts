@@ -7222,10 +7222,6 @@ Por favor, use o editor avançado para isso.</translation>
         <source>Folio %1 (%2), case %3</source>
         <translation>Página %1 (%2), zona %3</translation>
     </message>
-    <message>
-        <source>Nom, label ou information de l&apos;élément…</source>
-        <translation type="vanished">Nome, legenda ou informação do elemento…</translation>
-    </message>
 </context>
 <context>
     <name>LineEditor</name>
@@ -7333,10 +7329,6 @@ Por favor, use o editor avançado para isso.</translation>
         <location filename="../sources/ui/linksingleelementwidget.ui" line="70"/>
         <source>Masquer les éléments maîtres pleins</source>
         <translation>Ocultar os elementos mestres cheios</translation>
-    </message>
-    <message>
-        <source>Remarque : les éléments maîtres ayant atteint leur nombre maximal d&apos;esclaves sont masqués.</source>
-        <translation type="vanished">Observação: elementos mestre que atingiram o número máximo de escravos estão ocultos.</translation>
     </message>
     <message>
         <location filename="../sources/ui/linksingleelementwidget.ui" line="42"/>
@@ -7573,10 +7565,6 @@ Esta configuração fica em Configurar QElectroTech &gt; Geral &gt; Projetos.</t
         <location filename="../sources/scripting/liveserver.cpp" line="1036"/>
         <source>&amp;Toujours</source>
         <translation>&amp;Sempre</translation>
-    </message>
-    <message>
-        <source>&amp;Toujours pour cette session</source>
-        <translation type="vanished">&amp;Sempre nesta sessão</translation>
     </message>
 </context>
 <context>
@@ -9117,10 +9105,6 @@ Dê a elas outra numeração primeiro.</numerusform>
         </translation>
     </message>
     <message>
-        <source>Nom de la nouvelle numérotation</source>
-        <translation type="vanished">Nome da nova numeração</translation>
-    </message>
-    <message>
         <location filename="../sources/ui/configpage/projectconfigpages.cpp" line="1055"/>
         <source>Importer les numérotations d&apos;un projet</source>
         <translation>Importar as numerações de um projeto</translation>
@@ -9202,10 +9186,6 @@ Dê a elas outra numeração primeiro.</numerusform>
         <location filename="../sources/ui/configpage/projectconfigpages.cpp" line="516"/>
         <source>Management</source>
         <translation>Gestão</translation>
-    </message>
-    <message>
-        <source>Sans nom</source>
-        <translation type="vanished">Sem Nome</translation>
     </message>
 </context>
 <context>
@@ -10175,18 +10155,6 @@ Deseja continuar?</translation>
         <translation>Editores de blocos de legenda</translation>
     </message>
     <message>
-        <source>&lt;b&gt;Le fichier de restauration suivant a été trouvé,&lt;br&gt;Voulez-vous l&apos;ouvrir ?&lt;/b&gt;&lt;br&gt;</source>
-        <translation type="vanished">&lt;b&gt;O arquivo de restauração a seguir foi encontrado,&lt;br&gt;Deseja abri-lo?&lt;/b&gt;&lt;br&gt;</translation>
-    </message>
-    <message>
-        <source>&lt;b&gt;Les fichiers de restauration suivant on été trouvé,&lt;br&gt;Voulez-vous les ouvrir ?&lt;/b&gt;&lt;br&gt;</source>
-        <translation type="vanished">&lt;b&gt;Os arquivos de restauração a seguir foram encontrados,&lt;br&gt;Deseja abri-los?&lt;/b&gt;&lt;br&gt;</translation>
-    </message>
-    <message>
-        <source>Fichier de restauration</source>
-        <translation type="vanished">Restaurar o arquivo</translation>
-    </message>
-    <message>
         <location filename="../sources/qetapp.cpp" line="3089"/>
         <source>Rapport de plantage</source>
         <translation>Relatório de falha</translation>
@@ -10411,16 +10379,6 @@ Opções disponíveis:
         <source>Utiliser la création automatique de conducteur(s) quand cela est possible</source>
         <comment>Status tip of auto conductor</comment>
         <translation>Utilizar a criação automática de fios quando possível</translation>
-    </message>
-    <message>
-        <source>Couleur de fond blanc/gris</source>
-        <comment>Tool tip of white/grey background button</comment>
-        <translation type="vanished">Cor de fundo branco/cinza</translation>
-    </message>
-    <message>
-        <source>Affiche la couleur de fond du folio en blanc ou en gris</source>
-        <comment>Status tip of white/grey background button</comment>
-        <translation type="vanished">Exibe a cor de fundo da páginas em branco ou cinza</translation>
     </message>
     <message>
         <location filename="../sources/qetdiagrameditor.cpp" line="566"/>
@@ -11716,10 +11674,6 @@ Para transformá-la em um script, peça ao seu assistente de IA: o botão abaixo
         <location filename="../sources/qetdiagrameditor.cpp" line="4559"/>
         <source>Demander avant d&apos;exécuter un script écrit par l&apos;assistant</source>
         <translation>Perguntar antes de executar um script escrito pelo assistente</translation>
-    </message>
-    <message>
-        <source>Pour cette session seulement : chaque démarrage redemande</source>
-        <translation type="vanished">Somente para esta sessão: cada inicialização pergunta novamente</translation>
     </message>
     <message>
         <location filename="../sources/qetdiagrameditor.cpp" line="4616"/>
@@ -13973,26 +13927,6 @@ O que você deseja fazer?</translation>
         <translation>texto</translation>
     </message>
     <message>
-        <source>Déplacer un texte d&apos;élément</source>
-        <translation type="vanished">Mover um texto do elemento</translation>
-    </message>
-    <message>
-        <source>Déplacer %1 textes d&apos;élément</source>
-        <translation type="vanished">Mover %1 textos do elemento</translation>
-    </message>
-    <message>
-        <source>Déplacer</source>
-        <translation type="vanished">Mover</translation>
-    </message>
-    <message>
-        <source> et</source>
-        <translation type="vanished"> e</translation>
-    </message>
-    <message>
-        <source> un groupe de texte</source>
-        <translation type="vanished"> um grupo de texto</translation>
-    </message>
-    <message>
         <location filename="../sources/exportdialog.cpp" line="785"/>
         <source>Folio sans titre</source>
         <translation>Página sem título</translation>
@@ -14055,67 +13989,6 @@ O que você deseja fazer?</translation>
         <location filename="../sources/qetinformation.cpp" line="298"/>
         <source>Numéro de folio</source>
         <translation>Número da página</translation>
-    </message>
-    <message numerus="yes">
-        <source>%n élément(s)</source>
-        <comment>part of a sentence listing the content of a diagram</comment>
-        <translation type="vanished">
-            <numerusform>%n elemento</numerusform>
-            <numerusform>%n elementos</numerusform>
-        </translation>
-    </message>
-    <message numerus="yes">
-        <source>%n conducteur(s)</source>
-        <comment>part of a sentence listing the content of a diagram</comment>
-        <translation type="vanished">
-            <numerusform>%n condutor</numerusform>
-            <numerusform>%n condutores</numerusform>
-        </translation>
-    </message>
-    <message numerus="yes">
-        <source>%n champ(s) de texte</source>
-        <comment>part of a sentence listing the content of a diagram</comment>
-        <translation type="vanished">
-            <numerusform>%n campo de texto</numerusform>
-            <numerusform>%n campos de texto</numerusform>
-        </translation>
-    </message>
-    <message>
-        <source>une image</source>
-        <comment>part of a sentence listing the content of a diagram</comment>
-        <translation type="obsolete">uma imagem</translation>
-    </message>
-    <message numerus="yes">
-        <source>%n forme(s)</source>
-        <comment>part of a sentence listing the content of a diagram</comment>
-        <translation type="vanished">
-            <numerusform>%n formulário</numerusform>
-            <numerusform>%n formulários</numerusform>
-        </translation>
-    </message>
-    <message numerus="yes">
-        <source>%n texte(s) d&apos;élément</source>
-        <comment>part of a sentence listing the content of a diagram</comment>
-        <translation type="vanished">
-            <numerusform>%n texto do elemento</numerusform>
-            <numerusform>%n textos do elemento</numerusform>
-        </translation>
-    </message>
-    <message numerus="yes">
-        <source>%n tableau(s)</source>
-        <comment>part of a sentence listing the content of diagram</comment>
-        <translation type="vanished">
-            <numerusform>%n tabela</numerusform>
-            <numerusform>%n tabelas</numerusform>
-        </translation>
-    </message>
-    <message numerus="yes">
-        <source>%n plan de bornes</source>
-        <comment>part of a sentence listing the content of a diagram</comment>
-        <translation type="vanished">
-            <numerusform>%n Planejador de terminais</numerusform>
-            <numerusform>%n Planejador de terminais</numerusform>
-        </translation>
     </message>
     <message numerus="yes">
         <location filename="../sources/qet.cpp" line="352"/>
@@ -14461,10 +14334,6 @@ O que você deseja fazer?</translation>
         <translation>Macros</translation>
     </message>
     <message>
-        <source>Makros</source>
-        <translation type="vanished">Macros</translation>
-    </message>
-    <message>
         <location filename="../sources/ElementsCollection/fileelementcollectionitem.cpp" line="168"/>
         <source>Collection inconnue</source>
         <translation>Coleção desconhecida</translation>
@@ -14548,18 +14417,6 @@ O que você deseja fazer?</translation>
         <location filename="../sources/undocommand/rotateselectioncommand.cpp" line="38"/>
         <source>Pivoter le groupe</source>
         <translation>Girar o grupo</translation>
-    </message>
-    <message>
-        <source>Pivoter %1 textes</source>
-        <translation type="vanished">Girar %1 textos</translation>
-    </message>
-    <message>
-        <source>Pivoter</source>
-        <translation type="vanished">Girar</translation>
-    </message>
-    <message>
-        <source> %1 groupes de textes</source>
-        <translation type="vanished"> %1 grupos de textos</translation>
     </message>
     <message numerus="yes">
         <location filename="../sources/undocommand/rotatetextscommand.cpp" line="108"/>
@@ -15193,70 +15050,6 @@ Deseja substituí-lo?</translation>
         <location filename="../sources/TerminalStrip/UndoCommand/addterminalstripcommand.cpp" line="68"/>
         <source>Supprimer un groupe de bornes</source>
         <translation>Excluir um grupo de terminais</translation>
-    </message>
-    <message>
-        <source>Ajouter une borne</source>
-        <translation type="vanished">Adicionar um terminal</translation>
-    </message>
-    <message>
-        <source>Ajouter la borne %1</source>
-        <translation type="vanished">Adicionar terminal %1</translation>
-    </message>
-    <message>
-        <source>à un groupe de bornes</source>
-        <translation type="vanished">a um grupo de terminais</translation>
-    </message>
-    <message>
-        <source>au groupe de bornes %1</source>
-        <translation type="vanished">para o grupo de terminais %1</translation>
-    </message>
-    <message>
-        <source>Ajouter %1 bornes</source>
-        <translation type="vanished">Adicionar %1 terminais</translation>
-    </message>
-    <message>
-        <source>Enlever %1 bornes</source>
-        <translation type="vanished">Remover %1 terminais</translation>
-    </message>
-    <message>
-        <source>Déplacer une borne</source>
-        <translation type="vanished">Mover um terminal</translation>
-    </message>
-    <message>
-        <source>Déplacer la borne %1</source>
-        <translation type="vanished">Mover terminal %1</translation>
-    </message>
-    <message>
-        <source> d&apos;un groupe de bornes</source>
-        <translation type="vanished"> de um grupo de terminais</translation>
-    </message>
-    <message>
-        <source> du groupe de bornes %1</source>
-        <translation type="vanished"> do grupo de terminais %1</translation>
-    </message>
-    <message>
-        <source>vers un groupe de bornes</source>
-        <translation type="vanished">a um grupo de terminais</translation>
-    </message>
-    <message>
-        <source>vers le groupe de bornes %1</source>
-        <translation type="vanished">para o grupo de terminais %1</translation>
-    </message>
-    <message>
-        <source>Déplacer des bornes</source>
-        <translation type="vanished">Mover terminais</translation>
-    </message>
-    <message>
-        <source>d&apos;un groupe de bornes</source>
-        <translation type="vanished">de um grupo de terminais</translation>
-    </message>
-    <message>
-        <source>du groupe de bornes %1</source>
-        <translation type="vanished">do grupo de terminais %1</translation>
-    </message>
-    <message>
-        <source>Enlever une borne</source>
-        <translation type="vanished">Remover um terminal</translation>
     </message>
     <message>
         <location filename="../sources/TerminalStrip/UndoCommand/changeterminalstripdata.cpp" line="27"/>
@@ -17420,14 +17213,6 @@ qet.addText(f, &quot;Texto&quot;, 40, 40);
         <location filename="../sources/autoNum/ui/selectautonumw.ui" line="148"/>
         <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Ajouter une variable de numérotation&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
         <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Adicionar uma variável de numeração&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
-    </message>
-    <message>
-        <source>Précédent</source>
-        <translation type="vanished">Anterior</translation>
-    </message>
-    <message>
-        <source>Suivant</source>
-        <translation type="vanished">Próxima</translation>
     </message>
     <message>
         <location filename="../sources/autoNum/ui/selectautonumw.ui" line="195"/>
@@ -21952,65 +21737,65 @@ associar o nome &quot;variável_personalizada&quot; e o valor &quot;1745&quot; v
 <context>
     <name>WiringEditorDock</name>
     <message>
-        <location filename="../sources/ui/wiringeditordock.cpp" line="286"/>
-        <location filename="../sources/ui/wiringeditordock.cpp" line="380"/>
+        <location filename="../sources/ui/wiringeditordock.cpp" line="345"/>
+        <location filename="../sources/ui/wiringeditordock.cpp" line="439"/>
         <source>Editor de fiação</source>
         <translation>Editor de fiação</translation>
     </message>
     <message>
-        <location filename="../sources/ui/wiringeditordock.cpp" line="299"/>
+        <location filename="../sources/ui/wiringeditordock.cpp" line="358"/>
         <source>Filtrar (número, elemento, cor, seção...)</source>
         <translation>Filtrar (número, elemento, cor, seção...)</translation>
     </message>
     <message>
-        <location filename="../sources/ui/wiringeditordock.cpp" line="302"/>
+        <location filename="../sources/ui/wiringeditordock.cpp" line="361"/>
         <source>Aplicar ao potencial inteiro</source>
         <translation>Aplicar ao potencial inteiro</translation>
     </message>
     <message>
-        <location filename="../sources/ui/wiringeditordock.cpp" line="304"/>
+        <location filename="../sources/ui/wiringeditordock.cpp" line="363"/>
         <source>Uma alteração vale também para os outros fios ligados ao mesmo potencial, como na janela de propriedades do condutor</source>
         <translation>Uma alteração vale também para os outros fios ligados ao mesmo potencial, como na janela de propriedades do condutor</translation>
     </message>
     <message>
-        <location filename="../sources/ui/wiringeditordock.cpp" line="309"/>
+        <location filename="../sources/ui/wiringeditordock.cpp" line="368"/>
         <source>Exportar CSV...</source>
         <translation>Exportar CSV...</translation>
     </message>
     <message>
-        <location filename="../sources/ui/wiringeditordock.cpp" line="337"/>
+        <location filename="../sources/ui/wiringeditordock.cpp" line="396"/>
         <source>Dica: selecione várias linhas e edite uma célula para mudar todas de uma vez. Clique duas vezes no fólio, na origem ou no destino para ver o fio no esquema.</source>
         <translation>Dica: selecione várias linhas e edite uma célula para mudar todas de uma vez. Clique duas vezes no fólio, na origem ou no destino para ver o fio no esquema.</translation>
     </message>
     <message>
-        <location filename="../sources/ui/wiringeditordock.cpp" line="383"/>
+        <location filename="../sources/ui/wiringeditordock.cpp" line="442"/>
         <source>Editor de fiação - %1 de %2 fios</source>
         <translation>Editor de fiação - %1 de %2 fios</translation>
     </message>
     <message>
-        <location filename="../sources/ui/wiringeditordock.cpp" line="406"/>
+        <location filename="../sources/ui/wiringeditordock.cpp" line="465"/>
         <source>-fiacao.csv</source>
         <translation>-fiacao.csv</translation>
     </message>
     <message>
-        <location filename="../sources/ui/wiringeditordock.cpp" line="407"/>
-        <location filename="../sources/ui/wiringeditordock.cpp" line="413"/>
-        <location filename="../sources/ui/wiringeditordock.cpp" line="436"/>
+        <location filename="../sources/ui/wiringeditordock.cpp" line="466"/>
+        <location filename="../sources/ui/wiringeditordock.cpp" line="472"/>
+        <location filename="../sources/ui/wiringeditordock.cpp" line="495"/>
         <source>Exportar a fiação</source>
         <translation>Exportar a fiação</translation>
     </message>
     <message>
-        <location filename="../sources/ui/wiringeditordock.cpp" line="408"/>
+        <location filename="../sources/ui/wiringeditordock.cpp" line="467"/>
         <source>Arquivos CSV (*.csv)</source>
         <translation>Arquivos CSV (*.csv)</translation>
     </message>
     <message>
-        <location filename="../sources/ui/wiringeditordock.cpp" line="414"/>
+        <location filename="../sources/ui/wiringeditordock.cpp" line="473"/>
         <source>Não foi possível abrir o arquivo para escrita.</source>
         <translation>Não foi possível abrir o arquivo para escrita.</translation>
     </message>
     <message>
-        <location filename="../sources/ui/wiringeditordock.cpp" line="437"/>
+        <location filename="../sources/ui/wiringeditordock.cpp" line="496"/>
         <source>Não foi possível gravar o arquivo.</source>
         <translation>Não foi possível gravar o arquivo.</translation>
     </message>
@@ -22273,57 +22058,62 @@ associar o nome &quot;variável_personalizada&quot; e o valor &quot;1745&quot; v
 <context>
     <name>WiringTableModel</name>
     <message>
-        <location filename="../sources/ui/wiringeditordock.cpp" line="196"/>
+        <location filename="../sources/ui/wiringeditordock.cpp" line="248"/>
         <source>Editar a fiação: %1 = %2</source>
         <translation>Editar a fiação: %1 = %2</translation>
     </message>
     <message>
-        <location filename="../sources/ui/wiringeditordock.cpp" line="252"/>
+        <location filename="../sources/ui/wiringeditordock.cpp" line="287"/>
+        <source>Um código IEC (BK, BN, RD, BU, GNYE...), um nome (preto, azul...) ou #rrggbb também muda a cor do fio no esquema</source>
+        <translation>Um código IEC (BK, BN, RD, BU, GNYE...), um nome (preto, azul...) ou #rrggbb também muda a cor do fio no esquema</translation>
+    </message>
+    <message>
+        <location filename="../sources/ui/wiringeditordock.cpp" line="311"/>
         <source>Fólio</source>
         <translation>Fólio</translation>
     </message>
     <message>
-        <location filename="../sources/ui/wiringeditordock.cpp" line="253"/>
+        <location filename="../sources/ui/wiringeditordock.cpp" line="312"/>
         <source>Número</source>
         <translation>Número</translation>
     </message>
     <message>
-        <location filename="../sources/ui/wiringeditordock.cpp" line="254"/>
+        <location filename="../sources/ui/wiringeditordock.cpp" line="313"/>
         <source>Origem</source>
         <translation>Origem</translation>
     </message>
     <message>
-        <location filename="../sources/ui/wiringeditordock.cpp" line="255"/>
+        <location filename="../sources/ui/wiringeditordock.cpp" line="314"/>
         <source>Destino</source>
         <translation>Destino</translation>
     </message>
     <message>
-        <location filename="../sources/ui/wiringeditordock.cpp" line="256"/>
+        <location filename="../sources/ui/wiringeditordock.cpp" line="315"/>
         <source>Função</source>
         <translation>Função</translation>
     </message>
     <message>
-        <location filename="../sources/ui/wiringeditordock.cpp" line="257"/>
+        <location filename="../sources/ui/wiringeditordock.cpp" line="316"/>
         <source>Cor do fio</source>
         <translation>Cor do fio</translation>
     </message>
     <message>
-        <location filename="../sources/ui/wiringeditordock.cpp" line="258"/>
+        <location filename="../sources/ui/wiringeditordock.cpp" line="317"/>
         <source>Seção</source>
         <translation>Seção</translation>
     </message>
     <message>
-        <location filename="../sources/ui/wiringeditordock.cpp" line="259"/>
+        <location filename="../sources/ui/wiringeditordock.cpp" line="318"/>
         <source>Cabo</source>
         <translation>Cabo</translation>
     </message>
     <message>
-        <location filename="../sources/ui/wiringeditordock.cpp" line="260"/>
+        <location filename="../sources/ui/wiringeditordock.cpp" line="319"/>
         <source>Tensão / protocolo</source>
         <translation>Tensão / protocolo</translation>
     </message>
     <message>
-        <location filename="../sources/ui/wiringeditordock.cpp" line="261"/>
+        <location filename="../sources/ui/wiringeditordock.cpp" line="320"/>
         <source>Barramento</source>
         <translation>Barramento</translation>
     </message>

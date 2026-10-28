@@ -28,6 +28,7 @@
 
 #include <QCheckBox>
 #include <QCollator>
+#include <QColor>
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QGraphicsView>
@@ -72,6 +73,44 @@ namespace {
 		}
 	}
 
+	/**
+		The drawing colour(s) named by a wire colour text: an IEC 60757
+		code (BK, BU, GNYE...), a Portuguese or English name, or #rrggbb.
+		Two colours make a bicolour wire (green-yellow). Empty if the text
+		names no colour: the wire keeps how it is drawn.
+	*/
+	QList<QColor> drawingColors(const QString &text)
+	{
+		static const QHash<QString, QColor> names = {
+			{"BK", Qt::black},             {"PRETO", Qt::black},
+			{"BN", QColor(139, 69, 19)},   {"MARROM", QColor(139, 69, 19)},
+			{"RD", Qt::red},               {"VERMELHO", Qt::red},
+			{"OG", QColor(255, 140, 0)},   {"LARANJA", QColor(255, 140, 0)},
+			{"YE", QColor(230, 200, 0)},   {"AMARELO", QColor(230, 200, 0)},
+			{"GN", QColor(0, 150, 0)},     {"VERDE", QColor(0, 150, 0)},
+			{"BU", Qt::blue},              {"AZUL", Qt::blue},
+			{"AZUL CLARO", QColor(0, 160, 230)},
+			{"VT", QColor(128, 0, 160)},   {"VI", QColor(128, 0, 160)},
+			{"VIOLETA", QColor(128, 0, 160)}, {"ROXO", QColor(128, 0, 160)},
+			{"GY", Qt::gray},              {"GR", Qt::gray},
+			{"CINZA", Qt::gray},
+			{"WH", QColor(200, 200, 200)}, {"BRANCO", QColor(200, 200, 200)},
+			{"PK", QColor(255, 105, 180)}, {"ROSA", QColor(255, 105, 180)},
+			{"TQ", QColor(0, 180, 180)},   {"TURQUESA", QColor(0, 180, 180)},
+			{"GD", QColor(212, 175, 55)},  {"DOURADO", QColor(212, 175, 55)},
+			{"SR", QColor(170, 170, 170)}, {"PRATA", QColor(170, 170, 170)},
+		};
+		const QString key = text.trimmed().toUpper();
+		if (key.isEmpty()) return {};
+		if (key == "GNYE" || key == "GN-YE" || key == "GN/YE" || key == "PE"
+		    || key == "VERDE-AMARELO" || key == "VERDE/AMARELO")
+			return {QColor(0, 150, 0), QColor(230, 200, 0)};
+		if (names.contains(key)) return {names.value(key)};
+		const QColor color = QColor::fromString(text.trimmed());
+		if (color.isValid()) return {color};
+		return {};
+	}
+
 	void setField(ConductorProperties &p, int column, const QString &value)
 	{
 		switch (column) {
@@ -79,7 +118,20 @@ namespace {
 				//would otherwise give the old number back
 			case WiringTableModel::Number:    p.text = value; p.m_formula = value; break;
 			case WiringTableModel::Function:  p.m_function = value; break;
-			case WiringTableModel::WireColor: p.m_wire_color = value; break;
+			case WiringTableModel::WireColor: {
+				p.m_wire_color = value;
+					//A colour the text names is also how the wire is drawn
+				const QList<QColor> colors = drawingColors(value);
+				if (colors.size() == 1) {
+					p.color = colors.first();
+					p.m_bicolor = false;
+				} else if (colors.size() == 2) {
+					p.color = colors.first();
+					p.m_color_2 = colors.last();
+					p.m_bicolor = true;
+				}
+				break;
+			}
 			case WiringTableModel::Section:   p.m_wire_section = value; break;
 			case WiringTableModel::Cable:     p.m_cable = value; break;
 			case WiringTableModel::Voltage:   p.m_tension_protocol = value; break;
@@ -198,11 +250,11 @@ bool WiringTableModel::setValues(const QList<int> &rows, int column,
 	int changed = 0;
 	for (Conductor *c : std::as_const(targets)) {
 		ConductorProperties properties = c->properties();
-		if (field(properties, column) == value
-		    && (column != Number || properties.m_formula == value)) continue;
-		QVariant old_value, new_value;
-		old_value.setValue(properties);
+		const ConductorProperties before = properties;
 		setField(properties, column, value);
+		if (properties == before) continue;
+		QVariant old_value, new_value;
+		old_value.setValue(before);
 		new_value.setValue(properties);
 		new QPropertyUndoCommand(c, "properties", old_value, new_value, undo);
 		++changed;
@@ -228,6 +280,13 @@ int WiringTableModel::columnCount(const QModelIndex &parent) const
 QVariant WiringTableModel::data(const QModelIndex &index, int role) const
 {
 	Conductor *c = conductor(index.row());
+	if (c && index.column() == WireColor) {
+			//A swatch of how the wire is drawn
+		if (role == Qt::DecorationRole) return c->properties().color;
+		if (role == Qt::ToolTipRole)
+			return tr("Um código IEC (BK, BN, RD, BU, GNYE...), um nome (preto,"
+				  " azul...) ou #rrggbb também muda a cor do fio no esquema");
+	}
 	if (!c || (role != Qt::DisplayRole && role != Qt::EditRole && role != Qt::ToolTipRole))
 		return QVariant();
 
