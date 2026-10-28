@@ -163,6 +163,11 @@ if(WIN32)
     # listed as a source; MinGW needs it embedded through a resource file,
     # and ld then keeps it ahead of the toolchain's default manifest.
     set(QET_MANIFEST_FILE ${QET_DIR}/build-aux/windows/qelectrotech.exe.manifest)
+    # Homiservi-SCH: the program icon
+    configure_file(${QET_DIR}/build-aux/windows/homiservi-icon.rc.in
+                   ${CMAKE_CURRENT_BINARY_DIR}/homiservi-icon.rc @ONLY)
+    target_sources(${PROJECT_NAME} PRIVATE
+                   ${CMAKE_CURRENT_BINARY_DIR}/homiservi-icon.rc)
     if(MSVC)
         target_sources(${PROJECT_NAME} PRIVATE ${QET_MANIFEST_FILE})
     else()

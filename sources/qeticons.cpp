@@ -571,9 +571,11 @@ void QET::Icons::initIcons()
 	ProjectFileGP = QIcon();
 	for (int size : {16, 22})
 		ProjectFileGP.addPixmap(Projects.pixmap(QSize(size, size), 1.0));
-	QETLogo             = QIcon::fromTheme("qet");
+		//Homiservi-SCH: the Homiservi symbol instead of the "qet" theme icon
+	QETLogo             = QIcon();
+	for (int size : {16, 24, 32, 48, 64, 128, 256})
+		QETLogo.addFile(QStringLiteral(":/ico/homiservi/homiservi-%1.png").arg(size));
 	QETManual           = QIcon::fromTheme("help-contents");
-	QETLogo.addFile(":/ico/256x256/qet.png");
 	QETVideo            = QIcon::fromTheme("kdenlive-show-video");
 	QtLogo              = QIcon::fromTheme("qt");
 	Raise               = QIcon::fromTheme("raise");
