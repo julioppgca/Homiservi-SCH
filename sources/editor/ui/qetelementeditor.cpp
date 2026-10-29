@@ -55,8 +55,10 @@
 #include "../../qet_elementscaler/qet_elementscaler.h"
 #include "../UndoCommand/openelmtcommand.h"
 #include "scaleelementdialog.h"
+#include "componentwizarddialog.h"
 #include "modulegeneratordialog.h"
 #include "terminaltabledialog.h"
+#include "../UndoCommand/deletepartscommand.h"
 #include "../UndoCommand/pastepartscommand.h"
 #include "../../toolbarsettings.h"
 
@@ -1164,6 +1166,12 @@ void QETElementEditor::setupActions()
 	ShortcutManager::instance().registerAction(m_scale_element_action, "elementeditor.scale_element", tr("Éditeur d'élément"), QKeySequence());
 	connect(m_scale_element_action, &QAction::triggered, this, &QETElementEditor::scaleElement);
 
+	m_component_wizard_action = new QAction(QET::Icons::ElementNew, tr("Criar componente por tipo..."), this);
+	m_component_wizard_action->setStatusTip(tr("Desenha uma bobina, contato, disjuntor, botoeira, sinaleiro, motor, fonte ou borne com as marcações IEC e o tipo mestre/escravo já definidos"));
+	ui->m_edit_menu->addAction(m_component_wizard_action);
+	ShortcutManager::instance().registerAction(m_component_wizard_action, "elementeditor.component_wizard", tr("Éditeur d'élément"), QKeySequence());
+	connect(m_component_wizard_action, &QAction::triggered, this, &QETElementEditor::createComponent);
+
 	m_generate_module_action = new QAction(QET::Icons::Terminal, tr("Gerar módulo ou conector..."), this);
 	m_generate_module_action->setStatusTip(tr("Desenha um módulo de CLP, conector ou régua com muitos bornes de uma vez, já numerados"));
 	ui->m_edit_menu->addAction(m_generate_module_action);
@@ -1271,6 +1279,7 @@ void QETElementEditor::updateAction()
 	ro_list << ui->m_paste_from_file_action
 			<< ui->m_paste_from_element_action
 			<< m_scale_element_action
+			<< m_component_wizard_action
 			<< m_generate_module_action
 			<< m_terminal_table_action;
 	for (auto action : std::as_const(ro_list)) {
@@ -1868,6 +1877,45 @@ void QETElementEditor::generateModule()
 	}
 	m_elmt_scene->clearSelection();
 	m_elmt_scene->undoStack().push(new PastePartsCommand(m_view, content));
+}
+
+/**
+	@brief QETElementEditor::createComponent
+	Draw a usual component from its kind and give the element the matching
+	type, name and label prefix, as one undo step.
+*/
+void QETElementEditor::createComponent()
+{
+	ComponentWizardDialog dialog(!m_elmt_scene->primitives().isEmpty(), this);
+	if (dialog.exec() != QDialog::Accepted) {
+		return;
+	}
+	const ComponentWizard::Settings settings = dialog.settings();
+	QVector<QGraphicsItem *> old_parts;
+	if (dialog.replaceDrawing()) {
+		for (CustomElementPart *part : m_elmt_scene->primitives()) {
+			old_parts << part->toItem();
+		}
+	}
+	ElementContent content;
+	m_elmt_scene->fromXml(ComponentWizard::build(settings), QPointF(), false, &content);
+	if (content.isEmpty()) {
+		return;
+	}
+
+	auto undo = new QUndoCommand(tr("Criar o componente %1").arg(settings.name));
+	if (!old_parts.isEmpty()) {
+		new DeletePartsCommand(m_elmt_scene, old_parts, undo);
+	}
+	m_elmt_scene->clearSelection();
+	new PastePartsCommand(m_view, content, undo);
+	const ElementData old_data = m_elmt_scene->elementData();
+	ElementData new_data = old_data;
+	ComponentWizard::applyData(settings, new_data);
+	if (new_data != old_data) {
+		new changeElementDataCommand(m_elmt_scene, old_data, new_data, undo);
+	}
+	m_elmt_scene->undoStack().push(undo);
 }
 
 /**

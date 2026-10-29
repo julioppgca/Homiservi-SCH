@@ -113,6 +113,7 @@ class QETElementEditor : public QMainWindow
 		void on_m_import_dxf_triggered();
 		void on_m_import_scaled_element_triggered();
 		void scaleElement();
+		void createComponent();
 		void generateModule();
 		void showTerminalTable();
 
@@ -146,6 +147,7 @@ class QETElementEditor : public QMainWindow
 
 		QAction
 			*m_scale_element_action = nullptr,
+			*m_component_wizard_action = nullptr,
 			*m_generate_module_action = nullptr,
 			*m_terminal_table_action = nullptr,
 			*m_undo_action = nullptr,
