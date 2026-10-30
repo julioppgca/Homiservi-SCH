@@ -23,6 +23,7 @@
 #include "qetgraphicsitem/independenttextitem.h"
 #include "undocommand/addgraphicsobjectcommand.h"
 #include "ui/potentialrulesdialog.h"
+#include "ui/textstylesdialog.h"
 #include "ui/projecthistorydialog.h"
 #include "shownkinds.h"
 #ifdef QET_HAS_SCRIPTING
@@ -756,6 +757,10 @@ void QETDiagramEditor::setUpActions()
 	ShortcutManager::instance().registerAction(m_potential_rules, "diagrameditor.potential_rules", tr("Éditeur de schémas"), QKeySequence());
 	m_potential_rules->setStatusTip(tr("Define a cor e a seção dos fios por tensão ou função (24 VCC azul 0,75 mm², PE verde-amarelo...), aplica nos fios e insere a legenda", "status bar tip"));
 	connect(m_potential_rules, &QAction::triggered, this, &QETDiagramEditor::showPotentialRules);
+	m_text_styles = new QAction(tr("Estilos de texto..."), this);
+	ShortcutManager::instance().registerAction(m_text_styles, "diagrameditor.text_styles", tr("Éditeur de schémas"), QKeySequence());
+	m_text_styles->setStatusTip(tr("Define estilos de texto do projeto (fonte e cor), como camadas: identificações, funções, notas...", "status bar tip"));
+	connect(m_text_styles, &QAction::triggered, this, &QETDiagramEditor::showTextStyles);
 
 		//Editable wiring list of the current project
 	m_wiring_editor = new QAction(QET::Icons::DocumentSpreadsheet, tr("Editor de fiação"), this);
@@ -1633,6 +1638,8 @@ void QETDiagramEditor::setUpMenu()
 	m_align_menu -> addActions(m_align_actions_group.actions().mid(1, 3));
 	m_align_menu -> addSeparator();
 	m_align_menu -> addActions(m_align_actions_group.actions().mid(4));
+	m_text_style_menu = menu_edition -> addMenu(tr("Estilo de texto"));
+	connect(m_text_style_menu, &QMenu::aboutToShow, this, &QETDiagramEditor::fillTextStyleMenu);
 	menu_edition -> addSeparator();
 	menu_edition -> addAction(m_conductor_reset);
 	menu_edition -> addAction(m_conductor_numerate_ends);
@@ -1678,6 +1685,7 @@ void QETDiagramEditor::setUpMenu()
 	menu_project -> addAction(m_project_wiring_list_view);
 	menu_project -> addAction(m_wiring_editor);
 	menu_project -> addAction(m_potential_rules);
+	menu_project -> addAction(m_text_styles);
 	menu_project -> addAction(m_terminal_numbering);
 	menu_project -> addAction(m_reload_element_drawings);
 #ifdef QET_HAS_SCRIPTING
@@ -1900,6 +1908,105 @@ bool QETDiagramEditor::closeProject(QETProject *project)
 		return(closeProject(project_view));
 	}
 	return(true);
+}
+
+/**
+	@brief QETDiagramEditor::showTextStyles
+	Edit the text styles of the current project and bring every text to
+	them; the texts of a renamed style follow it.
+*/
+void QETDiagramEditor::showTextStyles()
+{
+	QETProject *project = currentProject();
+	if (!project || project->isReadOnly()) {
+		return;
+	}
+
+	TextStylesDialog dialog(project->textStyles(), this);
+	if (dialog.exec() != QDialog::Accepted) {
+		return;
+	}
+	const QList<TextStyles::Style> styles = dialog.styles();
+	const QHash<QString, QString> renames = dialog.renames();
+	if (styles == project->textStyles() && renames.isEmpty()) {
+		return;
+	}
+	if (!renames.isEmpty()) {
+		for (Diagram *diagram : project->diagrams()) {
+			for (QGraphicsItem *item : diagram->items()) {
+				if (item->type() != IndependentTextItem::Type
+				    && item->type() != DynamicElementTextItem::Type) {
+					continue;
+				}
+				auto text = static_cast<DiagramTextItem *>(item);
+				if (renames.contains(text->textStyle())) {
+					text->setTextStyle(renames.value(text->textStyle()));
+				}
+			}
+		}
+	}
+	project->setTextStyles(styles);
+	project->setModified(true);
+	fillTextStyleMenu();
+}
+
+/**
+	@brief QETDiagramEditor::fillTextStyleMenu
+	One entry per style of the project, then the automatic style and no
+	style, enabled when the selection holds a text.
+*/
+void QETDiagramEditor::fillTextStyleMenu()
+{
+	if (!m_text_style_menu) {
+		return;
+	}
+	m_text_style_menu->clear();
+	DiagramView *dv = currentDiagramView();
+	QETProject *project = currentProject();
+	const bool has_texts = dv && !dv->diagram()->isReadOnly()
+			&& !TextStyles::styledTexts(dv->diagram()->selectedItems()).isEmpty();
+
+	if (project) {
+		for (const TextStyles::Style &style : project->textStyles()) {
+			QAction *action = m_text_style_menu->addAction(style.name);
+			action->setStatusTip(TextStyles::fontDescription(style.font));
+			action->setEnabled(has_texts);
+			const QString name = style.name;
+			connect(action, &QAction::triggered, this, [this, name]() { applyTextStyle(name); });
+		}
+	}
+	m_text_style_menu->addSeparator();
+	QAction *automatic = m_text_style_menu->addAction(tr("Seguir o estilo automático"));
+	automatic->setStatusTip(tr("O texto volta a seguir o estilo que pega sozinho os textos do seu tipo"));
+	automatic->setEnabled(has_texts);
+	connect(automatic, &QAction::triggered, this, [this]() { applyTextStyle(QString()); });
+	QAction *none = m_text_style_menu->addAction(tr("Sem estilo"));
+	none->setStatusTip(tr("O texto fica com a fonte e a cor atuais e deixa de seguir qualquer estilo"));
+	none->setEnabled(has_texts);
+	connect(none, &QAction::triggered, this, [this]() { applyTextStyle(TextStyles::NoStyle); });
+	m_text_style_menu->addSeparator();
+	QAction *manage = m_text_style_menu->addAction(tr("Gerenciar os estilos..."));
+	manage->setEnabled(m_text_styles && m_text_styles->isEnabled());
+	connect(manage, &QAction::triggered, this, &QETDiagramEditor::showTextStyles);
+}
+
+/**
+	@brief QETDiagramEditor::applyTextStyle
+	Give the texts of the selection, and every text of the selected
+	elements, the text style named style (see TextStyles::SetStyleCommand).
+*/
+void QETDiagramEditor::applyTextStyle(const QString &style)
+{
+	DiagramView *dv = currentDiagramView();
+	if (!dv || dv->diagram()->isReadOnly()) {
+		return;
+	}
+	const QList<DiagramTextItem *> texts = TextStyles::styledTexts(dv->diagram()->selectedItems());
+	if (texts.isEmpty()) {
+		return;
+	}
+	dv->diagram()->undoStack().push(
+				new TextStyles::SetStyleCommand(dv->diagram()->project(), texts, style));
 }
 
 /**
@@ -2886,6 +2993,7 @@ void QETDiagramEditor::slot_updateActions()
 	m_project_compare             -> setEnabled(opened_project);
 	m_wiring_editor               -> setEnabled(opened_project);
 	m_potential_rules             -> setEnabled(editable_project);
+	m_text_styles                 -> setEnabled(editable_project);
 	if (m_wiring_editor_dock && m_wiring_editor_dock->isVisible())
 		m_wiring_editor_dock->setProject(currentProject());
 	m_add_summary                 -> setEnabled(editable_project);
@@ -2946,6 +3054,9 @@ void QETDiagramEditor::slot_updateUndoStack()
 */
 void QETDiagramEditor::slot_updateComplexActions()
 {
+		//Rebuilt here, not only before showing: the context menu leaves out
+		//a submenu whose entries are all disabled
+	fillTextStyleMenu();
 #ifdef QET_HAS_SCRIPTING
 	updateScriptActions();
 #endif

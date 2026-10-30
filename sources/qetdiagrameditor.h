@@ -126,6 +126,9 @@ class QETDiagramEditor : public QETMainWindow
 		void showProjectHistory();
 		void compareProjectWithFile();
 		void showPotentialRules();
+		void showTextStyles();
+		void fillTextStyleMenu();
+		void applyTextStyle(const QString &style);
 		void compareProject(QETProject *project, const QString &reference_path, const QString &reference_label);
 		void zoomGroupTriggered      (QAction *action);
 		void selectGroupTriggered    (QAction *action);
@@ -218,6 +221,7 @@ class QETDiagramEditor : public QETMainWindow
 		QMenu
 		*m_add_item_menu = nullptr,   ///< Submenu of m_add_item_actions_group
 		*m_align_menu = nullptr,      ///< Submenu of m_align_actions_group
+		*m_text_style_menu = nullptr, ///< Gives the selected texts a text style
 		*m_row_column_menu = nullptr; ///< Submenu of m_row_column_actions_group
 	
 	private:
@@ -268,6 +272,7 @@ class QETDiagramEditor : public QETMainWindow
 		*m_project_compare,            ///< Action to list the differences with another version of the project file
 		*m_wiring_editor,              ///< Action to show the editable wiring list of the project
 		*m_potential_rules,            ///< Action to edit the colour and section rules of the wires
+		*m_text_styles,                ///< Action to edit the text styles of the project
 		*m_project_wiring_list_view,   ///< Action to show the wiring list read from the project database
 		*m_terminal_numbering,         ///< Action to launch terminal numbering
 		*m_reload_element_drawings,    ///< Action to redraw every placed element from its current definition

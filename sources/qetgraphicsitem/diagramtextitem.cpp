@@ -22,6 +22,7 @@
 #include "../qetapp.h"
 #include "../richtext/richtexteditor_p.h"
 #include "../textanchor.h"
+#include "../textstyles.h"
 #include "../utils/qetutils.h"
 #include "../QetGraphicsItemModeler/textresizehandles.h"
 
@@ -167,6 +168,10 @@ void DiagramTextItem::setFont(const QFont &font)
 	}
 	else
 	{
+		if (m_style_bound && !m_applying_style) {
+			m_style_bound = false;
+			m_text_style = TextStyles::NoStyle;
+		}
 		prepareAlignment();
 		QGraphicsTextItem::setFont(font);
 		finishAlignment();
@@ -176,8 +181,38 @@ void DiagramTextItem::setFont(const QFont &font)
 
 void DiagramTextItem::setColor(const QColor& color)
 {
+	if (m_style_bound && !m_applying_style && color != defaultTextColor()) {
+		m_style_bound = false;
+		m_text_style = TextStyles::NoStyle;
+	}
 	setDefaultTextColor(color);
 	emit colorChanged(color);
+}
+
+/**
+	@brief DiagramTextItem::setTextStyle
+	Name the style this text follows: a style name, TextStyles::NoStyle,
+	or empty to follow the style that takes this kind of text. The look
+	is brought to it by TextStyles::applyToText().
+*/
+void DiagramTextItem::setTextStyle(const QString &style)
+{
+	m_text_style = style;
+	m_style_bound = false;
+}
+
+/**
+	@brief DiagramTextItem::setStyledLook
+	Set the font and the colour of the style of this text, without freeing
+	the text from it.
+*/
+void DiagramTextItem::setStyledLook(const QFont &font, const QColor &color)
+{
+	m_applying_style = true;
+	setFont(font);
+	if (color != defaultTextColor()) setColor(color);
+	m_applying_style = false;
+	m_style_bound = true;
 }
 
 QColor DiagramTextItem::color() const

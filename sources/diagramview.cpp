@@ -1910,6 +1910,7 @@ QList<QAction *> DiagramView::contextMenuActions() const
 			list << m_separators.at(1);
 			list << qde->m_selection_actions_group.actions();
 			list << qde->m_align_menu->menuAction();
+			list << qde->m_text_style_menu->menuAction();
 			list << m_separators.at(2);
 			list << qde->m_depth_action_group->actions();
 		}

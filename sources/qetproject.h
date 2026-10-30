@@ -30,6 +30,7 @@
 #include "titleblockproperties.h"
 #include "wirehops.h"
 #include "potentialrules.h"
+#include "textstyles.h"
 #include "wiringrules.h"
 #include "diagram.h"
 #ifdef BUILD_WITHOUT_KF
@@ -237,6 +238,9 @@ class QETProject : public QObject
 		void setWiringRules(const WiringRules::Settings &rules);
 		PotentialRules::Settings potentialRules() const {return m_potential_rules;}
 		void setPotentialRules(const PotentialRules::Settings &rules);
+		QList<TextStyles::Style> textStyles() const {return m_text_styles;}
+		void setTextStyles(const QList<TextStyles::Style> &styles);
+		void scheduleTextStyles();
 		void setAutoBreakConductor (bool abc);
 		void setAutoElement (bool ae);
 		void autoFolioNumberingNewFolios ();
@@ -337,6 +341,7 @@ class QETProject : public QObject
 		void readSymbolTextsXml(QDomDocument &xml_project);
 		void readWiringRulesXml(QDomDocument &xml_project);
 		void readPotentialRulesXml(QDomDocument &xml_project);
+		void readTextStylesXml(QDomDocument &xml_project);
 
 		void writeProjectPropertiesXml(QDomElement &);
 		void writeDefaultPropertiesXml(QDomElement &);
@@ -345,6 +350,7 @@ class QETProject : public QObject
 		void writeSymbolTextsXml(QDomElement &);
 		void writeWiringRulesXml(QDomElement &);
 		void writePotentialRulesXml(QDomElement &);
+		void writeTextStylesXml(QDomElement &);
 		void addDiagram(Diagram *diagram, int pos = -1);
 		void detachDiagram(Diagram *diagram);
 		void writeBackup();
@@ -414,6 +420,8 @@ class QETProject : public QObject
 		bool m_upright_symbol_texts = false;
 		WiringRules::Settings m_wiring_rules;
 		PotentialRules::Settings m_potential_rules;
+		QList<TextStyles::Style> m_text_styles;
+		bool m_text_styles_scheduled = false;
 	bool m_auto_break_conductor = false;
 		XmlElementCollection *m_elements_collection = nullptr;
 		bool m_freeze_new_elements = false;
