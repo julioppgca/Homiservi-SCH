@@ -129,6 +129,7 @@ class QETDiagramEditor : public QETMainWindow
 		void showTextStyles();
 		void fillTextStyleMenu();
 		void applyTextStyle(const QString &style);
+		void startPaintStyle();
 		void compareProject(QETProject *project, const QString &reference_path, const QString &reference_label);
 		void zoomGroupTriggered      (QAction *action);
 		void selectGroupTriggered    (QAction *action);
@@ -210,6 +211,7 @@ class QETDiagramEditor : public QETMainWindow
 		*m_cut,                     ///< Cut selection to clipboard
 		*m_copy,                    ///< Copy selection to clipboard
 		*m_paste_element_info,      ///< Copy the information of the copied element onto the selected elements (#1375)
+		*m_paint_style = nullptr,   ///< Format painter: copy the look of the selected item to others
 		*m_insert_last_element = nullptr; ///< Place the last placed element again
 		
 		QActionGroup

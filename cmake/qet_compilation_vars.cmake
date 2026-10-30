@@ -182,6 +182,8 @@ set(QET_SRC_FILES
   ${QET_DIR}/sources/projecthistory.h
   ${QET_DIR}/sources/potentialrules.cpp
   ${QET_DIR}/sources/potentialrules.h
+  ${QET_DIR}/sources/stylepainter.cpp
+  ${QET_DIR}/sources/stylepainter.h
   ${QET_DIR}/sources/textstyles.cpp
   ${QET_DIR}/sources/textstyles.h
   ${QET_DIR}/sources/conductornumexport.cpp
@@ -385,6 +387,8 @@ set(QET_SRC_FILES
   ${QET_DIR}/sources/diagramevent/diagrameventaddelement.h
   ${QET_DIR}/sources/diagramevent/diagrameventaddimage.cpp
   ${QET_DIR}/sources/diagramevent/diagrameventaddimage.h
+  ${QET_DIR}/sources/diagramevent/diagrameventpaintstyle.cpp
+  ${QET_DIR}/sources/diagramevent/diagrameventpaintstyle.h
   ${QET_DIR}/sources/diagramevent/diagrameventaddshape.cpp
   ${QET_DIR}/sources/diagramevent/diagrameventaddshape.h
   ${QET_DIR}/sources/diagramevent/diagrameventfillet.cpp

@@ -24,6 +24,7 @@
 #include "undocommand/addgraphicsobjectcommand.h"
 #include "ui/potentialrulesdialog.h"
 #include "ui/textstylesdialog.h"
+#include "diagramevent/diagrameventpaintstyle.h"
 #include "ui/projecthistorydialog.h"
 #include "shownkinds.h"
 #ifdef QET_HAS_SCRIPTING
@@ -761,6 +762,11 @@ void QETDiagramEditor::setUpActions()
 	ShortcutManager::instance().registerAction(m_text_styles, "diagrameditor.text_styles", tr("Éditeur de schémas"), QKeySequence());
 	m_text_styles->setStatusTip(tr("Define estilos de texto do projeto (fonte e cor), como camadas: identificações, funções, notas...", "status bar tip"));
 	connect(m_text_styles, &QAction::triggered, this, &QETDiagramEditor::showTextStyles);
+	m_paint_style = new QAction(tr("Pincel de estilo"), this);
+	ShortcutManager::instance().registerAction(m_paint_style, "diagrameditor.paint_style", tr("Éditeur de schémas"), QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_C));
+	m_paint_style->setStatusTip(tr("Copia a aparência do item selecionado (texto, componente, fio ou forma) para os itens em que você clicar", "status bar tip"));
+	m_paint_style->setEnabled(false);
+	connect(m_paint_style, &QAction::triggered, this, &QETDiagramEditor::startPaintStyle);
 
 		//Editable wiring list of the current project
 	m_wiring_editor = new QAction(QET::Icons::DocumentSpreadsheet, tr("Editor de fiação"), this);
@@ -1639,6 +1645,7 @@ void QETDiagramEditor::setUpMenu()
 	m_align_menu -> addSeparator();
 	m_align_menu -> addActions(m_align_actions_group.actions().mid(4));
 	m_text_style_menu = menu_edition -> addMenu(tr("Estilo de texto"));
+	menu_edition -> addAction(m_paint_style);
 	connect(m_text_style_menu, &QMenu::aboutToShow, this, &QETDiagramEditor::fillTextStyleMenu);
 	menu_edition -> addSeparator();
 	menu_edition -> addAction(m_conductor_reset);
@@ -1988,6 +1995,29 @@ void QETDiagramEditor::fillTextStyleMenu()
 	QAction *manage = m_text_style_menu->addAction(tr("Gerenciar os estilos..."));
 	manage->setEnabled(m_text_styles && m_text_styles->isEnabled());
 	connect(manage, &QAction::triggered, this, &QETDiagramEditor::showTextStyles);
+}
+
+/**
+	@brief QETDiagramEditor::startPaintStyle
+	Take the look of the selected item and start the format painter.
+*/
+void QETDiagramEditor::startPaintStyle()
+{
+	DiagramView *dv = currentDiagramView();
+	if (!dv || dv->diagram()->isReadOnly()) {
+		return;
+	}
+	const StylePainter::Source source = StylePainter::capture(dv->diagram()->selectedItems());
+	if (source.kind == StylePainter::Nothing) {
+		statusBar()->showMessage(tr("Selecione o texto, componente, fio ou forma cujo estilo será copiado"), 5000);
+		return;
+	}
+	auto event = new DiagramEventPaintStyle(dv->diagram(), source);
+	if (!event->isRunning()) {
+		delete event;
+		return;
+	}
+	dv->diagram()->setEventInterface(event);
 }
 
 /**
@@ -3057,6 +3087,12 @@ void QETDiagramEditor::slot_updateComplexActions()
 		//Rebuilt here, not only before showing: the context menu leaves out
 		//a submenu whose entries are all disabled
 	fillTextStyleMenu();
+	if (m_paint_style) {
+		DiagramView *paint_view = currentDiagramView();
+		m_paint_style->setEnabled(paint_view && !paint_view->diagram()->isReadOnly()
+					  && StylePainter::capture(paint_view->diagram()->selectedItems()).kind
+					  != StylePainter::Nothing);
+	}
 #ifdef QET_HAS_SCRIPTING
 	updateScriptActions();
 #endif
