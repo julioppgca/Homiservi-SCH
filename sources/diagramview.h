@@ -22,6 +22,7 @@
 #include "titleblock/templatelocation.h"
 
 #include <QClipboard>
+#include <QImage>
 #include "palettegraphicsview.h"
 
 class CellRuler;
@@ -145,6 +146,7 @@ class DiagramView : public PaletteGraphicsView
 		void updateFolioReportMenu();
 		void handleTitleBlockDrop(QDropEvent *);
 		void handleTextDrop(QDropEvent *);
+		bool addImage(const QImage &image, const QPointF &pos);
 		void scrollOnMovement(QKeyEvent *);
 		bool gestureEvent(QGestureEvent *event);
 		QRectF viewedSceneRect() const;

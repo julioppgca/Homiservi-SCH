@@ -18,6 +18,8 @@
 #include "diagramview.h"
 #include "conductorendlabeling.h"
 #include "autoNum/ui/pastenumberingimport.h"
+#include "diagramevent/diagrameventaddimage.h"
+#include "qetgraphicsitem/diagramimageitem.h"
 #include "cellruler.h"
 #include "lastusedstyle.h"
 #include "utils/colordialogdoubleclick.h"
@@ -226,6 +228,8 @@ void DiagramView::dragEnterEvent(QDragEnterEvent *e) {
 		e -> acceptProposedAction();
 	} else if (e -> mimeData() -> hasFormat("application/x-qet-titleblock-uri")) {
 		e -> acceptProposedAction();
+	} else if (DiagramEventAddImage::hasImage(e -> mimeData())) {
+		e -> acceptProposedAction();
 	} else if (e -> mimeData() -> hasText()) {
 		e -> acceptProposedAction();
 	} else {
@@ -238,7 +242,8 @@ void DiagramView::dragEnterEvent(QDragEnterEvent *e) {
 	@param e le QDragMoveEvent correspondant au drag'n drop tente
 */
 void DiagramView::dragMoveEvent(QDragMoveEvent *e) {
-	if (e -> mimeData() -> hasFormat("text/plain")) e -> acceptProposedAction();
+	if (e -> mimeData() -> hasFormat("text/plain")
+		|| DiagramEventAddImage::hasImage(e -> mimeData())) e -> acceptProposedAction();
 	else e-> ignore();
 }
 
@@ -252,6 +257,9 @@ void DiagramView::dropEvent(QDropEvent *e) {
 		handleElementDrop(e);
 	} else if (e -> mimeData() -> hasFormat("application/x-qet-titleblock-uri")) {
 		handleTitleBlockDrop(e);
+	} else if (DiagramEventAddImage::hasImage(e -> mimeData())) {
+		addImage(DiagramEventAddImage::imageFromMimeData(e -> mimeData()),
+			 mapToScene(e->position().toPoint()));
 	} else if (e -> mimeData() -> hasText()) {
 		handleTextDrop(e);
 	}
@@ -391,6 +399,23 @@ void DiagramView::handleTitleBlockDrop(QDropEvent *e) {
 
 		adjustSceneRect();
 	}
+}
+
+/**
+	@brief DiagramView::addImage
+	Add a pasted or dropped picture, centred on pos, as one undo step.
+	@return false if there is no picture to add
+*/
+bool DiagramView::addImage(const QImage &image, const QPointF &pos)
+{
+	if (image.isNull() || m_diagram -> isReadOnly()) return false;
+
+	DiagramImageItem *item = DiagramEventAddImage::createItem(image);
+	m_diagram->undoStack().push(new AddGraphicsObjectCommand(
+									item, m_diagram, pos - item->boundingRect().center()));
+	m_diagram->clearSelection();
+	item->setSelected(true);
+	return true;
 }
 
 /**
@@ -566,6 +591,8 @@ void DiagramView::paste(const QPointF &pos, QClipboard::Mode clipboard_mode) {
 	if (!isInteractive() || m_diagram -> isReadOnly()) return;
 
 	QString text_clipboard = QApplication::clipboard() -> text(clipboard_mode);
+	if (!Diagram::clipboardMayContainDiagram()
+		&& addImage(DiagramEventAddImage::imageFromClipboard(), pos)) return;
 	if ((text_clipboard).isEmpty()) return;
 
 	QDomDocument document_xml;
@@ -1986,7 +2013,8 @@ void DiagramView::contextMenuEvent(QContextMenuEvent *e)
 	if (m_diagram->selectedItems().isEmpty())
 	{
 		m_paste_here_pos = menu_pos;
-		m_paste_here->setEnabled(Diagram::clipboardMayContainDiagram());
+		m_paste_here->setEnabled(Diagram::clipboardMayContainDiagram()
+					 || DiagramEventAddImage::clipboardHasImage());
 		updateFolioReportMenu();
 	}
 

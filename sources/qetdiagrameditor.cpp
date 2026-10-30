@@ -460,6 +460,20 @@ void QETDiagramEditor::setUpActions()
 				: dv->viewport()->rect().center();
 		const QPointF start_pos = dv->mapToScene(view_pos);
 
+			//A picture rather than copied items (a screenshot, an image
+			//copied in a browser or a file manager): place it like the
+			//"add image" tool, starting under the cursor.
+		if (!Diagram::clipboardMayContainDiagram())
+		{
+			const QImage image = DiagramEventAddImage::imageFromClipboard();
+			if (!image.isNull()) {
+				auto *event = new DiagramEventAddImage(dv->diagram(), image, start_pos);
+				if (event->isNull()) delete event;
+				else dv->diagram()->setEventInterface(event);
+			}
+			return;
+		}
+
 		dv->diagram()->setEventInterface(
 					new DiagramEventAddPaste(dv->diagram(), start_pos, placement));
 	};
@@ -3187,7 +3201,10 @@ void QETDiagramEditor::slot_updatePasteAction()
 
 	// pour coller, il faut un schema ouvert et un schema dans le presse-papier
 	const bool may_be_diagram = Diagram::clipboardMayContainDiagram();
-	m_paste -> setEnabled(editable_diagram && may_be_diagram);
+		//Ctrl+V also places a picture of the clipboard (not "paste at
+		//origin": a picture has none)
+	const bool has_image = !may_be_diagram && DiagramEventAddImage::clipboardHasImage();
+	m_paste -> setEnabled(editable_diagram && (may_be_diagram || has_image));
 	m_paste_origin -> setEnabled(editable_diagram && may_be_diagram);
 
 		//Read the clipboard once here rather than on every selection

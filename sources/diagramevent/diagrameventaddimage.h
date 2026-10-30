@@ -20,10 +20,12 @@
 
 #include "diagrameventinterface.h"
 
+#include <QImage>
 #include <QPointF>
 
 class Diagram;
 class DiagramImageItem;
+class QMimeData;
 
 /**
 	@brief The DiagramEventAddImage class
@@ -35,6 +37,7 @@ class DiagramEventAddImage : public DiagramEventInterface
 
 	public:
 		DiagramEventAddImage(Diagram *diagram);
+		DiagramEventAddImage(Diagram *diagram, const QImage &image, const QPointF &start_pos);
 		~DiagramEventAddImage() override;
 
 		void mousePressEvent       (QGraphicsSceneMouseEvent *event) override;
@@ -44,6 +47,12 @@ class DiagramEventAddImage : public DiagramEventInterface
 		void wheelEvent            (QGraphicsSceneWheelEvent *event) override;
 
 		 bool isNull () const;
+
+		static QImage imageFromMimeData(const QMimeData *mime_data);
+		static QImage imageFromClipboard();
+		static bool clipboardHasImage();
+		static bool hasImage(const QMimeData *mime_data);
+		static DiagramImageItem *createItem(const QImage &image);
 	private:
 		void openDialog();
 		void showHint() const;
