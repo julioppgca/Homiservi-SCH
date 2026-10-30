@@ -762,7 +762,7 @@ void QETDiagramEditor::setUpActions()
 	ShortcutManager::instance().registerAction(m_text_styles, "diagrameditor.text_styles", tr("Éditeur de schémas"), QKeySequence());
 	m_text_styles->setStatusTip(tr("Define estilos de texto do projeto (fonte e cor), como camadas: identificações, funções, notas...", "status bar tip"));
 	connect(m_text_styles, &QAction::triggered, this, &QETDiagramEditor::showTextStyles);
-	m_paint_style = new QAction(tr("Pincel de estilo"), this);
+	m_paint_style = new QAction(QET::Icons::FormatPainter, tr("Pincel de estilo"), this);
 	ShortcutManager::instance().registerAction(m_paint_style, "diagrameditor.paint_style", tr("Éditeur de schémas"), QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_C));
 	m_paint_style->setStatusTip(tr("Copia a aparência do item selecionado (texto, componente, fio ou forma) para os itens em que você clicar", "status bar tip"));
 	m_paint_style->setEnabled(false);

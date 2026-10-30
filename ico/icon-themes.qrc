@@ -687,18 +687,31 @@
         <file alias="themes/qet/64x64@2/edit-opacity.svg">breeze/16/edit-opacity.svg</file>
         <file alias="themes/qet/128x128@2/edit-opacity.svg">breeze/16/edit-opacity.svg</file>
         <file alias="themes/qet/16x16/edit-paste.svg">breeze/16/edit-paste.svg</file>
+        <file alias="themes/qet/16x16/format-painter.svg">breeze/16/format-painter.svg</file>
         <file alias="themes/qet/22x22/edit-paste.svg">breeze/22/edit-paste.svg</file>
+        <file alias="themes/qet/22x22/format-painter.svg">breeze/22/format-painter.svg</file>
         <file alias="themes/qet/scalable/edit-paste.svg">themes/generated/breeze-24/edit-paste.svg</file>
+        <file alias="themes/qet/scalable/format-painter.svg">themes/generated/breeze-24/format-painter.svg</file>
         <file alias="themes/qet/32x32/edit-paste.svg">breeze/16/edit-paste.svg</file>
+        <file alias="themes/qet/32x32/format-painter.svg">breeze/16/format-painter.svg</file>
         <file alias="themes/qet/48x48/edit-paste.svg">themes/generated/breeze-24/edit-paste.svg</file>
+        <file alias="themes/qet/48x48/format-painter.svg">themes/generated/breeze-24/format-painter.svg</file>
         <file alias="themes/qet/64x64/edit-paste.svg">breeze/16/edit-paste.svg</file>
+        <file alias="themes/qet/64x64/format-painter.svg">breeze/16/format-painter.svg</file>
         <file alias="themes/qet/128x128/edit-paste.svg">breeze/16/edit-paste.svg</file>
+        <file alias="themes/qet/128x128/format-painter.svg">breeze/16/format-painter.svg</file>
         <file alias="themes/qet/16x16@2/edit-paste.svg">breeze/16/edit-paste.svg</file>
+        <file alias="themes/qet/16x16@2/format-painter.svg">breeze/16/format-painter.svg</file>
         <file alias="themes/qet/22x22@2/edit-paste.svg">breeze/22/edit-paste.svg</file>
+        <file alias="themes/qet/22x22@2/format-painter.svg">breeze/22/format-painter.svg</file>
         <file alias="themes/qet/32x32@2/edit-paste.svg">breeze/16/edit-paste.svg</file>
+        <file alias="themes/qet/32x32@2/format-painter.svg">breeze/16/format-painter.svg</file>
         <file alias="themes/qet/48x48@2/edit-paste.svg">themes/generated/breeze-24/edit-paste.svg</file>
+        <file alias="themes/qet/48x48@2/format-painter.svg">themes/generated/breeze-24/format-painter.svg</file>
         <file alias="themes/qet/64x64@2/edit-paste.svg">breeze/16/edit-paste.svg</file>
+        <file alias="themes/qet/64x64@2/format-painter.svg">breeze/16/format-painter.svg</file>
         <file alias="themes/qet/128x128@2/edit-paste.svg">breeze/16/edit-paste.svg</file>
+        <file alias="themes/qet/128x128@2/format-painter.svg">breeze/16/format-painter.svg</file>
         <file alias="themes/qet/16x16/edit-redo.svg">breeze/16/edit-redo.svg</file>
         <file alias="themes/qet/22x22/edit-redo.svg">breeze/22/edit-redo.svg</file>
         <file alias="themes/qet/scalable/edit-redo.svg">themes/generated/breeze-24/edit-redo.svg</file>
@@ -2801,8 +2814,11 @@
         <file>themes/qet-dark/breeze/22/edit-opacity.svg</file>
         <file>themes/qet-dark/breeze-24/edit-opacity.svg</file>
         <file>themes/qet-dark/breeze/16/edit-paste.svg</file>
+        <file>themes/qet-dark/breeze/16/format-painter.svg</file>
         <file>themes/qet-dark/breeze/22/edit-paste.svg</file>
+        <file>themes/qet-dark/breeze/22/format-painter.svg</file>
         <file>themes/qet-dark/breeze-24/edit-paste.svg</file>
+        <file>themes/qet-dark/breeze-24/format-painter.svg</file>
         <file>themes/qet-dark/breeze/16/edit-redo.svg</file>
         <file>themes/qet-dark/breeze/22/edit-redo.svg</file>
         <file>themes/qet-dark/breeze-24/edit-redo.svg</file>
@@ -3890,18 +3906,31 @@
         <file alias="themes/qet-dark/64x64@2/edit-opacity.svg">themes/qet-dark/breeze/16/edit-opacity.svg</file>
         <file alias="themes/qet-dark/128x128@2/edit-opacity.svg">themes/qet-dark/breeze/16/edit-opacity.svg</file>
         <file alias="themes/qet-dark/16x16/edit-paste.svg">themes/qet-dark/breeze/16/edit-paste.svg</file>
+        <file alias="themes/qet-dark/16x16/format-painter.svg">themes/qet-dark/breeze/16/format-painter.svg</file>
         <file alias="themes/qet-dark/22x22/edit-paste.svg">themes/qet-dark/breeze/22/edit-paste.svg</file>
+        <file alias="themes/qet-dark/22x22/format-painter.svg">themes/qet-dark/breeze/22/format-painter.svg</file>
         <file alias="themes/qet-dark/scalable/edit-paste.svg">themes/qet-dark/breeze-24/edit-paste.svg</file>
+        <file alias="themes/qet-dark/scalable/format-painter.svg">themes/qet-dark/breeze-24/format-painter.svg</file>
         <file alias="themes/qet-dark/32x32/edit-paste.svg">themes/qet-dark/breeze/16/edit-paste.svg</file>
+        <file alias="themes/qet-dark/32x32/format-painter.svg">themes/qet-dark/breeze/16/format-painter.svg</file>
         <file alias="themes/qet-dark/48x48/edit-paste.svg">themes/qet-dark/breeze-24/edit-paste.svg</file>
+        <file alias="themes/qet-dark/48x48/format-painter.svg">themes/qet-dark/breeze-24/format-painter.svg</file>
         <file alias="themes/qet-dark/64x64/edit-paste.svg">themes/qet-dark/breeze/16/edit-paste.svg</file>
+        <file alias="themes/qet-dark/64x64/format-painter.svg">themes/qet-dark/breeze/16/format-painter.svg</file>
         <file alias="themes/qet-dark/128x128/edit-paste.svg">themes/qet-dark/breeze/16/edit-paste.svg</file>
+        <file alias="themes/qet-dark/128x128/format-painter.svg">themes/qet-dark/breeze/16/format-painter.svg</file>
         <file alias="themes/qet-dark/16x16@2/edit-paste.svg">themes/qet-dark/breeze/16/edit-paste.svg</file>
+        <file alias="themes/qet-dark/16x16@2/format-painter.svg">themes/qet-dark/breeze/16/format-painter.svg</file>
         <file alias="themes/qet-dark/22x22@2/edit-paste.svg">themes/qet-dark/breeze/22/edit-paste.svg</file>
+        <file alias="themes/qet-dark/22x22@2/format-painter.svg">themes/qet-dark/breeze/22/format-painter.svg</file>
         <file alias="themes/qet-dark/32x32@2/edit-paste.svg">themes/qet-dark/breeze/16/edit-paste.svg</file>
+        <file alias="themes/qet-dark/32x32@2/format-painter.svg">themes/qet-dark/breeze/16/format-painter.svg</file>
         <file alias="themes/qet-dark/48x48@2/edit-paste.svg">themes/qet-dark/breeze-24/edit-paste.svg</file>
+        <file alias="themes/qet-dark/48x48@2/format-painter.svg">themes/qet-dark/breeze-24/format-painter.svg</file>
         <file alias="themes/qet-dark/64x64@2/edit-paste.svg">themes/qet-dark/breeze/16/edit-paste.svg</file>
+        <file alias="themes/qet-dark/64x64@2/format-painter.svg">themes/qet-dark/breeze/16/format-painter.svg</file>
         <file alias="themes/qet-dark/128x128@2/edit-paste.svg">themes/qet-dark/breeze/16/edit-paste.svg</file>
+        <file alias="themes/qet-dark/128x128@2/format-painter.svg">themes/qet-dark/breeze/16/format-painter.svg</file>
         <file alias="themes/qet-dark/16x16/edit-redo.svg">themes/qet-dark/breeze/16/edit-redo.svg</file>
         <file alias="themes/qet-dark/22x22/edit-redo.svg">themes/qet-dark/breeze/22/edit-redo.svg</file>
         <file alias="themes/qet-dark/scalable/edit-redo.svg">themes/qet-dark/breeze-24/edit-redo.svg</file>
