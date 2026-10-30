@@ -119,6 +119,8 @@ class QETDiagramEditor : public QETMainWindow
 		void save();
 		void saveAs();
 		bool newProject();
+		void newHomiserviProject();
+		void showHomiserviData();
 		bool openProject();
 		bool openRecentFile(const QString &);
 		bool closeProject(ProjectView *);
@@ -275,6 +277,8 @@ class QETDiagramEditor : public QETMainWindow
 		*m_wiring_editor,              ///< Action to show the editable wiring list of the project
 		*m_potential_rules,            ///< Action to edit the colour and section rules of the wires
 		*m_text_styles,                ///< Action to edit the text styles of the project
+		*m_new_homiservi_project,      ///< Action to create a project from the Homiservi template
+		*m_homiservi_data,             ///< Action to edit the Homiservi data of the project and apply it to every folio
 		*m_project_wiring_list_view,   ///< Action to show the wiring list read from the project database
 		*m_terminal_numbering,         ///< Action to launch terminal numbering
 		*m_reload_element_drawings,    ///< Action to redraw every placed element from its current definition
