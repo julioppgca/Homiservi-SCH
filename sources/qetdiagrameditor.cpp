@@ -773,6 +773,11 @@ void QETDiagramEditor::setUpActions()
 	ShortcutManager::instance().registerAction(m_project_revisions, "diagrameditor.project_revisions", tr("Éditeur de schémas"), QKeySequence());
 	m_project_revisions->setStatusTip(tr("Edita as revisões mostradas no quadro de revisões da legenda", "status bar tip"));
 	connect(m_project_revisions, &QAction::triggered, this, &QETDiagramEditor::showProjectRevisions);
+
+	m_add_component_list = new QAction(tr("Adicionar lista de componentes"), this);
+	ShortcutManager::instance().registerAction(m_add_component_list, "diagrameditor.add_component_list", tr("Éditeur de schémas"), QKeySequence());
+	m_add_component_list->setStatusTip(tr("Adiciona no fim do projeto a lista de componentes: símbolo, posição, função, fornecedor e códigos", "status bar tip"));
+	connect(m_add_component_list, &QAction::triggered, this, &QETDiagramEditor::addComponentList);
 	m_paint_style = new QAction(QET::Icons::FormatPainter, tr("Pincel de estilo"), this);
 	ShortcutManager::instance().registerAction(m_paint_style, "diagrameditor.paint_style", tr("Éditeur de schémas"), QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_C));
 	m_paint_style->setStatusTip(tr("Copia a aparência do item selecionado (texto, componente, fio ou forma) para os itens em que você clicar", "status bar tip"));
@@ -1711,6 +1716,7 @@ void QETDiagramEditor::setUpMenu()
 	menu_project -> addAction(m_text_styles);
 	menu_project -> addAction(m_homiservi_data);
 	menu_project -> addAction(m_project_revisions);
+	menu_project -> addAction(m_add_component_list);
 	menu_project -> addAction(m_terminal_numbering);
 	menu_project -> addAction(m_reload_element_drawings);
 #ifdef QET_HAS_SCRIPTING
@@ -1929,6 +1935,25 @@ void QETDiagramEditor::showProjectRevisions()
 	ProjectRevisionsDialog dialog(ProjectRevisions::read(project), this);
 	if (dialog.exec() == QDialog::Accepted) {
 		ProjectRevisions::write(project, dialog.revisions());
+	}
+}
+
+/**
+	@brief QETDiagramEditor::addComponentList
+	Add a folio with the component list at the end of the current project
+	and show it.
+*/
+void QETDiagramEditor::addComponentList()
+{
+	QETProject *project = currentProject();
+	if (!project || project->isReadOnly()) {
+		return;
+	}
+	HomiserviTemplate::addComponentList(project);
+	if (ProjectView *view = currentProjectView()) {
+		if (!project->diagrams().isEmpty()) {
+			view->showDiagram(project->diagrams().constLast());
+		}
 	}
 }
 
@@ -3109,6 +3134,7 @@ void QETDiagramEditor::slot_updateActions()
 	m_text_styles                 -> setEnabled(editable_project);
 	m_homiservi_data              -> setEnabled(editable_project);
 	m_project_revisions           -> setEnabled(editable_project);
+	m_add_component_list          -> setEnabled(editable_project);
 	if (m_wiring_editor_dock && m_wiring_editor_dock->isVisible())
 		m_wiring_editor_dock->setProject(currentProject());
 	m_add_summary                 -> setEnabled(editable_project);

@@ -192,12 +192,13 @@ namespace {
 		diagram->border_and_titleblock.importTitleBlock(properties);
 	}
 
-	void addTable(Diagram *diagram, QWidget *content, const QString &name)
+		///With more_folios, the rows that do not fit go on the next new folios
+	void addTable(Diagram *diagram, QWidget *content, const QString &name, bool more_folios = false)
 	{
 		AddTableDialog dialog(content);
 		dialog.setTableName(name);
 		dialog.setAdjustTableToFolio(true);
-		dialog.setAddNewTableToNewDiagram(false);
+		dialog.setAddNewTableToNewDiagram(more_folios);
 		QetGraphicsTableFactory::create(diagram, &dialog);
 	}
 
@@ -372,7 +373,9 @@ void HomiserviTemplate::createFolios(QETProject *project, const Data &data, cons
 		Diagram *diagram = project->addNewDiagram();
 		setTitle(diagram, title);
 	}
-	if (folios.materials)
+	if (folios.materials && data.layout == Revisions)
+		addComponentList(project);
+	else if (folios.materials)
 	{
 		Diagram *diagram = project->addNewDiagram();
 		setTitle(diagram, tr("Lista de materiais"));
@@ -403,4 +406,43 @@ bool HomiserviTemplate::hasCover(QETProject *project)
 			    && static_cast<IndependentTextItem *>(item)->uuid() == coverUuid(Title))
 				return true;
 	return false;
+}
+
+/**
+	@return the query of the component list: one row per component (an
+	element with a label, the others are wiring symbols) with
+	its symbol, its position (folio.rowcolumn, as the cross references),
+	its function or description, the supplier and its code, and the
+	internal code
+*/
+QString HomiserviTemplate::componentListQuery()
+{
+	return QStringLiteral("SELECT label AS \"%1\","
+			      " diagram_position || '.' || position AS \"%2\","
+			      " COALESCE(NULLIF(description, ''), NULLIF(function, ''), designation) AS \"%3\","
+			      " manufacturer_reference AS \"%4\","
+			      " manufacturer AS \"%5\","
+			      " machine_manufacturer_reference AS \"%6\""
+			      " FROM element_nomenclature_view"
+			      " WHERE element_type IN ('%7', '%8', '%9') AND COALESCE(label, '') <> ''"
+			      " ORDER BY label")
+			.arg(tr("Símbolo"), tr("Posição esquema"), tr("Função / descrição do componente"),
+			     tr("Código fornecedor"), tr("Fornecedor"), tr("Código interno"),
+			     ElementData::typeToString(ElementData::Simple),
+			     ElementData::typeToString(ElementData::Master),
+			     ElementData::typeToString(ElementData::Terminal));
+}
+
+/**
+	@brief HomiserviTemplate::addComponentList
+	Add at the end of project a folio with the component list, continued
+	on new folios when it does not fit.
+*/
+void HomiserviTemplate::addComponentList(QETProject *project)
+{
+	Diagram *diagram = project->addNewDiagram();
+	setTitle(diagram, tr("Lista de componentes"));
+	auto query = new ElementQueryWidget();
+	query->setCustomQuery(componentListQuery());
+	addTable(diagram, query, tr("Lista de componentes"), true);
 }

@@ -80,6 +80,8 @@ namespace HomiserviTemplate
 	void apply(QETProject *project, const Data &data, bool use_title_block = true);
 	void createFolios(QETProject *project, const Data &data, const Folios &folios);
 	bool hasCover(QETProject *project);
+	QString componentListQuery();
+	void addComponentList(QETProject *project);
 }
 
 #endif // HOMISERVITEMPLATE_H
