@@ -18,6 +18,7 @@
 #include "homiserviprojectwizard.h"
 
 #include <QCheckBox>
+#include <QComboBox>
 #include <QDateEdit>
 #include <QFormLayout>
 #include <QLabel>
@@ -81,12 +82,19 @@ QWizardPage *HomiserviProjectWizard::projectPage(const HomiserviTemplate::Data &
 	m_location = lineEdit(data.location, tr("ex.: T1 – GL240 016-014335"), page);
 	m_drawing_number = lineEdit(data.drawing_number, tr("ex.: 092026"), page);
 	m_filename = lineEdit(data.filename, tr("referência do documento (opcional)"), page);
+	m_layout = new QComboBox(page);
+	m_layout->addItem(tr("Simples"), HomiserviTemplate::Simple);
+	m_layout->addItem(tr("Com quadro de revisões (A3, grade 13 × 6, referências 15.B4)"),
+			  HomiserviTemplate::Revisions);
+	m_layout->setCurrentIndex(m_layout->findData(data.layout));
+	m_layout->setToolTip(tr("As revisões são editadas em Projeto > Revisões do projeto"));
 	form->addRow(tr("Título do projeto:"), m_title);
 	form->addRow(tr("Cliente:"), m_client);
 	form->addRow(tr("Instalação:"), m_plant);
 	form->addRow(tr("Local / máquina:"), m_location);
 	form->addRow(tr("Número do desenho:"), m_drawing_number);
 	form->addRow(tr("Arquivo / referência:"), m_filename);
+	form->addRow(tr("Legenda:"), m_layout);
 	return page;
 }
 
@@ -97,6 +105,9 @@ QWizardPage *HomiserviProjectWizard::peoplePage(const HomiserviTemplate::Data &d
 	page->setSubTitle(tr("Os nomes ficam guardados para os próximos projetos."));
 	auto form = new QFormLayout(page);
 	QSettings settings;
+	m_designer = lineEdit(data.designer.isEmpty()
+			      ? settings.value(QStringLiteral("homiservi/designer")).toString() : data.designer,
+			      QString(), page);
 	m_author = lineEdit(data.author.isEmpty()
 			    ? settings.value(QStringLiteral("homiservi/author")).toString() : data.author,
 			    tr("ex.: Eng. Júlio"), page);
@@ -107,6 +118,7 @@ QWizardPage *HomiserviProjectWizard::peoplePage(const HomiserviTemplate::Data &d
 	m_date->setCalendarPopup(true);
 	m_revision = lineEdit(data.revision.isEmpty() ? QStringLiteral("0") : data.revision,
 			      tr("ex.: 0, A, 1.0"), page);
+	form->addRow(tr("Projetado por:"), m_designer);
 	form->addRow(tr("Desenhado por:"), m_author);
 	form->addRow(tr("Verificado por:"), m_checker);
 	form->addRow(tr("Data:"), m_date);
@@ -163,6 +175,8 @@ HomiserviTemplate::Data HomiserviProjectWizard::data() const
 	data.location = m_location->text().trimmed();
 	data.drawing_number = m_drawing_number->text().trimmed();
 	data.filename = m_filename->text().trimmed();
+	data.layout = HomiserviTemplate::Layout(m_layout->currentData().toInt());
+	data.designer = m_designer->text().trimmed();
 	data.author = m_author->text().trimmed();
 	data.checker = m_checker->text().trimmed();
 	data.date = m_date->date();
@@ -198,6 +212,7 @@ bool HomiserviProjectWizard::loadStyles() const
 void HomiserviProjectWizard::accept()
 {
 	QSettings settings;
+	settings.setValue(QStringLiteral("homiservi/designer"), m_designer->text().trimmed());
 	settings.setValue(QStringLiteral("homiservi/author"), m_author->text().trimmed());
 	settings.setValue(QStringLiteral("homiservi/checker"), m_checker->text().trimmed());
 	QWizard::accept();

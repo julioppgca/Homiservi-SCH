@@ -184,6 +184,8 @@ set(QET_SRC_FILES
   ${QET_DIR}/sources/potentialrules.h
   ${QET_DIR}/sources/homiservitemplate.cpp
   ${QET_DIR}/sources/homiservitemplate.h
+  ${QET_DIR}/sources/projectrevisions.cpp
+  ${QET_DIR}/sources/projectrevisions.h
   ${QET_DIR}/sources/stylepainter.cpp
   ${QET_DIR}/sources/stylepainter.h
   ${QET_DIR}/sources/textstyles.cpp
@@ -825,6 +827,8 @@ set(QET_SRC_FILES
   ${QET_DIR}/sources/ui/potentialrulesdialog.h
   ${QET_DIR}/sources/ui/homiserviprojectwizard.cpp
   ${QET_DIR}/sources/ui/homiserviprojectwizard.h
+  ${QET_DIR}/sources/ui/projectrevisionsdialog.cpp
+  ${QET_DIR}/sources/ui/projectrevisionsdialog.h
   ${QET_DIR}/sources/ui/textstylesdialog.cpp
   ${QET_DIR}/sources/ui/textstylesdialog.h
   ${QET_DIR}/sources/ui/dialogwaiting.cpp

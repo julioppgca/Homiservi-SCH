@@ -23,6 +23,7 @@
 #include <QWizard>
 
 class QCheckBox;
+class QComboBox;
 class QDateEdit;
 class QLineEdit;
 class QPlainTextEdit;
@@ -63,6 +64,8 @@ class HomiserviProjectWizard : public QWizard
 		QLineEdit *m_location = nullptr;
 		QLineEdit *m_drawing_number = nullptr;
 		QLineEdit *m_filename = nullptr;
+		QComboBox *m_layout = nullptr;
+		QLineEdit *m_designer = nullptr;
 		QLineEdit *m_author = nullptr;
 		QLineEdit *m_checker = nullptr;
 		QDateEdit *m_date = nullptr;

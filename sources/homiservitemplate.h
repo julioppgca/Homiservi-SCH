@@ -40,14 +40,25 @@ class QETProject;
 namespace HomiserviTemplate
 {
 	extern const QString TitleBlockName;
+	extern const QString RevisionsTitleBlockName;
+
+		/**
+			Simple: the Homiservi title block.
+			Revisions: the title block with the revision table
+			(ProjectRevisions), on A3 folios of 13 columns and 6 rows,
+			cross references written folio.rowcolumn (15.B4).
+		*/
+	enum Layout { Simple, Revisions };
 
 	struct Data
 	{
+		Layout layout = Simple;
 		QString title;		///< %{projecttitle}
 		QString client;		///< %{cliente}
 		QString plant;		///< %{plant}, Instalação
 		QString location;	///< %{locmach}, Local
 		QString drawing_number;	///< %{drwnumber}
+		QString designer;	///< %{projetado}
 		QString author;		///< %{author}
 		QString checker;	///< %{verficado}, as the title block spells it
 		QDate date;		///< %{date}
@@ -64,7 +75,8 @@ namespace HomiserviTemplate
 	};
 
 	Data fromProject(QETProject *project);
-	void prepare(QETProject *project, bool styles = true);
+	QString titleBlockName(Layout layout);
+	void prepare(QETProject *project, Layout layout, bool styles = true);
 	void apply(QETProject *project, const Data &data, bool use_title_block = true);
 	void createFolios(QETProject *project, const Data &data, const Folios &folios);
 	bool hasCover(QETProject *project);

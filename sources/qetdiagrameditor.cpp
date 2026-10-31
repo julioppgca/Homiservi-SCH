@@ -25,6 +25,7 @@
 #include "ui/potentialrulesdialog.h"
 #include "ui/textstylesdialog.h"
 #include "ui/homiserviprojectwizard.h"
+#include "ui/projectrevisionsdialog.h"
 #include "diagramevent/diagrameventpaintstyle.h"
 #include "ui/projecthistorydialog.h"
 #include "shownkinds.h"
@@ -767,6 +768,11 @@ void QETDiagramEditor::setUpActions()
 	ShortcutManager::instance().registerAction(m_homiservi_data, "diagrameditor.homiservi_data", tr("Éditeur de schémas"), QKeySequence());
 	m_homiservi_data->setStatusTip(tr("Edita cliente, título, local, número do desenho, responsáveis e revisão, e aplica na legenda de todas as folhas", "status bar tip"));
 	connect(m_homiservi_data, &QAction::triggered, this, &QETDiagramEditor::showHomiserviData);
+
+	m_project_revisions = new QAction(tr("Revisões do projeto..."), this);
+	ShortcutManager::instance().registerAction(m_project_revisions, "diagrameditor.project_revisions", tr("Éditeur de schémas"), QKeySequence());
+	m_project_revisions->setStatusTip(tr("Edita as revisões mostradas no quadro de revisões da legenda", "status bar tip"));
+	connect(m_project_revisions, &QAction::triggered, this, &QETDiagramEditor::showProjectRevisions);
 	m_paint_style = new QAction(QET::Icons::FormatPainter, tr("Pincel de estilo"), this);
 	ShortcutManager::instance().registerAction(m_paint_style, "diagrameditor.paint_style", tr("Éditeur de schémas"), QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_C));
 	m_paint_style->setStatusTip(tr("Copia a aparência do item selecionado (texto, componente, fio ou forma) para os itens em que você clicar", "status bar tip"));
@@ -1704,6 +1710,7 @@ void QETDiagramEditor::setUpMenu()
 	menu_project -> addAction(m_potential_rules);
 	menu_project -> addAction(m_text_styles);
 	menu_project -> addAction(m_homiservi_data);
+	menu_project -> addAction(m_project_revisions);
 	menu_project -> addAction(m_terminal_numbering);
 	menu_project -> addAction(m_reload_element_drawings);
 #ifdef QET_HAS_SCRIPTING
@@ -1874,7 +1881,7 @@ void QETDiagramEditor::newHomiserviProject()
 		return;
 	}
 	auto project = new QETProject(this);
-	HomiserviTemplate::prepare(project);
+	HomiserviTemplate::prepare(project, wizard.data().layout);
 	HomiserviTemplate::createFolios(project, wizard.data(), wizard.folios());
 	addProject(project);
 }
@@ -1906,6 +1913,23 @@ void QETDiagramEditor::showHomiserviData()
 	}
 	HomiserviTemplate::apply(project, wizard.data(), wizard.useTitleBlock());
 	fillTextStyleMenu();
+}
+
+/**
+	@brief QETDiagramEditor::showProjectRevisions
+	Edit the revisions of the current project, shown by the revision table
+	of its title block (ProjectRevisions).
+*/
+void QETDiagramEditor::showProjectRevisions()
+{
+	QETProject *project = currentProject();
+	if (!project || project->isReadOnly()) {
+		return;
+	}
+	ProjectRevisionsDialog dialog(ProjectRevisions::read(project), this);
+	if (dialog.exec() == QDialog::Accepted) {
+		ProjectRevisions::write(project, dialog.revisions());
+	}
 }
 
 /**
@@ -3084,6 +3108,7 @@ void QETDiagramEditor::slot_updateActions()
 	m_potential_rules             -> setEnabled(editable_project);
 	m_text_styles                 -> setEnabled(editable_project);
 	m_homiservi_data              -> setEnabled(editable_project);
+	m_project_revisions           -> setEnabled(editable_project);
 	if (m_wiring_editor_dock && m_wiring_editor_dock->isVisible())
 		m_wiring_editor_dock->setProject(currentProject());
 	m_add_summary                 -> setEnabled(editable_project);

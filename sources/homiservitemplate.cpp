@@ -23,6 +23,7 @@
 #include "factory/qetgraphicstablefactory.h"
 #include "factory/ui/addtabledialog.h"
 #include "potentialrules.h"
+#include "projectrevisions.h"
 #include "properties/elementdata.h"
 #include "qetapp.h"
 #include "qetgraphicsitem/diagramimageitem.h"
@@ -36,6 +37,7 @@
 #include <QUuid>
 
 const QString HomiserviTemplate::TitleBlockName = QStringLiteral("Homiservi_Legenda");
+const QString HomiserviTemplate::RevisionsTitleBlockName = QStringLiteral("Homiservi_Legenda_Revisoes");
 
 namespace {
 	QString tr(const char *text)
@@ -45,7 +47,35 @@ namespace {
 
 		///The data of every folio kept as project properties, not per folio
 	const QStringList project_keys {QStringLiteral("cliente"), QStringLiteral("drwnumber"),
-					QStringLiteral("verficado"), QStringLiteral("verifie")};
+					QStringLiteral("verficado"), QStringLiteral("verifie"),
+					QStringLiteral("projetado")};
+
+		///Cross references and folio reports written folio.rowcolumn: 15.B4
+	const QString revisions_reference = QStringLiteral("%f.%l%c");
+
+		///A3 folios of the Revisions layout: 13 columns, rows A to F
+	BorderProperties revisionsBorder()
+	{
+		BorderProperties border = BorderProperties::defaultProperties();
+		border.columns_count = 13;
+		border.columns_width = 90;
+		border.rows_count = 6;
+		border.rows_height = 120;
+		border.display_columns = true;
+		border.display_rows = true;
+		return border;
+	}
+
+	void embedTitleBlock(QETProject *project, const QString &name)
+	{
+		TitleBlockTemplatesProjectCollection *collection = project->embeddedTitleBlockTemplatesCollection();
+		if (collection->templates().contains(name))
+			return;
+		QFile file(QStringLiteral(":/ico/homiservi/%1.titleblock").arg(name));
+		QDomDocument document;
+		if (file.open(QIODevice::ReadOnly) && document.setContent(&file))
+			collection->setTemplateXmlDescription(name, document.documentElement());
+	}
 
 		///The texts of the cover, refreshed by apply()
 	enum CoverText { Heading, Title, Client, Place, Number, CoverTextCount };
@@ -177,7 +207,7 @@ namespace {
 	{
 		if (use_title_block)
 		{
-			properties.template_name = HomiserviTemplate::TitleBlockName;
+			properties.template_name = HomiserviTemplate::titleBlockName(data.layout);
 			properties.collection = QET::Embedded;
 		}
 		properties.author = data.author;
@@ -207,6 +237,9 @@ HomiserviTemplate::Data HomiserviTemplate::fromProject(QETProject *project)
 	data.client = properties.value(QStringLiteral("cliente")).toString();
 	data.drawing_number = properties.value(QStringLiteral("drwnumber")).toString();
 	data.checker = properties.value(QStringLiteral("verficado")).toString();
+	data.designer = properties.value(QStringLiteral("projetado")).toString();
+	data.layout = project->defaultTitleBlockProperties().template_name == RevisionsTitleBlockName
+			? Revisions : Simple;
 
 	const TitleBlockProperties title_block = project->diagrams().isEmpty()
 			? project->defaultTitleBlockProperties()
@@ -226,29 +259,48 @@ HomiserviTemplate::Data HomiserviTemplate::fromProject(QETProject *project)
 	return data;
 }
 
+QString HomiserviTemplate::titleBlockName(Layout layout)
+{
+	return layout == Revisions ? RevisionsTitleBlockName : TitleBlockName;
+}
+
 /**
 	@brief HomiserviTemplate::prepare
-	Give project the Homiservi title block, as the one of its new folios,
+	Give project the title block of layout, as the one of its new folios,
 	and with styles the text styles and wire rules of the template when it
-	has none.
+	has none. The Revisions layout also gives every folio its border and
+	the project its way of writing cross references.
 */
-void HomiserviTemplate::prepare(QETProject *project, bool styles)
+void HomiserviTemplate::prepare(QETProject *project, Layout layout, bool styles)
 {
-	TitleBlockTemplatesProjectCollection *collection = project->embeddedTitleBlockTemplatesCollection();
-	if (!collection->templates().contains(TitleBlockName))
-	{
-		QFile file(QStringLiteral(":/ico/homiservi/Homiservi_Legenda.titleblock"));
-		QDomDocument document;
-		if (file.open(QIODevice::ReadOnly) && document.setContent(&file))
-			collection->setTemplateXmlDescription(TitleBlockName, document.documentElement());
-	}
+	const QString name = titleBlockName(layout);
+	embedTitleBlock(project, name);
 
 	TitleBlockProperties properties = project->defaultTitleBlockProperties();
-	properties.template_name = TitleBlockName;
+	properties.template_name = name;
 	properties.collection = QET::Embedded;
 	if (properties.folio.isEmpty())
 		properties.folio = QStringLiteral("%id/%total");
 	project->setDefaultTitleBlockProperties(properties);
+
+	if (layout == Revisions)
+	{
+		const BorderProperties border = revisionsBorder();
+		project->setDefaultBorderProperties(border);
+		for (Diagram *diagram : project->diagrams())
+			if (diagram->border_and_titleblock.exportBorder() != border)
+				diagram->border_and_titleblock.importBorder(border);
+
+		QHash<QString, XRefProperties> xrefs = project->defaultXRefProperties();
+		for (auto it = xrefs.begin(); it != xrefs.end(); ++it)
+		{
+			it->setMasterLabel(revisions_reference);
+			it->setSlaveLabel(revisions_reference);
+		}
+		project->setDefaultXRefProperties(xrefs);
+		project->setDefaultReportProperties(revisions_reference);
+		ProjectRevisions::ensureTable(project);
+	}
 
 	if (styles && project->textStyles().isEmpty())
 		project->setTextStyles(TextStyles::examples());
@@ -266,13 +318,14 @@ void HomiserviTemplate::prepare(QETProject *project, bool styles)
 void HomiserviTemplate::apply(QETProject *project, const Data &data, bool use_title_block)
 {
 	if (use_title_block)
-		prepare(project, false);
+		prepare(project, data.layout, false);
 
 	DiagramContext properties = project->projectProperties();
 	properties.addValue(QStringLiteral("cliente"), data.client);
 	properties.addValue(QStringLiteral("drwnumber"), data.drawing_number);
 	properties.addValue(QStringLiteral("verficado"), data.checker);
 	properties.addValue(QStringLiteral("verifie"), data.checker);
+	properties.addValue(QStringLiteral("projetado"), data.designer);
 	project->setTitle(data.title);
 
 	TitleBlockProperties defaults = project->defaultTitleBlockProperties();
