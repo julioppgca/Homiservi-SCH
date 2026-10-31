@@ -39,6 +39,7 @@
 #include "../qetapp.h"
 #include "../qetproject.h"
 #include "../terminalsheet.h"
+#include "../iomap.h"
 #include "../qetresult.h"
 #include "../qetgraphicsitem/conductor.h"
 #include "../qetgraphicsitem/conductortextitem.h"
@@ -2940,6 +2941,23 @@ int QetScriptApi::generateTerminalSheets()
 	for (Diagram *diagram : TerminalSheet::generatedFolios(m_project))
 		m_project->removeDiagram(diagram);
 	return TerminalSheet::createFolios(m_project, TerminalSheet::collect(m_project));
+}
+
+/**
+	Draw the input/output map of each PLC of the project (IoMap), replacing
+	the folios drawn before. Returns the number of folios added, -1 on
+	failure.
+*/
+int QetScriptApi::generateIoMaps()
+{
+	if (!m_project) return -1;
+	if (m_project->isReadOnly()) {
+		log(QStringLiteral("qet.generateIoMaps: project is read-only"));
+		return -1;
+	}
+	for (Diagram *diagram : IoMap::generatedFolios(m_project))
+		m_project->removeDiagram(diagram);
+	return IoMap::createFolios(m_project, IoMap::collect(m_project));
 }
 
 QList<QetGraphicsTableItem *> QetScriptApi::sortedTables(int folioIndex) const

@@ -514,6 +514,7 @@ class QetScriptApi : public QObject
 		Q_INVOKABLE bool bridgeTerminals(int stripIndex, const QVariantList &realTerminalIndices);
 		Q_INVOKABLE bool sortTerminalStrip(int stripIndex);
 		Q_INVOKABLE int generateTerminalSheets();
+		Q_INVOKABLE int generateIoMaps();
 
 		// -- a BOM/nomenclature or summary table placed on a folio --
 		Q_INVOKABLE QStringList tables(int folioIndex) const;

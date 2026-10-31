@@ -22,14 +22,11 @@
 #include "TerminalStrip/terminalstrip.h"
 #include "TerminalStrip/terminalstripbridge.h"
 #include "diagram.h"
-#include "qetapp.h"
 #include "qetgraphicsitem/conductor.h"
 #include "qetgraphicsitem/element.h"
-#include "qetgraphicsitem/independenttextitem.h"
-#include "qetgraphicsitem/qetshapeitem.h"
 #include "qetgraphicsitem/terminal.h"
 #include "qetproject.h"
-#include "textstyles.h"
+#include "sheettable.h"
 
 #include <QCollator>
 #include <QCoreApplication>
@@ -42,17 +39,18 @@ namespace {
 		return QCoreApplication::translate("TerminalSheet", text);
 	}
 
-		///The title block variable marking the folios of the sheets
-	const QString marker_key = QStringLiteral("homiservi_generated");
-	const QString marker_value = QStringLiteral("terminal_sheet");
+		///The kind of the folios of the sheets (SheetTable)
+	const QString folio_kind = QStringLiteral("terminal_sheet");
 
 		///Columns of the table: potential, terminal, jumper, devices, location
-	const qreal column_widths[] = {150, 60, 64, 200, 104};
-		///The columns whose values are centred: terminal, jumper, location
-	const bool column_centred[] = {false, true, true, false, true};
-	constexpr int column_count = 5;
-	constexpr qreal row_height = 16;
-	constexpr qreal header_height = 22;
+	QList<SheetTable::Column> columns()
+	{
+		return {{tr("POTENCIAL"), 150}, {tr("BORNE"), 60, true}, {tr("JUMPER"), 64, true},
+			{tr("DISPOSITIVO"), 200}, {tr("LOCALIZAÇÃO"), 104, true}};
+	}
+	constexpr int jumper_column = 2;
+		///The title above the table and the space under it
+	constexpr qreal title_height = 54;
 
 	bool isReport(const Element *element)
 	{
@@ -101,22 +99,13 @@ namespace {
 		return list.join(QStringLiteral(", "));
 	}
 
-	QString location(Element *element)
-	{
-		Diagram *diagram = element->diagram();
-		if (!diagram)
-			return QString();
-		return QStringLiteral("%1.%2").arg(diagram->project()->folioIndex(diagram) + 1)
-				.arg(diagram->convertPosition(element->scenePos()).toString());
-	}
-
 	TerminalSheet::Row row(Element *element, const QString &terminal)
 	{
 		TerminalSheet::Row row;
 		row.potential = potential(element);
 		row.terminal = terminal;
 		row.devices = devices(element);
-		row.location = location(element);
+		row.location = SheetTable::location(element);
 		return row;
 	}
 
@@ -153,97 +142,41 @@ namespace {
 		return sheet;
 	}
 
-		///The text of a table cell at x, centred in its height, and in width
-		///when width is given
-	void addText(Diagram *diagram, const QString &value, qreal x, qreal y, qreal height,
-		     int size = 7, bool bold = false, qreal width = 0)
-	{
-		if (value.isEmpty())
-			return;
-		auto text = new IndependentTextItem();
-		QFont font = QETApp::diagramTextsFont(size);
-		font.setBold(bold);
-		text->setFont(font);
-		text->setTextStyle(TextStyles::NoStyle);
-		text->setPlainText(value);
-		diagram->addItem(text);
-		const QRectF rect = text->boundingRect();
-		text->setPos(width > 0 ? x + (width - rect.width()) / 2 : x,
-			     y + (height - rect.height()) / 2);
-	}
-
-	void addLine(Diagram *diagram, const QPointF &p1, const QPointF &p2)
-	{
-		auto line = new QetShapeItem(p1, p2, QetShapeItem::Line);
-		diagram->addItem(line);
-	}
-
-	void addDot(Diagram *diagram, const QPointF &centre)
-	{
-		auto dot = new QetShapeItem(centre - QPointF(3, 3), centre + QPointF(3, 3), QetShapeItem::Ellipse);
-		dot->setBrush(QBrush(Qt::black));
-		diagram->addItem(dot);
-	}
-
-		///Draw rows of strip on diagram, the header first
+		///Draw rows of strip on diagram, under its title
 	void drawPage(Diagram *diagram, const QString &strip, const QList<TerminalSheet::Row> &rows)
 	{
+		const QList<SheetTable::Column> table = columns();
 		const QRectF inside = diagram->border_and_titleblock.insideBorderRect();
-		qreal width = 0;
-		for (qreal w : column_widths) width += w;
-		const qreal left = inside.center().x() - width / 2;
-		qreal y = inside.top() + 20;
+		const qreal left = inside.center().x() - SheetTable::width(table) / 2;
+		const qreal top = inside.top() + 20;
+		SheetTable::addText(diagram, strip, left, top, 26, 12, true);
+		SheetTable::addText(diagram, tr("LISTA PLANILHA BORNE"), left + 180, top, 26, 11);
 
-		addText(diagram, strip, left, y, 26, 12, true);
-		addText(diagram, tr("LISTA PLANILHA BORNE"), left + 180, y, 26, 11);
-		y += 34;
+		QList<QStringList> values;
+		for (const TerminalSheet::Row &row : rows)
+			values << QStringList {row.potential, row.terminal, QString(), row.devices, row.location};
+		const QList<qreal> tops = SheetTable::draw(diagram, left, top + title_height - 20, table, values);
 
-		qreal x = left;
-		const QStringList headers {tr("POTENCIAL"), tr("BORNE"), tr("JUMPER"), tr("DISPOSITIVO"),
-					   tr("LOCALIZAÇÃO")};
-		const qreal table_top = y;
-		for (int c = 0; c < column_count; ++c) {
-			addText(diagram, headers.at(c), x, y, header_height, 7, true, column_widths[c]);
-			x += column_widths[c];
-		}
-		y += header_height;
-		addLine(diagram, QPointF(left, table_top), QPointF(left + width, table_top));
-		addLine(diagram, QPointF(left, y), QPointF(left + width, y));
-
-		const qreal jumper_x = left + column_widths[0] + column_widths[1] + column_widths[2] / 2;
+			//The jumpers: a dot per terminal, a line from the first to the last
+		qreal jumper_x = left + table.at(jumper_column).width / 2;
+		for (int c = 0; c < jumper_column; ++c)
+			jumper_x += table.at(c).width;
 		QHash<int, QPointF> first_dot;
 		QHash<int, QPointF> last_dot;
-		for (const TerminalSheet::Row &row : rows)
+		for (int i = 0; i < rows.size(); ++i)
 		{
-			x = left;
-			const QStringList values {row.potential, row.terminal, QString(), row.devices, row.location};
-			for (int c = 0; c < column_count; ++c) {
-				if (column_centred[c])
-					addText(diagram, values.at(c), x, y, row_height, 7, false, column_widths[c]);
-				else
-					addText(diagram, values.at(c), x + 4, y, row_height);
-				x += column_widths[c];
-			}
-			if (row.bridge >= 0) {
-				const QPointF centre(jumper_x, y + row_height / 2);
-				addDot(diagram, centre);
-				if (!first_dot.contains(row.bridge))
-					first_dot.insert(row.bridge, centre);
-				last_dot.insert(row.bridge, centre);
-			}
-			y += row_height;
-			addLine(diagram, QPointF(left, y), QPointF(left + width, y));
+			const int bridge = rows.at(i).bridge;
+			if (bridge < 0)
+				continue;
+			const QPointF centre(jumper_x, tops.at(i) + SheetTable::RowHeight / 2);
+			SheetTable::addDot(diagram, centre);
+			if (!first_dot.contains(bridge))
+				first_dot.insert(bridge, centre);
+			last_dot.insert(bridge, centre);
 		}
 		for (auto it = first_dot.cbegin(); it != first_dot.cend(); ++it)
 			if (last_dot.value(it.key()) != it.value())
-				addLine(diagram, it.value(), last_dot.value(it.key()));
-
-		x = left;
-		for (int c = 0; c <= column_count; ++c) {
-			addLine(diagram, QPointF(x, table_top), QPointF(x, y));
-			if (c < column_count)
-				x += column_widths[c];
-		}
+				SheetTable::addLine(diagram, it.value(), last_dot.value(it.key()));
 	}
 }
 
@@ -294,12 +227,7 @@ QList<TerminalSheet::Strip> TerminalSheet::collect(QETProject *project)
 	///@return the folios of project made by createFolios()
 QList<Diagram *> TerminalSheet::generatedFolios(QETProject *project)
 {
-	QList<Diagram *> folios;
-	for (Diagram *diagram : project->diagrams())
-		if (diagram->border_and_titleblock.exportTitleBlock().context.value(marker_key).toString()
-		    == marker_value)
-			folios << diagram;
-	return folios;
+	return SheetTable::folios(project, folio_kind);
 }
 
 /**
@@ -316,14 +244,11 @@ int TerminalSheet::createFolios(QETProject *project, const QList<Strip> &strips)
 		int start = 0;
 		do
 		{
-			Diagram *diagram = project->addNewDiagram();
-			TitleBlockProperties title_block = diagram->border_and_titleblock.exportTitleBlock();
-			title_block.title = tr("Planilha de bornes %1").arg(strip.name);
-			title_block.context.addValue(marker_key, marker_value);
-			diagram->border_and_titleblock.importTitleBlock(title_block);
-
+			Diagram *diagram = SheetTable::addFolio(project, tr("Planilha de bornes %1").arg(strip.name),
+								folio_kind);
 			const QRectF inside = diagram->border_and_titleblock.insideBorderRect();
-			const int fit = qMax(1, int((inside.height() - 20 - 34 - header_height - 10) / row_height));
+			const int fit = qMax(1, int((inside.height() - title_height - SheetTable::HeaderHeight - 10)
+						    / SheetTable::RowHeight));
 			drawPage(diagram, strip.name, strip.rows.mid(start, fit));
 			start += fit;
 			++count;

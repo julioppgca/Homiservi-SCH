@@ -28,6 +28,7 @@
 #include "ui/projectrevisionsdialog.h"
 #include "projectvariants.h"
 #include "terminalsheet.h"
+#include "iomap.h"
 #include "diagramevent/diagrameventpaintstyle.h"
 #include "ui/projecthistorydialog.h"
 #include "shownkinds.h"
@@ -785,6 +786,11 @@ void QETDiagramEditor::setUpActions()
 	ShortcutManager::instance().registerAction(m_terminal_sheets, "diagrameditor.terminal_sheets", tr("Éditeur de schémas"), QKeySequence());
 	m_terminal_sheets->setStatusTip(tr("Desenha no fim do projeto uma planilha por régua: potencial, borne, jumper, dispositivo e localização", "status bar tip"));
 	connect(m_terminal_sheets, &QAction::triggered, this, &QETDiagramEditor::generateTerminalSheets);
+
+	m_io_maps = new QAction(tr("Gerar mapas de entradas e saídas"), this);
+	ShortcutManager::instance().registerAction(m_io_maps, "diagrameditor.io_maps", tr("Éditeur de schémas"), QKeySequence());
+	m_io_maps->setStatusTip(tr("Desenha no fim do projeto o mapa de cada CLP: pino, endereço, localização e descrição das entradas e das saídas", "status bar tip"));
+	connect(m_io_maps, &QAction::triggered, this, &QETDiagramEditor::generateIoMaps);
 	m_paint_style = new QAction(QET::Icons::FormatPainter, tr("Pincel de estilo"), this);
 	ShortcutManager::instance().registerAction(m_paint_style, "diagrameditor.paint_style", tr("Éditeur de schémas"), QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_C));
 	m_paint_style->setStatusTip(tr("Copia a aparência do item selecionado (texto, componente, fio ou forma) para os itens em que você clicar", "status bar tip"));
@@ -1736,6 +1742,7 @@ void QETDiagramEditor::setUpMenu()
 	menu_project -> addAction(m_project_revisions);
 	menu_project -> addAction(m_add_component_list);
 	menu_project -> addAction(m_terminal_sheets);
+	menu_project -> addAction(m_io_maps);
 	menu_project -> addAction(m_terminal_numbering);
 	menu_project -> addAction(m_reload_element_drawings);
 #ifdef QET_HAS_SCRIPTING
@@ -1996,6 +2003,48 @@ void QETDiagramEditor::generateTerminalSheets()
 		view->showDiagram(project->diagrams().at(first));
 	}
 	statusBar()->showMessage(tr("%n folha(s) de planilha de bornes geradas", nullptr, count), 5000);
+}
+
+/**
+	@brief QETDiagramEditor::generateIoMaps
+	Draw the input/output map of each PLC of the current project on folios
+	at its end (IoMap), replacing the ones drawn before once the user
+	agrees.
+*/
+void QETDiagramEditor::generateIoMaps()
+{
+	QETProject *project = currentProject();
+	ProjectView *view = currentProjectView();
+	if (!project || !view || project->isReadOnly()) {
+		return;
+	}
+	const QList<IoMap::Module> modules = IoMap::collect(project);
+	if (modules.isEmpty()) {
+		QET::QetMessageBox::information(this, tr("Mapas de entradas e saídas"),
+						tr("O projeto não tem CLP com tabela de entradas e saídas: use um"
+						   " componente mestre do tipo CLP e preencha a tabela dele."));
+		return;
+	}
+	const QList<Diagram *> old_folios = IoMap::generatedFolios(project);
+	if (!old_folios.isEmpty()) {
+		const auto answer = QET::QetMessageBox::question(
+					this, tr("Mapas de entradas e saídas"),
+					tr("O projeto já tem %n folha(s) de mapa de entradas e saídas gerada(s) antes."
+					   " Substituir pelas novas?", nullptr, int(old_folios.size())),
+					QMessageBox::Yes | QMessageBox::Cancel, QMessageBox::Yes);
+		if (answer != QMessageBox::Yes) {
+			return;
+		}
+		for (Diagram *diagram : old_folios) {
+			view->removeDiagram(diagram, true);
+		}
+	}
+	const int first = int(project->diagrams().size());
+	const int count = IoMap::createFolios(project, modules);
+	if (first < project->diagrams().size()) {
+		view->showDiagram(project->diagrams().at(first));
+	}
+	statusBar()->showMessage(tr("%n folha(s) de mapa de entradas e saídas geradas", nullptr, count), 5000);
 }
 
 /**
@@ -3225,6 +3274,7 @@ void QETDiagramEditor::slot_updateActions()
 	m_project_revisions           -> setEnabled(editable_project);
 	m_add_component_list          -> setEnabled(editable_project);
 	m_terminal_sheets             -> setEnabled(editable_project);
+	m_io_maps                     -> setEnabled(editable_project);
 	if (m_wiring_editor_dock && m_wiring_editor_dock->isVisible())
 		m_wiring_editor_dock->setProject(currentProject());
 	m_add_summary                 -> setEnabled(editable_project);

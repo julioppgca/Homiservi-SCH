@@ -190,6 +190,10 @@ set(QET_SRC_FILES
   ${QET_DIR}/sources/projectvariants.h
   ${QET_DIR}/sources/terminalsheet.cpp
   ${QET_DIR}/sources/terminalsheet.h
+  ${QET_DIR}/sources/iomap.cpp
+  ${QET_DIR}/sources/iomap.h
+  ${QET_DIR}/sources/sheettable.cpp
+  ${QET_DIR}/sources/sheettable.h
   ${QET_DIR}/sources/stylepainter.cpp
   ${QET_DIR}/sources/stylepainter.h
   ${QET_DIR}/sources/textstyles.cpp
