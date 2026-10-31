@@ -38,6 +38,7 @@
 #include "../dataBase/projectdatabase.h"
 #include "../qetapp.h"
 #include "../qetproject.h"
+#include "../terminalsheet.h"
 #include "../qetresult.h"
 #include "../qetgraphicsitem/conductor.h"
 #include "../qetgraphicsitem/conductortextitem.h"
@@ -2922,6 +2923,23 @@ bool QetScriptApi::sortTerminalStrip(int stripIndex)
 	}
 	m_project->undoStack()->push(new SortTerminalStripCommand(strips.at(stripIndex)));
 	return true;
+}
+
+/**
+	Draw the terminal sheets of the project (TerminalSheet), replacing the
+	folios drawn by an earlier call or by Project > Generate terminal
+	sheets. Returns the number of folios added, -1 on failure.
+*/
+int QetScriptApi::generateTerminalSheets()
+{
+	if (!m_project) return -1;
+	if (m_project->isReadOnly()) {
+		log(QStringLiteral("qet.generateTerminalSheets: project is read-only"));
+		return -1;
+	}
+	for (Diagram *diagram : TerminalSheet::generatedFolios(m_project))
+		m_project->removeDiagram(diagram);
+	return TerminalSheet::createFolios(m_project, TerminalSheet::collect(m_project));
 }
 
 QList<QetGraphicsTableItem *> QetScriptApi::sortedTables(int folioIndex) const

@@ -188,6 +188,8 @@ set(QET_SRC_FILES
   ${QET_DIR}/sources/projectrevisions.h
   ${QET_DIR}/sources/projectvariants.cpp
   ${QET_DIR}/sources/projectvariants.h
+  ${QET_DIR}/sources/terminalsheet.cpp
+  ${QET_DIR}/sources/terminalsheet.h
   ${QET_DIR}/sources/stylepainter.cpp
   ${QET_DIR}/sources/stylepainter.h
   ${QET_DIR}/sources/textstyles.cpp
