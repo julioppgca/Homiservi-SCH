@@ -133,6 +133,7 @@ class QETDiagramEditor : public QETMainWindow
 		void showTextStyles();
 		void fillTextStyleMenu();
 		void applyTextStyle(const QString &style);
+		void applyVariant(const QString &code);
 		void startPaintStyle();
 		void compareProject(QETProject *project, const QString &reference_path, const QString &reference_label);
 		void zoomGroupTriggered      (QAction *action);
@@ -228,6 +229,7 @@ class QETDiagramEditor : public QETMainWindow
 		*m_add_item_menu = nullptr,   ///< Submenu of m_add_item_actions_group
 		*m_align_menu = nullptr,      ///< Submenu of m_align_actions_group
 		*m_text_style_menu = nullptr, ///< Gives the selected texts a text style
+		*m_variant_menu = nullptr,    ///< Marks the selected elements, or the folio, X/O/V/E
 		*m_row_column_menu = nullptr; ///< Submenu of m_row_column_actions_group
 	
 	private:

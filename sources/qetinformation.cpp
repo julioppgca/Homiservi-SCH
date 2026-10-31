@@ -134,7 +134,8 @@ QStringList QETInformation::diagramInfoKeys()
 						 DIA_LOCMACH,
 						 DIA_INDEX_REV,
 						 DIA_DATE,
-						 DIA_DISPLAY_FOLIO };
+						 DIA_DISPLAY_FOLIO,
+						 DIA_VARIANT };
 	return list;
 }
 
@@ -203,6 +204,8 @@ QStringList QETInformation::elementInfoKeys()
 						 ELMT_PLC_FUNCTION,
 						 ELMT_PLC_COMMENT,
 					 ELMT_PLC_CROSSREF,
+					 ELMT_VARIANT,
+					 ELMT_APPLICATION,
 					 ELMT_XREF,
 					 "exclude_from_bom" };
 	return list;
@@ -373,6 +376,8 @@ QString QETInformation::translatedInfoKey(const QString &info)
 	else if (info == ELMT_PLC_COMMENT)                       return QObject::tr("Commentaire PLC");
 	else if (info == ELMT_PLC_CROSSREF)                      return QObject::tr("Réf. croisée PLC");
 	else if (info == ELMT_XREF)                          return QObject::tr("Réf. croisée");
+	else if (info == ELMT_VARIANT)                       return QObject::tr("Tipo (X/O/V/E)");
+	else if (info == ELMT_APPLICATION)                   return QObject::tr("Aplicação");
 	else return QString();
 }
 

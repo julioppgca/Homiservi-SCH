@@ -24,6 +24,7 @@
 #include "factory/ui/addtabledialog.h"
 #include "potentialrules.h"
 #include "projectrevisions.h"
+#include "projectvariants.h"
 #include "properties/elementdata.h"
 #include "qetapp.h"
 #include "qetgraphicsitem/diagramimageitem.h"
@@ -202,6 +203,16 @@ namespace {
 		QetGraphicsTableFactory::create(diagram, &dialog);
 	}
 
+		///"TIPO: X = PADRÃO...", at the bottom left of the folio of diagram
+	void addVariantLegend(Diagram *diagram)
+	{
+		auto text = new IndependentTextItem();
+		text->setPlainText(tr("TIPO:") + QStringLiteral("    ") + ProjectVariants::legend());
+		diagram->addItem(text);
+		const QRectF inside = diagram->border_and_titleblock.insideBorderRect();
+		text->setPos(inside.left() + 10, inside.bottom() - text->boundingRect().height() - 6);
+	}
+
 		///Write the title block data of data in properties
 	void fill(TitleBlockProperties &properties, const HomiserviTemplate::Data &data,
 		  bool use_title_block)
@@ -364,8 +375,18 @@ void HomiserviTemplate::createFolios(QETProject *project, const Data &data, cons
 		Diagram *diagram = project->addNewDiagram();
 		setTitle(diagram, tr("Índice"));
 		auto query = new SummaryQueryWidget();
-		query->setQuery(QStringLiteral("SELECT folio, title, plant, locmach, indexrev, date"
-					       " FROM project_summary_view ORDER BY pos"));
+		if (data.layout == Revisions)
+		{
+			query->setQuery(QStringLiteral("SELECT title AS \"%1\", folio AS \"%2\", indexrev AS \"%3\","
+						       " COALESCE(NULLIF(variant, ''), '%4') AS \"%5\""
+						       " FROM project_summary_view ORDER BY pos")
+					.arg(tr("Assunto"), tr("Folha"), tr("Ed."), ProjectVariants::Standard,
+					     tr("Tipo")));
+			addVariantLegend(diagram);
+		}
+		else
+			query->setQuery(QStringLiteral("SELECT folio, title, plant, locmach, indexrev, date"
+						       " FROM project_summary_view ORDER BY pos"));
 		addTable(diagram, query, tr("Índice"));
 	}
 	for (const QString &title : folios.schematics)
@@ -412,8 +433,9 @@ bool HomiserviTemplate::hasCover(QETProject *project)
 	@return the query of the component list: one row per component (an
 	element with a label, the others are wiring symbols) with
 	its symbol, its position (folio.rowcolumn, as the cross references),
-	its function or description, the supplier and its code, and the
-	internal code
+	its function or description, the supplier and its code, the internal
+	code, the application and the variant (ProjectVariants, standard when
+	not marked)
 */
 QString HomiserviTemplate::componentListQuery()
 {
@@ -422,12 +444,15 @@ QString HomiserviTemplate::componentListQuery()
 			      " COALESCE(NULLIF(description, ''), NULLIF(function, ''), designation) AS \"%3\","
 			      " manufacturer_reference AS \"%4\","
 			      " manufacturer AS \"%5\","
-			      " machine_manufacturer_reference AS \"%6\""
+			      " machine_manufacturer_reference AS \"%6\","
+			      " application AS \"%7\","
+			      " COALESCE(NULLIF(variant, ''), '%8') AS \"%9\""
 			      " FROM element_nomenclature_view"
-			      " WHERE element_type IN ('%7', '%8', '%9') AND COALESCE(label, '') <> ''"
+			      " WHERE element_type IN ('%10', '%11', '%12') AND COALESCE(label, '') <> ''"
 			      " ORDER BY label")
 			.arg(tr("Símbolo"), tr("Posição esquema"), tr("Função / descrição do componente"),
 			     tr("Código fornecedor"), tr("Fornecedor"), tr("Código interno"),
+			     tr("Aplicação"), ProjectVariants::Standard, tr("Tipo"),
 			     ElementData::typeToString(ElementData::Simple),
 			     ElementData::typeToString(ElementData::Master),
 			     ElementData::typeToString(ElementData::Terminal));
@@ -445,4 +470,5 @@ void HomiserviTemplate::addComponentList(QETProject *project)
 	auto query = new ElementQueryWidget();
 	query->setCustomQuery(componentListQuery());
 	addTable(diagram, query, tr("Lista de componentes"), true);
+	addVariantLegend(diagram);
 }

@@ -26,6 +26,7 @@
 #include "ui/textstylesdialog.h"
 #include "ui/homiserviprojectwizard.h"
 #include "ui/projectrevisionsdialog.h"
+#include "projectvariants.h"
 #include "diagramevent/diagrameventpaintstyle.h"
 #include "ui/projecthistorydialog.h"
 #include "shownkinds.h"
@@ -1668,6 +1669,17 @@ void QETDiagramEditor::setUpMenu()
 	m_text_style_menu = menu_edition -> addMenu(tr("Estilo de texto"));
 	menu_edition -> addAction(m_paint_style);
 	connect(m_text_style_menu, &QMenu::aboutToShow, this, &QETDiagramEditor::fillTextStyleMenu);
+	m_variant_menu = menu_edition -> addMenu(tr("Tipo de aplicação"));
+	m_variant_menu -> setStatusTip(tr("Marca os componentes selecionados, ou a folha quando nada está selecionado,"
+					  " como padrão, opcional, variante ou especial"));
+	for (const ProjectVariants::Kind &kind : ProjectVariants::kinds()) {
+		QAction *action = m_variant_menu -> addAction(QStringLiteral("%1 – %2").arg(kind.code, kind.name));
+		const QString code = kind.code;
+		connect(action, &QAction::triggered, this, [this, code]() { applyVariant(code); });
+	}
+	m_variant_menu -> addSeparator();
+	connect(m_variant_menu -> addAction(tr("Sem tipo (conta como padrão)")), &QAction::triggered,
+		this, [this]() { applyVariant(QString()); });
 	menu_edition -> addSeparator();
 	menu_edition -> addAction(m_conductor_reset);
 	menu_edition -> addAction(m_conductor_numerate_ends);
@@ -2126,6 +2138,35 @@ void QETDiagramEditor::startPaintStyle()
 		return;
 	}
 	dv->diagram()->setEventInterface(event);
+}
+
+/**
+	@brief QETDiagramEditor::applyVariant
+	Mark the selected elements with the variant code (X, O, V, E; none
+	when empty), or the current folio when no element is selected
+	(ProjectVariants).
+*/
+void QETDiagramEditor::applyVariant(const QString &code)
+{
+	DiagramView *dv = currentDiagramView();
+	if (!dv || dv->diagram()->isReadOnly()) {
+		return;
+	}
+	QList<Element *> elements;
+	for (QGraphicsItem *item : dv->diagram()->selectedItems()) {
+		if (auto element = qgraphicsitem_cast<Element *>(item)) {
+			elements << element;
+		}
+	}
+	QUndoCommand *command = elements.isEmpty()
+			? ProjectVariants::folioCommand(dv->diagram(), code)
+			: ProjectVariants::elementsCommand(elements, code);
+	if (command) {
+		dv->diagram()->undoStack().push(command);
+	}
+	const QString what = elements.isEmpty() ? tr("a folha") : tr("%n componente(s)", nullptr, int(elements.size()));
+	statusBar()->showMessage(code.isEmpty() ? tr("Tipo de aplicação removido de %1").arg(what)
+						: tr("%1 marcado(s) como tipo %2").arg(what, code), 4000);
 }
 
 /**
@@ -3203,6 +3244,13 @@ void QETDiagramEditor::slot_updateComplexActions()
 		m_paint_style->setEnabled(paint_view && !paint_view->diagram()->isReadOnly()
 					  && StylePainter::capture(paint_view->diagram()->selectedItems()).kind
 					  != StylePainter::Nothing);
+	}
+	if (m_variant_menu) {
+		DiagramView *variant_view = currentDiagramView();
+		const bool editable = variant_view && !variant_view->diagram()->isReadOnly();
+		for (QAction *action : m_variant_menu->actions()) {
+			action->setEnabled(editable);
+		}
 	}
 #ifdef QET_HAS_SCRIPTING
 	updateScriptActions();
