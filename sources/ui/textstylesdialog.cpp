@@ -158,9 +158,9 @@ void TextStylesDialog::setForElements(const QList<Style> &examples)
 {
 	setWindowTitle(tr("Estilos de texto dos elementos"));
 	m_help->setText(tr("Cada estilo define a fonte e a cor de um tipo de texto dos elementos (nome do borne,"
-			   " texto da caixa, rótulo...). Escolha os textos e aplique um estilo pela barra Estilos"
+			   " texto da caixa, rÃ³tulo...). Escolha os textos e aplique um estilo pela barra Estilos"
 			   " de texto; mudar o estilo aqui muda os textos do elemento aberto que o usam. Os estilos"
-			   " valem para todos os elementos que você desenhar."));
+			   " valem para todos os elementos que vocÃª desenhar."));
 	m_table->setColumnHidden(TargetColumn, true);
 	m_examples = examples;
 	QStringList names;

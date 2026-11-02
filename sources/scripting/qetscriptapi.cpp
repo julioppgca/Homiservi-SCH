@@ -100,6 +100,8 @@
 #include "../editor/elementchecker.h"
 #include "../editor/elementcontent.h"
 #include "../editor/partlibrary.h"
+#include "../editor/elementalign.h"
+#include "../editor/esevent/eseventmeasure.h"
 #include "../editor/graphicspart/partarc.h"
 #include "../editor/graphicspart/partdynamictextfield.h"
 #include "../editor/graphicspart/partellipse.h"
@@ -3134,6 +3136,14 @@ QVariantList QetScriptApi::elementEditorSnap(const QString &definition, const QV
 			results << editor.repeatSelection(step.value("count").toInt(),
 							  QPointF(step.value("dx").toDouble(), step.value("dy").toDouble()),
 							  step.value("increment").toInt());
+		} else if (op == "align") {
+			results << editor.arrangeSelection(step.value("mode").toInt());
+		} else if (op == "geometry") {
+			const QRectF rect = ElementAlign::geometry(scene, scene->selectedItems());
+			results << QVariant(QVariantList {rect.x(), rect.y(), rect.width(), rect.height()});
+		} else if (op == "measure") {
+			results << ESEventMeasure::describe(QPointF(step.value("x1").toDouble(), step.value("y1").toDouble()),
+							    QPointF(step.value("x2").toDouble(), step.value("y2").toDouble()));
 		} else if (op == "definition") {
 			results << scene->toXml().toString(1);
 		} else {

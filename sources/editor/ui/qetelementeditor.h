@@ -28,6 +28,7 @@ class ElementScene;
 class QActionGroup;
 class QComboBox;
 class ElementCheckDialog;
+class SelectionPanel;
 class ElementItemEditor;
 class ElementView;
 class QListWidget;
@@ -57,6 +58,7 @@ class QETElementEditor : public QMainWindow
 		void setReadOnly(bool ro);
 		bool isReadOnly() const;
 		int repeatSelection(int count, const QPointF &step, int increment);
+		bool arrangeSelection(int mode);
 		void fromFile(const QString &filepath);
 		bool toFile(const QString &filepath);
 		void fromLocation(const ElementsLocation &location);
@@ -160,6 +162,8 @@ class QETElementEditor : public QMainWindow
 		QList<QAction *> m_context_menu_action_list;
 		QComboBox *m_text_style_combo = nullptr;
 		QPointer<ElementCheckDialog> m_check_dialog;
+		SelectionPanel *m_selection_panel = nullptr;
+		QList<QAction *> m_align_actions;
 
 		QAction
 			*m_scale_element_action = nullptr,

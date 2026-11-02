@@ -70,6 +70,9 @@
 #include "../elementchecker.h"
 #include "elementcheckdialog.h"
 #include "partlibrarydialog.h"
+#include "selectionpanel.h"
+#include "../elementalign.h"
+#include "../esevent/eseventmeasure.h"
 
 #include <QSettings>
 #include <QActionGroup>
@@ -735,14 +738,17 @@ void QETElementEditor::updateInformations()
 			}
 		}
 	}
-	//Else we only display the number of selected items
+	//Else the parts of several kinds: what they share, where they are
 	else {
-		clearToolsDock();
-		m_default_informations -> setText(tr("%n partie(s) s√©lectionn√©e(s).",
-											 "",
-											 selected_qgis.size()));
-		m_default_informations -> setAlignment(Qt::AlignHCenter | Qt::AlignTop);
-		m_tools_dock_stack -> setCurrentIndex(0);
+		if (!m_selection_panel) {
+			m_selection_panel = new SelectionPanel(m_elmt_scene, this);
+		}
+		if (m_tools_dock_stack -> widget(1) != m_selection_panel) {
+			clearToolsDock();
+			m_tools_dock_stack -> insertWidget(1, m_selection_panel);
+		}
+		m_selection_panel -> refresh();
+		m_tools_dock_stack -> setCurrentIndex(1);
 	}
 }
 
@@ -918,7 +924,7 @@ bool QETElementEditor::checkElement()
 		if (issue.id == QLatin1String("off_grid") || issue.id == QLatin1String("stacked")
 		    || issue.id == QLatin1String("facing_in"))
 			warnings << qMakePair(issue.title, QStringLiteral("<br>") + issue.detail.toHtmlEscaped()
-					      + tr("<br>…dition > Verificar componente (F7) corrige ou mostra as partes."));
+					      + tr("<br>√âdition > Verificar componente (F7) corrige ou mostra as partes."));
 	}
 
 	if (!errors.count() && !warnings.count()) {
@@ -1220,33 +1226,61 @@ void QETElementEditor::setupActions()
 	connect(m_picture_action, &QAction::triggered, this, &QETElementEditor::showPictureComponent);
 
 	m_terminals_grid_action = new QAction(tr("Colocar bornes na grade"), this);
-	m_terminals_grid_action->setStatusTip(tr("Move os bornes fora da grade dos esquemas (de 10 em 10) para o ponto da grade mais prÛximo, para os condutores se ligarem a eles"));
+	m_terminals_grid_action->setStatusTip(tr("Move os bornes fora da grade dos esquemas (de 10 em 10) para o ponto da grade mais pr√≥ximo, para os condutores se ligarem a eles"));
 	ui->m_edit_menu->addAction(m_terminals_grid_action);
-	ShortcutManager::instance().registerAction(m_terminals_grid_action, "elementeditor.terminals_on_grid", tr("…diteur d'ÈlÈment"), QKeySequence());
+	ShortcutManager::instance().registerAction(m_terminals_grid_action, "elementeditor.terminals_on_grid", tr("√âditeur d'√©l√©ment"), QKeySequence());
 	connect(m_terminals_grid_action, &QAction::triggered, this, &QETElementEditor::placeTerminalsOnGrid);
 
 	m_check_action = new QAction(QET::Icons::DialogInformation, tr("Verificar componente..."), this);
-	m_check_action->setStatusTip(tr("Procura bornes fora da grade, sobrepostos, virados para dentro ou sem nome, falta do campo de rÛtulo, textos sobre bornes e partes vazias, e corrige o que der"));
+	m_check_action->setStatusTip(tr("Procura bornes fora da grade, sobrepostos, virados para dentro ou sem nome, falta do campo de r√≥tulo, textos sobre bornes e partes vazias, e corrige o que der"));
 	ui->m_edit_menu->addAction(m_check_action);
-	ShortcutManager::instance().registerAction(m_check_action, "elementeditor.check_element", tr("…diteur d'ÈlÈment"), QKeySequence(Qt::Key_F7));
+	ShortcutManager::instance().registerAction(m_check_action, "elementeditor.check_element", tr("√âditeur d'√©l√©ment"), QKeySequence(Qt::Key_F7));
 	connect(m_check_action, &QAction::triggered, this, &QETElementEditor::showElementCheck);
 
-	m_part_library_action = new QAction(QET::Icons::ElementNew, tr("Inserir peÁa..."), this);
-	m_part_library_action->setStatusTip(tr("Insere sÌmbolos IEC prontos (contatos, bobina, fusÌvel, l‚mpada, motor...) ou formas paramÈtricas (polÌgono, fileira de bornes, seta...)"));
+	m_part_library_action = new QAction(QET::Icons::ElementNew, tr("Inserir pe√ßa..."), this);
+	m_part_library_action->setStatusTip(tr("Insere s√≠mbolos IEC prontos (contatos, bobina, fus√≠vel, l√¢mpada, motor...) ou formas param√©tricas (pol√≠gono, fileira de bornes, seta...)"));
 	ui->m_edit_menu->addAction(m_part_library_action);
-	ShortcutManager::instance().registerAction(m_part_library_action, "elementeditor.part_library", tr("…diteur d'ÈlÈment"), QKeySequence(Qt::Key_F6));
+	ShortcutManager::instance().registerAction(m_part_library_action, "elementeditor.part_library", tr("√âditeur d'√©l√©ment"), QKeySequence(Qt::Key_F6));
 	connect(m_part_library_action, &QAction::triggered, this, &QETElementEditor::showPartLibrary);
 
-	m_repeat_action = new QAction(QET::Icons::EditCopy, tr("Repetir em sÈrie..."), this);
-	m_repeat_action->setStatusTip(tr("Copia as partes escolhidas v·rias vezes, a passos iguais, numerando os bornes"));
+	m_repeat_action = new QAction(QET::Icons::EditCopy, tr("Repetir em s√©rie..."), this);
+	m_repeat_action->setStatusTip(tr("Copia as partes escolhidas v√°rias vezes, a passos iguais, numerando os bornes"));
 	ui->m_edit_menu->addAction(m_repeat_action);
-	ShortcutManager::instance().registerAction(m_repeat_action, "elementeditor.repeat_selection", tr("…diteur d'ÈlÈment"), QKeySequence());
+	ShortcutManager::instance().registerAction(m_repeat_action, "elementeditor.repeat_selection", tr("√âditeur d'√©l√©ment"), QKeySequence());
 	connect(m_repeat_action, &QAction::triggered, this, &QETElementEditor::showRepeatSelection);
+
+		//Align and distribute the parts selected, by their drawing
+	auto align_menu = ui->m_edit_menu->addMenu(QIcon::fromTheme("align-left"), tr("Alinhar e distribuir"));
+	auto align_toolbar = addToolBar(tr("Alinhar", "toolbar title"));
+	align_toolbar->setObjectName("element_align");
+	const QList<QPair<ElementAlign::Mode, QString>> align_modes {
+		{ElementAlign::Left, "align-left"}, {ElementAlign::HCenter, "align-hcenter"},
+		{ElementAlign::Right, "align-right"}, {ElementAlign::Top, "align-top"},
+		{ElementAlign::VCenter, "align-vcenter"}, {ElementAlign::Bottom, "align-bottom"},
+		{ElementAlign::DistributeH, "distribute-h"}, {ElementAlign::DistributeV, "distribute-v"}};
+	for (const auto &mode : align_modes) {
+		auto action = new QAction(QIcon::fromTheme(mode.second), ElementAlign::modeName(mode.first), this);
+		action->setStatusTip(mode.first >= ElementAlign::DistributeH
+				     ? tr("Espa√ßa igualmente os centros das partes escolhidas (pelo menos tr√™s)")
+				     : tr("Alinha as partes escolhidas pela caixa de todas elas; bornes contam pelo ponto de liga√ß√£o"));
+		const int value = mode.first;
+		connect(action, &QAction::triggered, this, [this, value]() { arrangeSelection(value); });
+		ShortcutManager::instance().registerAction(action, QStringLiteral("elementeditor.") + mode.second,
+							   tr("√âditeur d'√©l√©ment"), QKeySequence());
+		align_menu->addAction(action);
+		align_toolbar->addAction(action);
+		if (mode.first == ElementAlign::Bottom) {
+			align_menu->addSeparator();
+			align_toolbar->addSeparator();
+		}
+		m_align_actions << action;
+	}
+	addToolBar(Qt::TopToolBarArea, align_toolbar);
 
 		//Point snap: the cursor and the parts moved snap to the ends,
 		//corners, centres, terminals and text anchors of the other parts
 	auto *point_snap_action = new QAction(QIcon::fromTheme("snap-points", QET::Icons::SnapToGrid), tr("Encaixe em pontos"), this);
-	point_snap_action->setStatusTip(tr("Encaixa o cursor e as partes movidas nas pontas, cantos, centros, bornes e ‚ncoras de texto das outras partes. Segure Ctrl para desligar o encaixe e a grade"));
+	point_snap_action->setStatusTip(tr("Encaixa o cursor e as partes movidas nas pontas, cantos, centros, bornes e √¢ncoras de texto das outras partes. Segure Ctrl para desligar o encaixe e a grade"));
 	point_snap_action->setCheckable(true);
 	point_snap_action->setChecked(QSettings().value("elementeditor/point_snap", true).toBool());
 	m_elmt_scene->setPointSnap(point_snap_action->isChecked());
@@ -1254,7 +1288,7 @@ void QETElementEditor::setupActions()
 		m_elmt_scene->setPointSnap(checked);
 		QSettings().setValue("elementeditor/point_snap", checked);
 	});
-	ShortcutManager::instance().registerAction(point_snap_action, "elementeditor.point_snap", tr("…diteur d'ÈlÈment"), QKeySequence(Qt::Key_F3));
+	ShortcutManager::instance().registerAction(point_snap_action, "elementeditor.point_snap", tr("√âditeur d'√©l√©ment"), QKeySequence(Qt::Key_F3));
 	ui->m_display_menu->addAction(point_snap_action);
 	ui->m_view_toolbar->addAction(point_snap_action);
 
@@ -1262,9 +1296,9 @@ void QETElementEditor::setupActions()
 		//(name of a terminal, text of the box...), given to the texts
 		//chosen from the combo of their toolbar
 	m_text_styles_action = new QAction(QET::Icons::PartText, tr("Estilos de texto..."), this);
-	m_text_styles_action->setStatusTip(tr("Cria e edita os estilos de texto dos elementos: fonte e cor do nome do borne, do texto da caixa, do rÛtulo..."));
+	m_text_styles_action->setStatusTip(tr("Cria e edita os estilos de texto dos elementos: fonte e cor do nome do borne, do texto da caixa, do r√≥tulo..."));
 	ui->m_edit_menu->addAction(m_text_styles_action);
-	ShortcutManager::instance().registerAction(m_text_styles_action, "elementeditor.text_styles", tr("…diteur d'ÈlÈment"), QKeySequence());
+	ShortcutManager::instance().registerAction(m_text_styles_action, "elementeditor.text_styles", tr("√âditeur d'√©l√©ment"), QKeySequence());
 	connect(m_text_styles_action, &QAction::triggered, this, &QETElementEditor::editTextStyles);
 
 	auto styles_toolbar = addToolBar(tr("Estilos de texto", "toolbar title"));
@@ -1301,6 +1335,7 @@ void QETElementEditor::setupActions()
 	auto *add_arc                = new QAction(QET::Icons::PartArc,       tr("Ajouter un arc de cercle"),         m_add_part_action_grp);
 	auto *add_terminal           = new QAction(QET::Icons::Terminal,      tr("Ajouter une borne"),                m_add_part_action_grp);
 	auto *add_dynamic_text_field = new QAction(QET::Icons::PartTextField, tr("Ajouter un champ texte dynamique"), m_add_part_action_grp);
+	auto *measure                = new QAction(QIcon::fromTheme("measure", QET::Icons::ZoomDraw), tr("Medir"), m_add_part_action_grp);
 
 	for (auto action : m_add_part_action_grp->actions()) {
 		action -> setCheckable(true);
@@ -1314,6 +1349,9 @@ void QETElementEditor::setupActions()
 	connect(add_arc,       &QAction::triggered, [this]() {m_elmt_scene->setEventInterface(new ESEventAddArc(m_elmt_scene));});
 	connect(add_terminal,  &QAction::triggered, [this]() {m_elmt_scene->setEventInterface(new ESEventAddTerminal(m_elmt_scene));});
 	connect(add_dynamic_text_field, &QAction::triggered, [this]() {m_elmt_scene->setEventInterface(new ESEventAddDynamicTextField(m_elmt_scene));});
+	connect(measure,       &QAction::triggered, [this]() {m_elmt_scene->setEventInterface(new ESEventMeasure(m_elmt_scene));});
+	measure -> setStatusTip(tr("Mede a dist√¢ncia, os afastamentos e o √¢ngulo entre dois pontos, com o encaixe em pontos; n√£o altera o elemento"));
+	ShortcutManager::instance().registerAction(measure, "elementeditor.measure", tr("√âditeur d'√©l√©ment"), QKeySequence(Qt::Key_M));
 
 	add_polygon -> setStatusTip(tr("Double-click pour terminer la forme, Click droit pour annuler le dernier point"));
 	add_text    -> setStatusTip(tr("Ajouter un texte d'√©l√©ment non √©ditable dans les sch√©mas"));
@@ -1386,6 +1424,7 @@ void QETElementEditor::updateAction()
 			<< m_terminals_grid_action
 			<< m_part_library_action
 			<< m_repeat_action;
+	ro_list << m_align_actions;
 	for (auto action : std::as_const(ro_list)) {
 		action->setDisabled(m_read_only);
 	}
@@ -2089,7 +2128,7 @@ void QETElementEditor::placeTerminalsOnGrid()
 	const QList<PartTerminal *> terminals = m_elmt_scene->terminalsOffGrid();
 	if (terminals.isEmpty()) {
 		QET::QetMessageBox::information(this, tr("Bornes na grade"),
-						tr("Todos os bornes j· est„o na grade dos esquemas."));
+						tr("Todos os bornes j√° est√£o na grade dos esquemas."));
 		return;
 	}
 	auto undo = new QUndoCommand(tr("Colocar %n borne(s) na grade", "", terminals.size()));
@@ -2127,7 +2166,7 @@ int QETElementEditor::repeatSelection(int count, const QPointF &step, int increm
 	const QDomDocument selection = m_elmt_scene->toXml(false);
 	const QRegularExpression numbered(QStringLiteral("^(.*?)(\\d+)$"));
 
-	auto undo = new QUndoCommand(tr("Repetir em sÈrie"));
+	auto undo = new QUndoCommand(tr("Repetir em s√©rie"));
 	ElementContent all;
 	for (int i = 1; i < count; ++i) {
 		ElementContent content;
@@ -2154,6 +2193,30 @@ int QETElementEditor::repeatSelection(int count, const QPointF &step, int increm
 }
 
 /**
+	@brief QETElementEditor::arrangeSelection
+	Align or distribute the parts selected (mode, an ElementAlign::Mode)
+	@return whether something moved
+*/
+bool QETElementEditor::arrangeSelection(int mode)
+{
+	if (m_read_only)
+		return false;
+	QList<QGraphicsItem *> parts;
+	for (QGraphicsItem *item : m_elmt_scene->selectedItems())
+		if (dynamic_cast<CustomElementPart *>(item))
+			parts << item;
+	QUndoCommand *undo = ElementAlign::arrange(m_elmt_scene, parts, ElementAlign::Mode(mode));
+	if (!undo) {
+		statusBar()->showMessage(mode >= ElementAlign::DistributeH
+					 ? tr("Escolha pelo menos tr√™s partes para distribuir.")
+					 : tr("Escolha pelo menos duas partes para alinhar."), 4000);
+		return false;
+	}
+	m_elmt_scene->undoStack().push(undo);
+	return true;
+}
+
+/**
 	@brief QETElementEditor::showRepeatSelection
 	Ask how many copies, how far apart and how to number the terminals
 */
@@ -2170,7 +2233,7 @@ void QETElementEditor::showRepeatSelection()
 
 	QSettings settings;
 	QDialog dialog(this);
-	dialog.setWindowTitle(tr("Repetir em sÈrie"));
+	dialog.setWindowTitle(tr("Repetir em s√©rie"));
 	auto layout = new QFormLayout(&dialog);
 	auto count = new QSpinBox(&dialog);
 	count->setRange(2, 200);
@@ -2192,8 +2255,8 @@ void QETElementEditor::showRepeatSelection()
 	auto increment = new QSpinBox(&dialog);
 	increment->setRange(-1000, 1000);
 	increment->setValue(settings.value(QStringLiteral("elementeditor/repeat_increment"), 10).toInt());
-	increment->setToolTip(tr("Soma ao n˙mero no fim do nome de cada borne, a cada cÛpia: com 10, 13/14 vira 23/24, 33/34... Zero mantÈm os nomes."));
-	layout->addRow(tr("NumeraÁ„o dos bornes (+)"), increment);
+	increment->setToolTip(tr("Soma ao n√∫mero no fim do nome de cada borne, a cada c√≥pia: com 10, 13/14 vira 23/24, 33/34... Zero mant√©m os nomes."));
+	layout->addRow(tr("Numera√ß√£o dos bornes (+)"), increment);
 	auto buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
 	connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
 	connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
@@ -2269,7 +2332,7 @@ void QETElementEditor::applyTextStyle(int index)
 		return;
 	const QList<QGraphicsObject *> texts = ElementTextStyles::texts(m_elmt_scene->selectedItems());
 	if (texts.isEmpty()) {
-		statusBar()->showMessage(tr("Escolha os textos que v„o receber o estilo."), 4000);
+		statusBar()->showMessage(tr("Escolha os textos que v√£o receber o estilo."), 4000);
 		showTextStyle();
 		return;
 	}

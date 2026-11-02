@@ -452,6 +452,8 @@ set(QET_SRC_FILES
   ${QET_DIR}/sources/editor/elementchecker.h
   ${QET_DIR}/sources/editor/partlibrary.cpp
   ${QET_DIR}/sources/editor/partlibrary.h
+  ${QET_DIR}/sources/editor/elementalign.cpp
+  ${QET_DIR}/sources/editor/elementalign.h
   ${QET_DIR}/sources/editor/modulegenerator.cpp
   ${QET_DIR}/sources/editor/modulegenerator.h
 
@@ -463,6 +465,8 @@ set(QET_SRC_FILES
   ${QET_DIR}/sources/editor/esevent/eseventaddellipse.h
   ${QET_DIR}/sources/editor/esevent/eseventaddline.cpp
   ${QET_DIR}/sources/editor/esevent/eseventaddline.h
+  ${QET_DIR}/sources/editor/esevent/eseventmeasure.cpp
+  ${QET_DIR}/sources/editor/esevent/eseventmeasure.h
   ${QET_DIR}/sources/editor/esevent/eseventaddpolygon.cpp
   ${QET_DIR}/sources/editor/esevent/eseventaddpolygon.h
   ${QET_DIR}/sources/editor/esevent/eseventaddrect.cpp
@@ -522,6 +526,8 @@ set(QET_SRC_FILES
   ${QET_DIR}/sources/editor/ui/elementcheckdialog.h
   ${QET_DIR}/sources/editor/ui/partlibrarydialog.cpp
   ${QET_DIR}/sources/editor/ui/partlibrarydialog.h
+  ${QET_DIR}/sources/editor/ui/selectionpanel.cpp
+  ${QET_DIR}/sources/editor/ui/selectionpanel.h
   ${QET_DIR}/sources/editor/ui/modulegeneratordialog.cpp
   ${QET_DIR}/sources/editor/ui/modulegeneratordialog.h
   ${QET_DIR}/sources/editor/ui/terminaltabledialog.cpp

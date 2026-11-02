@@ -3,6 +3,12 @@
 <RCC version="1.0">
     <qresource prefix="/ico">
         <file>themes/homiservi/index.theme</file>
+        <file>themes/homiservi/scalable/align-bottom.svg</file>
+        <file>themes/homiservi/scalable/align-hcenter.svg</file>
+        <file>themes/homiservi/scalable/align-left.svg</file>
+        <file>themes/homiservi/scalable/align-right.svg</file>
+        <file>themes/homiservi/scalable/align-top.svg</file>
+        <file>themes/homiservi/scalable/align-vcenter.svg</file>
         <file>themes/homiservi/scalable/application-pdf.svg</file>
         <file>themes/homiservi/scalable/arc.svg</file>
         <file>themes/homiservi/scalable/autoconnect.svg</file>
@@ -11,6 +17,8 @@
         <file>themes/homiservi/scalable/conductor-end-labels.svg</file>
         <file>themes/homiservi/scalable/conductor-numerate-ends.svg</file>
         <file>themes/homiservi/scalable/conductor-reset.svg</file>
+        <file>themes/homiservi/scalable/distribute-h.svg</file>
+        <file>themes/homiservi/scalable/distribute-v.svg</file>
         <file>themes/homiservi/scalable/document-import.svg</file>
         <file>themes/homiservi/scalable/document-new.svg</file>
         <file>themes/homiservi/scalable/document-open.svg</file>
@@ -36,6 +44,7 @@
         <file>themes/homiservi/scalable/insert-image.svg</file>
         <file>themes/homiservi/scalable/line.svg</file>
         <file>themes/homiservi/scalable/lower.svg</file>
+        <file>themes/homiservi/scalable/measure.svg</file>
         <file>themes/homiservi/scalable/move.svg</file>
         <file>themes/homiservi/scalable/names.svg</file>
         <file>themes/homiservi/scalable/pdf-import.svg</file>
@@ -59,6 +68,12 @@
         <file>themes/homiservi/scalable/zoom-original.svg</file>
         <file>themes/homiservi/scalable/zoom-out.svg</file>
         <file>themes/homiservi-dark/index.theme</file>
+        <file>themes/homiservi-dark/scalable/align-bottom.svg</file>
+        <file>themes/homiservi-dark/scalable/align-hcenter.svg</file>
+        <file>themes/homiservi-dark/scalable/align-left.svg</file>
+        <file>themes/homiservi-dark/scalable/align-right.svg</file>
+        <file>themes/homiservi-dark/scalable/align-top.svg</file>
+        <file>themes/homiservi-dark/scalable/align-vcenter.svg</file>
         <file>themes/homiservi-dark/scalable/application-pdf.svg</file>
         <file>themes/homiservi-dark/scalable/arc.svg</file>
         <file>themes/homiservi-dark/scalable/autoconnect.svg</file>
@@ -67,6 +82,8 @@
         <file>themes/homiservi-dark/scalable/conductor-end-labels.svg</file>
         <file>themes/homiservi-dark/scalable/conductor-numerate-ends.svg</file>
         <file>themes/homiservi-dark/scalable/conductor-reset.svg</file>
+        <file>themes/homiservi-dark/scalable/distribute-h.svg</file>
+        <file>themes/homiservi-dark/scalable/distribute-v.svg</file>
         <file>themes/homiservi-dark/scalable/document-import.svg</file>
         <file>themes/homiservi-dark/scalable/document-new.svg</file>
         <file>themes/homiservi-dark/scalable/document-open.svg</file>
@@ -92,6 +109,7 @@
         <file>themes/homiservi-dark/scalable/insert-image.svg</file>
         <file>themes/homiservi-dark/scalable/line.svg</file>
         <file>themes/homiservi-dark/scalable/lower.svg</file>
+        <file>themes/homiservi-dark/scalable/measure.svg</file>
         <file>themes/homiservi-dark/scalable/move.svg</file>
         <file>themes/homiservi-dark/scalable/names.svg</file>
         <file>themes/homiservi-dark/scalable/pdf-import.svg</file>
