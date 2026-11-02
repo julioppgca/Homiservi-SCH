@@ -116,6 +116,7 @@ class QETElementEditor : public QMainWindow
 		void createComponent();
 		void generateModule();
 		void showTerminalTable();
+		void showDatasheet();
 
 	private:
 		bool canClose();
@@ -150,6 +151,7 @@ class QETElementEditor : public QMainWindow
 			*m_component_wizard_action = nullptr,
 			*m_generate_module_action = nullptr,
 			*m_terminal_table_action = nullptr,
+			*m_datasheet_action = nullptr,
 			*m_undo_action = nullptr,
 			*m_redo_action = nullptr;
 

@@ -206,6 +206,7 @@ QStringList QETInformation::elementInfoKeys()
 					 ELMT_PLC_CROSSREF,
 					 ELMT_VARIANT,
 					 ELMT_APPLICATION,
+					 ELMT_DATASHEET,
 					 ELMT_XREF,
 					 "exclude_from_bom" };
 	return list;
@@ -378,6 +379,7 @@ QString QETInformation::translatedInfoKey(const QString &info)
 	else if (info == ELMT_XREF)                          return QObject::tr("Réf. croisée");
 	else if (info == ELMT_VARIANT)                       return QObject::tr("Tipo (X/O/V/E)");
 	else if (info == ELMT_APPLICATION)                   return QObject::tr("Aplicação");
+	else if (info == ELMT_DATASHEET)                     return QObject::tr("Datasheet (arquivo ou link)");
 	else return QString();
 }
 
@@ -397,6 +399,7 @@ QStringList QETInformation::elementEditorElementInfoKeys()
 						 ELMT_VOLTAGE_RATING,
 						 ELMT_CURRENT_RATING,
 						 ELMT_NOTES,
+						 ELMT_DATASHEET,
 						 ELMT_MACHINE_MANUFACTURER_REF,
 						 ELMT_SUPPLIER,
 						 ELMT_QUANTITY,

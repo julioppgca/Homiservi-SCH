@@ -155,6 +155,8 @@ namespace QETInformation
 		//X standard, O optional, V variant, E special (ProjectVariants)
 	static QString ELMT_VARIANT         = "variant";
 	static QString ELMT_APPLICATION     = "application";
+		///Path or link of the datasheet of the component (DatasheetReader)
+	static QString ELMT_DATASHEET       = "datasheet";
 	static QString ELMT_PLC_TC          = "plc_tc";
 	static QString ELMT_PLC_T1          = "plc_t1";
 	static QString ELMT_PLC_T2          = "plc_t2";

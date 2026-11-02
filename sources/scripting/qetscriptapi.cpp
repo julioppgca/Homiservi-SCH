@@ -40,6 +40,7 @@
 #include "../qetproject.h"
 #include "../terminalsheet.h"
 #include "../iomap.h"
+#include "../editor/datasheetreader.h"
 #include "../qetresult.h"
 #include "../qetgraphicsitem/conductor.h"
 #include "../qetgraphicsitem/conductortextitem.h"
@@ -2958,6 +2959,31 @@ int QetScriptApi::generateIoMaps()
 	for (Diagram *diagram : IoMap::generatedFolios(m_project))
 		m_project->removeDiagram(diagram);
 	return IoMap::createFolios(m_project, IoMap::collect(m_project));
+}
+
+/**
+	Read the datasheet pdfFile by rules (DatasheetReader, offline):
+	{name, info: {key: value}, pins: [{name, function, side}]}, or an
+	empty map when the PDF can not be read.
+*/
+QVariantMap QetScriptApi::readDatasheet(const QString &pdfFile)
+{
+	QString error;
+	const QString text = DatasheetReader::pdfText(pdfFile, &error);
+	if (!error.isEmpty()) {
+		log(QStringLiteral("qet.readDatasheet: ") + error);
+		return {};
+	}
+	const DatasheetReader::Result result = DatasheetReader::readByRules(text);
+	QVariantMap info;
+	for (auto it = result.info.cbegin(); it != result.info.cend(); ++it)
+		info.insert(it.key(), it.value());
+	const char *sides[] = {"left", "right", "top", "bottom"};
+	QVariantList pins;
+	for (const DatasheetReader::Pin &pin : result.pins)
+		pins << QVariantMap {{"name", pin.name}, {"function", pin.function},
+				     {"side", QString::fromLatin1(sides[pin.side])}};
+	return {{"name", result.name}, {"info", info}, {"pins", pins}};
 }
 
 QList<QetGraphicsTableItem *> QetScriptApi::sortedTables(int folioIndex) const

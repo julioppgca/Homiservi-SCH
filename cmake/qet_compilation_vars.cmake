@@ -442,6 +442,8 @@ set(QET_SRC_FILES
   ${QET_DIR}/sources/editor/styleeditor.h
   ${QET_DIR}/sources/editor/componentwizard.cpp
   ${QET_DIR}/sources/editor/componentwizard.h
+  ${QET_DIR}/sources/editor/datasheetreader.cpp
+  ${QET_DIR}/sources/editor/datasheetreader.h
   ${QET_DIR}/sources/editor/modulegenerator.cpp
   ${QET_DIR}/sources/editor/modulegenerator.h
 
@@ -504,6 +506,8 @@ set(QET_SRC_FILES
   ${QET_DIR}/sources/editor/ui/scaleelementdialog.h
   ${QET_DIR}/sources/editor/ui/componentwizarddialog.cpp
   ${QET_DIR}/sources/editor/ui/componentwizarddialog.h
+  ${QET_DIR}/sources/editor/ui/datasheetdialog.cpp
+  ${QET_DIR}/sources/editor/ui/datasheetdialog.h
   ${QET_DIR}/sources/editor/ui/modulegeneratordialog.cpp
   ${QET_DIR}/sources/editor/ui/modulegeneratordialog.h
   ${QET_DIR}/sources/editor/ui/terminaltabledialog.cpp

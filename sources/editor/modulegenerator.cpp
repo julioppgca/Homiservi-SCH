@@ -93,6 +93,8 @@ namespace {
 */
 QStringList ModuleGenerator::pinNames(const SidePins &pins)
 {
+	if (!pins.names.isEmpty())
+		return pins.names;
 	QStringList names;
 	for (int i = 0; i < pins.count; ++i) {
 		if (pins.numbering == ByteBit) {

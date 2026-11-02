@@ -45,6 +45,8 @@ namespace ModuleGenerator
 		Numbering numbering = Numeric;
 		int start = 1;
 		int step = 1;
+			///Names given one by one (a datasheet), used instead of the numbering
+		QStringList names;
 	};
 
 	struct Settings

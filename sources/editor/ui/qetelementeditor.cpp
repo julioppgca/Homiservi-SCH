@@ -56,6 +56,8 @@
 #include "../UndoCommand/openelmtcommand.h"
 #include "scaleelementdialog.h"
 #include "componentwizarddialog.h"
+#include "datasheetdialog.h"
+#include "../../qetinformation.h"
 #include "modulegeneratordialog.h"
 #include "terminaltabledialog.h"
 #include "../UndoCommand/deletepartscommand.h"
@@ -1184,6 +1186,12 @@ void QETElementEditor::setupActions()
 	ShortcutManager::instance().registerAction(m_terminal_table_action, "elementeditor.terminal_table", tr("Éditeur d'élément"), QKeySequence());
 	connect(m_terminal_table_action, &QAction::triggered, this, &QETElementEditor::showTerminalTable);
 
+	m_datasheet_action = new QAction(QET::Icons::DocumentImport, tr("Datasheet do componente..."), this);
+	m_datasheet_action->setStatusTip(tr("Guarda o datasheet (arquivo ou link) do componente, preenche os dados e gera o desenho dos pinos lendo o PDF"));
+	ui->m_edit_menu->addAction(m_datasheet_action);
+	ShortcutManager::instance().registerAction(m_datasheet_action, "elementeditor.datasheet", tr("Éditeur d'élément"), QKeySequence());
+	connect(m_datasheet_action, &QAction::triggered, this, &QETElementEditor::showDatasheet);
+
 
 		//Zoom action
 	ShortcutManager::instance().registerAction(ui->m_zoom_in_action, "elementeditor.zoom_in", tr("Éditeur d'élément"), QKeySequence::ZoomIn);
@@ -1281,7 +1289,8 @@ void QETElementEditor::updateAction()
 			<< m_scale_element_action
 			<< m_component_wizard_action
 			<< m_generate_module_action
-			<< m_terminal_table_action;
+			<< m_terminal_table_action
+			<< m_datasheet_action;
 	for (auto action : std::as_const(ro_list)) {
 		action->setDisabled(m_read_only);
 	}
@@ -1916,6 +1925,58 @@ void QETElementEditor::createComponent()
 		new changeElementDataCommand(m_elmt_scene, old_data, new_data, undo);
 	}
 	m_elmt_scene->undoStack().push(undo);
+}
+
+/**
+	@brief QETElementEditor::showDatasheet
+	Keep where the datasheet of the element is and apply what reading it
+	gave, once the user reviewed it: the information, the name and the
+	box with the pins, as one undo step.
+*/
+void QETElementEditor::showDatasheet()
+{
+	DatasheetDialog dialog(m_elmt_scene->elementData(), !m_elmt_scene->primitives().isEmpty(), this);
+	if (dialog.exec() != QDialog::Accepted) {
+		return;
+	}
+	auto undo = new QUndoCommand(tr("Aplicar o datasheet"));
+
+	if (dialog.drawPins()) {
+		ElementContent content;
+		m_elmt_scene->fromXml(ModuleGenerator::build(DatasheetReader::drawing(dialog.pins(), dialog.bodyText())),
+				      QPointF(), false, &content);
+		if (!content.isEmpty()) {
+			if (dialog.replaceDrawing()) {
+				QVector<QGraphicsItem *> old_parts;
+				for (CustomElementPart *part : m_elmt_scene->primitives()) {
+					old_parts << part->toItem();
+				}
+				new DeletePartsCommand(m_elmt_scene, old_parts, undo);
+			}
+			m_elmt_scene->clearSelection();
+			new PastePartsCommand(m_view, content, undo);
+		}
+	}
+
+	const ElementData old_data = m_elmt_scene->elementData();
+	ElementData new_data = old_data;
+	new_data.m_informations.addValue(QETInformation::ELMT_DATASHEET, dialog.datasheet());
+	const QMap<QString, QString> information = dialog.information();
+	for (auto it = information.cbegin(); it != information.cend(); ++it) {
+		new_data.m_informations.addValue(it.key(), it.value());
+	}
+	if (!dialog.name().isEmpty()) {
+		new_data.m_names_list.addName(QETApp::langFromSetting().left(2), dialog.name());
+	}
+	if (new_data != old_data) {
+		new changeElementDataCommand(m_elmt_scene, old_data, new_data, undo);
+	}
+
+	if (undo->childCount()) {
+		m_elmt_scene->undoStack().push(undo);
+	} else {
+		delete undo;
+	}
 }
 
 /**
