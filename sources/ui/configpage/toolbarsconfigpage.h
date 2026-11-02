@@ -41,6 +41,7 @@ class ToolbarsConfigPage : public ConfigPage
 		QIcon icon() const override;
 
 	private:
+		QComboBox *m_icon_set;
 		QComboBox *m_icon_size;
 		QComboBox *m_button_style;
 		QCheckBox *m_locked;

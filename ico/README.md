@@ -15,14 +15,22 @@ has two themes, `qet` for light windows and `qet-dark` for dark ones.
 | `breeze/added/` | 16 px versions of Breeze icons that Breeze lacks or draws in another style | Drawn by contributors in the Breeze style | No | LGPL-3.0-or-later |
 | `flags/` | Language flags | Damien Sorel's flag pack | No | Public domain |
 | `colors/` | Color swatches for the element editor | Contributed in 2020 | No | GPL-2.0-or-later |
+| `lucide/` | Lucide line icons for the toolbars | Lucide, lucide.dev | No | ISC, MIT for the icons from Feather (`lucide/LICENSE`) |
+| `homiservi/icons/` | Line icons for the electrical tools, in the Lucide style | Drawn for Homiservi-SCH | No | GPL-2.0-or-later |
 | `themes/` | The `qet` and `qet-dark` themes; `generated/` holds intermediate files | Built from the folders above | `misc/make_icon_themes.py` | Same as the source file |
+| `themes/homiservi*/` | The `homiservi` and `homiservi-dark` themes, the default; they hold the toolbar icons and inherit the rest from `qet` and `qet-dark` | Built from `lucide/` and `homiservi/icons/` | `misc/make_homiservi_icons.py` | Same as the source file |
 | `breeze-icons/` | App and file-type icons in the Breeze style | Nuri | No | CC-BY-ND-3.0 |
 | `256x256/` | QET logo for windows, the tray and the About menu; app icon | Nuri | No | CC-BY-ND-3.0 |
 | `mac_icon/`, `windows_icon/` | App and file-type icons for macOS and Windows | Nuri | No | CC-BY-ND-3.0 |
 | `splash.png` | Splash screen | Nuri | No | CC-BY-ND-3.0 |
 
 `icon-themes.qrc` lists the theme files for the Qt resource system and
-is written by `misc/make_icon_themes.py`. Do not edit it by hand.
+is written by `misc/make_icon_themes.py`. `homiservi-icons.qrc` is written
+by `misc/make_homiservi_icons.py`. Do not edit them by hand.
+
+The Homiservi themes are used unless *Settings > Toolbars > Icons* is set
+to the classic QElectroTech icons. To change one of their icons, edit
+`ICONS` in `misc/make_homiservi_icons.py` and run it.
 
 `copyright` is the Debian copyright file for the whole project. It
 holds the full license and credit for each icon.

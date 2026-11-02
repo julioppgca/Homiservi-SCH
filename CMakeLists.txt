@@ -158,6 +158,7 @@ if(WIN32)
         ${QM_FILES}
         ${QET_DIR}/qelectrotech.qrc
         ${QET_DIR}/ico/icon-themes.qrc
+        ${QET_DIR}/ico/homiservi-icons.qrc
     )
     # Our own manifest (it declares longPathAware). MSVC merges a .manifest
     # listed as a source; MinGW needs it embedded through a resource file,
@@ -184,6 +185,7 @@ else()
         ${QM_FILES}
         ${QET_DIR}/qelectrotech.qrc
         ${QET_DIR}/ico/icon-themes.qrc
+        ${QET_DIR}/ico/homiservi-icons.qrc
     )
 endif()
 

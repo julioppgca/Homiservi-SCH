@@ -544,7 +544,7 @@ void QETDiagramEditor::setUpActions()
 	});
 
 		//Numerate conductor wire-end (ferrule) labels for the whole page
-	m_conductor_numerate_ends = new QAction(QET::Icons::ConductorSettings, tr("Numerar as pontas dos fios da página"), this);
+	m_conductor_numerate_ends = new QAction(QIcon::fromTheme(QStringLiteral("conductor-numerate-ends")), tr("Numerar as pontas dos fios da página"), this);
 	ShortcutManager::instance().registerAction(m_conductor_numerate_ends, "diagrameditor.conductor_numerate_ends", tr("Éditeur de schémas"), QKeySequence());
 	m_conductor_numerate_ends->setStatusTip(tr("Marca cada ponta dos fios do fólio atual com a identificação do elemento e pino da ponta oposta (destino)", "status bar tip"));
 	connect(m_conductor_numerate_ends, &QAction::triggered, [this]() {
@@ -645,7 +645,7 @@ void QETDiagramEditor::setUpActions()
 		// Show or hide the wire-end (ferrule) labels on screen. The labels
 		// are always computed by the numbering action either way; this only
 		// toggles whether they clutter the schematic view.
-	m_draw_conductor_end_labels = new QAction(QET::Icons::ConductorSettings, tr("Mostrar identificação nas pontas dos fios"), this);
+	m_draw_conductor_end_labels = new QAction(QIcon::fromTheme(QStringLiteral("conductor-end-labels")), tr("Mostrar identificação nas pontas dos fios"), this);
 	ShortcutManager::instance().registerAction(m_draw_conductor_end_labels, "diagrameditor.draw_conductor_end_labels", tr("Éditeur de schémas"), QKeySequence());
 	m_draw_conductor_end_labels->setStatusTip(tr("Exibe ou oculta, no próprio esquema, a identificação de elemento e pino em cada ponta dos fios", "status bar tip"));
 	m_draw_conductor_end_labels->setCheckable(true);

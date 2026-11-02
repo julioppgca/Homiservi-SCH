@@ -17,9 +17,11 @@
 */
 #include "toolbarsconfigpage.h"
 
+#include "../../qetapp.h"
 #include "../../qeticons.h"
 #include "../../toolbarsettings.h"
 
+#include <QApplication>
 #include <QCheckBox>
 #include <QComboBox>
 #include <QFormLayout>
@@ -35,6 +37,12 @@ ToolbarsConfigPage::ToolbarsConfigPage(QWidget *parent) :
 	auto *line = new QFrame(this);
 	line->setFrameShape(QFrame::HLine);
 	vlayout->addWidget(line);
+
+	m_icon_set = new QComboBox(this);
+	m_icon_set->setObjectName(QStringLiteral("iconSetCombo"));
+	m_icon_set->addItem(tr("Homiservi (linha, destaque em azul)"), true);
+	m_icon_set->addItem(tr("Clássicos do QElectroTech"), false);
+	m_icon_set->setCurrentIndex(ToolbarSettings::homiserviIcons() ? 0 : 1);
 
 	m_icon_size = new QComboBox(this);
 	m_icon_size->setObjectName(QStringLiteral("iconSizeCombo"));
@@ -58,6 +66,7 @@ ToolbarsConfigPage::ToolbarsConfigPage(QWidget *parent) :
 	m_locked->setChecked(ToolbarSettings::locked());
 
 	auto *form = new QFormLayout();
+	form->addRow(tr("Ícones :"), m_icon_set);
 	form->addRow(tr("Taille des icônes :"), m_icon_size);
 	form->addRow(tr("Boutons :"), m_button_style);
 	form->addRow(m_locked);
@@ -75,6 +84,8 @@ void ToolbarsConfigPage::applyConf()
 			      Qt::ToolButtonStyle(m_button_style->currentData().toInt()),
 			      m_locked->isChecked());
 	ToolbarSettings::applyToAll();
+	ToolbarSettings::setHomiserviIcons(m_icon_set->currentData().toBool());
+	QETApp::applyIconTheme(qApp->palette());
 }
 
 QString ToolbarsConfigPage::title() const
