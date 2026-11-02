@@ -69,10 +69,14 @@
 #include "../elementtextstyles.h"
 #include "../elementchecker.h"
 #include "elementcheckdialog.h"
+#include "partlibrarydialog.h"
 
 #include <QSettings>
 #include <QActionGroup>
 #include <QComboBox>
+#include <QRegularExpression>
+#include <QSpinBox>
+#include <QtMath>
 #include <QStatusBar>
 #include <QFileDialog>
 #include <QSvgGenerator>
@@ -1227,6 +1231,18 @@ void QETElementEditor::setupActions()
 	ShortcutManager::instance().registerAction(m_check_action, "elementeditor.check_element", tr("Éditeur d'élément"), QKeySequence(Qt::Key_F7));
 	connect(m_check_action, &QAction::triggered, this, &QETElementEditor::showElementCheck);
 
+	m_part_library_action = new QAction(QET::Icons::ElementNew, tr("Inserir peça..."), this);
+	m_part_library_action->setStatusTip(tr("Insere símbolos IEC prontos (contatos, bobina, fusível, lâmpada, motor...) ou formas paramétricas (polígono, fileira de bornes, seta...)"));
+	ui->m_edit_menu->addAction(m_part_library_action);
+	ShortcutManager::instance().registerAction(m_part_library_action, "elementeditor.part_library", tr("Éditeur d'élément"), QKeySequence(Qt::Key_F6));
+	connect(m_part_library_action, &QAction::triggered, this, &QETElementEditor::showPartLibrary);
+
+	m_repeat_action = new QAction(QET::Icons::EditCopy, tr("Repetir em série..."), this);
+	m_repeat_action->setStatusTip(tr("Copia as partes escolhidas várias vezes, a passos iguais, numerando os bornes"));
+	ui->m_edit_menu->addAction(m_repeat_action);
+	ShortcutManager::instance().registerAction(m_repeat_action, "elementeditor.repeat_selection", tr("Éditeur d'élément"), QKeySequence());
+	connect(m_repeat_action, &QAction::triggered, this, &QETElementEditor::showRepeatSelection);
+
 		//Point snap: the cursor and the parts moved snap to the ends,
 		//corners, centres, terminals and text anchors of the other parts
 	auto *point_snap_action = new QAction(QIcon::fromTheme("snap-points", QET::Icons::SnapToGrid), tr("Encaixe em pontos"), this);
@@ -1260,6 +1276,8 @@ void QETElementEditor::setupActions()
 	styles_toolbar->addAction(m_text_styles_action);
 	styles_toolbar->addSeparator();
 	styles_toolbar->addAction(m_check_action);
+	styles_toolbar->addAction(m_part_library_action);
+	styles_toolbar->addAction(m_repeat_action);
 	addToolBar(Qt::TopToolBarArea, styles_toolbar);
 	fillTextStyles();
 	connect(m_text_style_combo, QOverload<int>::of(&QComboBox::activated), this, &QETElementEditor::applyTextStyle);
@@ -1365,7 +1383,9 @@ void QETElementEditor::updateAction()
 			<< m_terminal_table_action
 			<< m_datasheet_action
 			<< m_picture_action
-			<< m_terminals_grid_action;
+			<< m_terminals_grid_action
+			<< m_part_library_action
+			<< m_repeat_action;
 	for (auto action : std::as_const(ro_list)) {
 		action->setDisabled(m_read_only);
 	}
@@ -2079,6 +2099,110 @@ void QETElementEditor::placeTerminalsOnGrid()
 					 m_elmt_scene->snapTerminal(pos, Qt::NoModifier), undo);
 	}
 	m_elmt_scene->undoStack().push(undo);
+}
+
+/**
+	@brief QETElementEditor::showPartLibrary
+	Choose a ready made piece; the user then clicks where it goes
+*/
+void QETElementEditor::showPartLibrary()
+{
+	PartLibraryDialog dialog(this);
+	if (dialog.exec() == QDialog::Accepted)
+		copyAndPasteXml(dialog.drawing());
+}
+
+/**
+	@brief QETElementEditor::repeatSelection
+	Copy the parts selected count - 1 times, each copy step further than
+	the one before; the names of terminals ending in a number take
+	increment more on each copy (13 gives 23, 33... with 10), the other
+	names are kept. The copies are selected, in one undo.
+	@return the number of copies made
+*/
+int QETElementEditor::repeatSelection(int count, const QPointF &step, int increment)
+{
+	if (count < 2 || m_elmt_scene->selectedItems().isEmpty())
+		return 0;
+	const QDomDocument selection = m_elmt_scene->toXml(false);
+	const QRegularExpression numbered(QStringLiteral("^(.*?)(\\d+)$"));
+
+	auto undo = new QUndoCommand(tr("Repetir em série"));
+	ElementContent all;
+	for (int i = 1; i < count; ++i) {
+		ElementContent content;
+		m_elmt_scene->fromXml(selection, QPointF(), false, &content);
+		for (QGraphicsItem *item : content) {
+			item->setPos(item->pos() + step * i);
+			if (auto terminal = qgraphicsitem_cast<PartTerminal *>(item)) {
+				const QRegularExpressionMatch match = numbered.match(terminal->terminalName());
+				if (match.hasMatch() && increment)
+					terminal->setTerminalName(match.captured(1)
+								  + QString::number(match.captured(2).toLongLong() + qlonglong(increment) * i));
+			}
+		}
+		all << content;
+	}
+	if (all.isEmpty()) {
+		delete undo;
+		return 0;
+	}
+	m_elmt_scene->clearSelection();
+	new PastePartsCommand(m_view, all, undo);
+	m_elmt_scene->undoStack().push(undo);
+	return count - 1;
+}
+
+/**
+	@brief QETElementEditor::showRepeatSelection
+	Ask how many copies, how far apart and how to number the terminals
+*/
+void QETElementEditor::showRepeatSelection()
+{
+	const QList<QGraphicsItem *> selected = m_elmt_scene->selectedItems();
+	if (selected.isEmpty()) {
+		statusBar()->showMessage(tr("Escolha as partes a repetir."), 4000);
+		return;
+	}
+	QRectF bounds;
+	for (QGraphicsItem *item : selected)
+		bounds = bounds.united(item->sceneBoundingRect());
+
+	QSettings settings;
+	QDialog dialog(this);
+	dialog.setWindowTitle(tr("Repetir em série"));
+	auto layout = new QFormLayout(&dialog);
+	auto count = new QSpinBox(&dialog);
+	count->setRange(2, 200);
+	count->setValue(settings.value(QStringLiteral("elementeditor/repeat_count"), 3).toInt());
+	layout->addRow(tr("Quantidade (com o original)"), count);
+	auto dx = new QDoubleSpinBox(&dialog);
+	dx->setRange(-10000, 10000);
+	dx->setSingleStep(10);
+	dx->setDecimals(1);
+		//Next to the selection by default, on the diagrams' grid
+	dx->setValue(qCeil(bounds.width() / 10) * 10);
+	layout->addRow(tr("Passo horizontal"), dx);
+	auto dy = new QDoubleSpinBox(&dialog);
+	dy->setRange(-10000, 10000);
+	dy->setSingleStep(10);
+	dy->setDecimals(1);
+	dy->setValue(0);
+	layout->addRow(tr("Passo vertical"), dy);
+	auto increment = new QSpinBox(&dialog);
+	increment->setRange(-1000, 1000);
+	increment->setValue(settings.value(QStringLiteral("elementeditor/repeat_increment"), 10).toInt());
+	increment->setToolTip(tr("Soma ao número no fim do nome de cada borne, a cada cópia: com 10, 13/14 vira 23/24, 33/34... Zero mantém os nomes."));
+	layout->addRow(tr("Numeração dos bornes (+)"), increment);
+	auto buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
+	connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+	connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+	layout->addRow(buttons);
+	if (dialog.exec() != QDialog::Accepted)
+		return;
+	settings.setValue(QStringLiteral("elementeditor/repeat_count"), count->value());
+	settings.setValue(QStringLiteral("elementeditor/repeat_increment"), increment->value());
+	repeatSelection(count->value(), QPointF(dx->value(), dy->value()), increment->value());
 }
 
 /**

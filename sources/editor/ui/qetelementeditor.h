@@ -56,6 +56,7 @@ class QETElementEditor : public QMainWindow
 		QString fileName() const;
 		void setReadOnly(bool ro);
 		bool isReadOnly() const;
+		int repeatSelection(int count, const QPointF &step, int increment);
 		void fromFile(const QString &filepath);
 		bool toFile(const QString &filepath);
 		void fromLocation(const ElementsLocation &location);
@@ -123,6 +124,8 @@ class QETElementEditor : public QMainWindow
 		void showPictureComponent();
 		void placeTerminalsOnGrid();
 		void showElementCheck();
+		void showPartLibrary();
+		void showRepeatSelection();
 		void editTextStyles();
 		void applyTextStyle(int index);
 		void showTextStyle();
@@ -168,6 +171,8 @@ class QETElementEditor : public QMainWindow
 			*m_terminals_grid_action = nullptr,
 			*m_text_styles_action = nullptr,
 			*m_check_action = nullptr,
+			*m_part_library_action = nullptr,
+			*m_repeat_action = nullptr,
 			*m_undo_action = nullptr,
 			*m_redo_action = nullptr;
 

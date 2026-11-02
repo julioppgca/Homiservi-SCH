@@ -98,6 +98,8 @@
 #include "../editor/elementscene.h"
 #include "../editor/elementtextstyles.h"
 #include "../editor/elementchecker.h"
+#include "../editor/elementcontent.h"
+#include "../editor/partlibrary.h"
 #include "../editor/graphicspart/partarc.h"
 #include "../editor/graphicspart/partdynamictextfield.h"
 #include "../editor/graphicspart/partellipse.h"
@@ -3117,6 +3119,21 @@ QVariantList QetScriptApi::elementEditorSnap(const QString &definition, const QV
 				}
 			}
 			results << fixed;
+		} else if (op == "insert") {
+			const QDomDocument piece = PartLibrary::build(step.value("id").toString(), step.value("values").toMap());
+			ElementContent content;
+			scene->fromXml(piece, QPointF(), false, &content);
+			for (QGraphicsItem *item : content)
+				item->setPos(item->pos() + QPointF(step.value("x").toDouble(), step.value("y").toDouble()));
+			results << int(content.size());
+		} else if (op == "selectAll") {
+			for (CustomElementPart *part : scene->primitives())
+				part->toItem()->setSelected(true);
+			results << int(scene->selectedItems().size());
+		} else if (op == "repeat") {
+			results << editor.repeatSelection(step.value("count").toInt(),
+							  QPointF(step.value("dx").toDouble(), step.value("dy").toDouble()),
+							  step.value("increment").toInt());
 		} else if (op == "definition") {
 			results << scene->toXml().toString(1);
 		} else {
