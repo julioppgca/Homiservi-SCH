@@ -64,9 +64,14 @@
 #include "../UndoCommand/deletepartscommand.h"
 #include "../UndoCommand/pastepartscommand.h"
 #include "../../toolbarsettings.h"
+#include "../../QPropertyUndoCommand/qpropertyundocommand.h"
+#include "../../ui/textstylesdialog.h"
+#include "../elementtextstyles.h"
 
 #include <QSettings>
 #include <QActionGroup>
+#include <QComboBox>
+#include <QStatusBar>
 #include <QFileDialog>
 #include <QSvgGenerator>
 #include <QHBoxLayout>
@@ -1199,6 +1204,48 @@ void QETElementEditor::setupActions()
 	ShortcutManager::instance().registerAction(m_picture_action, "elementeditor.picture_component", tr("√âditeur d'√©l√©ment"), QKeySequence());
 	connect(m_picture_action, &QAction::triggered, this, &QETElementEditor::showPictureComponent);
 
+	m_terminals_grid_action = new QAction(tr("Colocar bornes na grade"), this);
+	m_terminals_grid_action->setStatusTip(tr("Move os bornes fora da grade dos esquemas (de 10 em 10) para o ponto da grade mais prÛximo, para os condutores se ligarem a eles"));
+	ui->m_edit_menu->addAction(m_terminals_grid_action);
+	ShortcutManager::instance().registerAction(m_terminals_grid_action, "elementeditor.terminals_on_grid", tr("…diteur d'ÈlÈment"), QKeySequence());
+	connect(m_terminals_grid_action, &QAction::triggered, this, &QETElementEditor::placeTerminalsOnGrid);
+
+		//Point snap: the cursor and the parts moved snap to the ends,
+		//corners, centres, terminals and text anchors of the other parts
+	auto *point_snap_action = new QAction(QIcon::fromTheme("snap-points", QET::Icons::SnapToGrid), tr("Encaixe em pontos"), this);
+	point_snap_action->setStatusTip(tr("Encaixa o cursor e as partes movidas nas pontas, cantos, centros, bornes e ‚ncoras de texto das outras partes. Segure Ctrl para desligar o encaixe e a grade"));
+	point_snap_action->setCheckable(true);
+	point_snap_action->setChecked(QSettings().value("elementeditor/point_snap", true).toBool());
+	m_elmt_scene->setPointSnap(point_snap_action->isChecked());
+	connect(point_snap_action, &QAction::toggled, this, [this](bool checked) {
+		m_elmt_scene->setPointSnap(checked);
+		QSettings().setValue("elementeditor/point_snap", checked);
+	});
+	ShortcutManager::instance().registerAction(point_snap_action, "elementeditor.point_snap", tr("…diteur d'ÈlÈment"), QKeySequence(Qt::Key_F3));
+	ui->m_display_menu->addAction(point_snap_action);
+	ui->m_view_toolbar->addAction(point_snap_action);
+
+		//Element text styles: the font and colour of a kind of text
+		//(name of a terminal, text of the box...), given to the texts
+		//chosen from the combo of their toolbar
+	m_text_styles_action = new QAction(QET::Icons::PartText, tr("Estilos de texto..."), this);
+	m_text_styles_action->setStatusTip(tr("Cria e edita os estilos de texto dos elementos: fonte e cor do nome do borne, do texto da caixa, do rÛtulo..."));
+	ui->m_edit_menu->addAction(m_text_styles_action);
+	ShortcutManager::instance().registerAction(m_text_styles_action, "elementeditor.text_styles", tr("…diteur d'ÈlÈment"), QKeySequence());
+	connect(m_text_styles_action, &QAction::triggered, this, &QETElementEditor::editTextStyles);
+
+	auto styles_toolbar = addToolBar(tr("Estilos de texto", "toolbar title"));
+	styles_toolbar->setObjectName("element_text_styles");
+	m_text_style_combo = new QComboBox(styles_toolbar);
+	m_text_style_combo->setToolTip(tr("Estilo dos textos escolhidos"));
+	m_text_style_combo->setSizeAdjustPolicy(QComboBox::AdjustToContents);
+	styles_toolbar->addWidget(m_text_style_combo);
+	styles_toolbar->addAction(m_text_styles_action);
+	addToolBar(Qt::TopToolBarArea, styles_toolbar);
+	fillTextStyles();
+	connect(m_text_style_combo, QOverload<int>::of(&QComboBox::activated), this, &QETElementEditor::applyTextStyle);
+	connect(m_elmt_scene, &QGraphicsScene::selectionChanged, this, &QETElementEditor::showTextStyle);
+
 
 		//Zoom action
 	ShortcutManager::instance().registerAction(ui->m_zoom_in_action, "elementeditor.zoom_in", tr("√âditeur d'√©l√©ment"), QKeySequence::ZoomIn);
@@ -1298,10 +1345,13 @@ void QETElementEditor::updateAction()
 			<< m_generate_module_action
 			<< m_terminal_table_action
 			<< m_datasheet_action
-			<< m_picture_action;
+			<< m_picture_action
+			<< m_terminals_grid_action;
 	for (auto action : std::as_const(ro_list)) {
 		action->setDisabled(m_read_only);
 	}
+	if (m_text_style_combo)
+		m_text_style_combo->setDisabled(m_read_only);
 
 		//Changing what is selected does not change the element, so these stay
 		//available when it is read only -- otherwise there is no way to pick
@@ -1988,6 +2038,109 @@ void QETElementEditor::showDatasheet()
 	} else {
 		delete undo;
 	}
+}
+
+/**
+	@brief QETElementEditor::placeTerminalsOnGrid
+	Move the terminals off the diagrams' grid to its nearest point, in
+	one undo: the conductors of a diagram only reach a terminal there.
+*/
+void QETElementEditor::placeTerminalsOnGrid()
+{
+	const QList<PartTerminal *> terminals = m_elmt_scene->terminalsOffGrid();
+	if (terminals.isEmpty()) {
+		QET::QetMessageBox::information(this, tr("Bornes na grade"),
+						tr("Todos os bornes j· est„o na grade dos esquemas."));
+		return;
+	}
+	auto undo = new QUndoCommand(tr("Colocar %n borne(s) na grade", "", terminals.size()));
+	for (PartTerminal *terminal : terminals) {
+		const QPointF pos = terminal->pos();
+		new QPropertyUndoCommand(terminal, "pos", pos,
+					 m_elmt_scene->snapTerminal(pos, Qt::NoModifier), undo);
+	}
+	m_elmt_scene->undoStack().push(undo);
+}
+
+/**
+	@brief QETElementEditor::fillTextStyles
+	List the element text styles in the combo of their toolbar, after a
+	first item standing for none
+*/
+void QETElementEditor::fillTextStyles()
+{
+	const QSignalBlocker blocker(m_text_style_combo);
+	m_text_style_combo->clear();
+	m_text_style_combo->addItem(tr("Estilo de texto"));
+	for (const TextStyles::Style &style : ElementTextStyles::load())
+		m_text_style_combo->addItem(style.name, style.name);
+	showTextStyle();
+}
+
+/**
+	@brief QETElementEditor::showTextStyle
+	Show in the combo the style of the texts chosen, when they all have
+	the same
+*/
+void QETElementEditor::showTextStyle()
+{
+	if (!m_text_style_combo)
+		return;
+	QString name;
+	const QList<QGraphicsObject *> texts = ElementTextStyles::texts(m_elmt_scene->selectedItems());
+	for (int i = 0; i < texts.size(); ++i) {
+		const QString style = texts.at(i)->property("elementStyle").toString();
+		if (i && style != name) {
+			name.clear();
+			break;
+		}
+		name = style;
+	}
+	const QSignalBlocker blocker(m_text_style_combo);
+	m_text_style_combo->setCurrentIndex(name.isEmpty() ? 0 : qMax(0, m_text_style_combo->findData(name)));
+}
+
+/**
+	@brief QETElementEditor::applyTextStyle
+	Give the texts chosen the style at index of the combo
+*/
+void QETElementEditor::applyTextStyle(int index)
+{
+	if (index <= 0)
+		return;
+	const QList<QGraphicsObject *> texts = ElementTextStyles::texts(m_elmt_scene->selectedItems());
+	if (texts.isEmpty()) {
+		statusBar()->showMessage(tr("Escolha os textos que v„o receber o estilo."), 4000);
+		showTextStyle();
+		return;
+	}
+	const QList<TextStyles::Style> styles = ElementTextStyles::load();
+	if (const TextStyles::Style *style = TextStyles::find(styles, m_text_style_combo->itemData(index).toString()))
+		if (QUndoCommand *undo = ElementTextStyles::apply(*style, texts))
+			m_elmt_scene->undoStack().push(undo);
+}
+
+/**
+	@brief QETElementEditor::editTextStyles
+	Edit the element text styles; the texts of the element naming a style
+	take its new font and colour.
+*/
+void QETElementEditor::editTextStyles()
+{
+	TextStylesDialog dialog(ElementTextStyles::load(), this);
+	dialog.setForElements(ElementTextStyles::examples());
+	if (dialog.exec() != QDialog::Accepted)
+		return;
+	ElementTextStyles::save(dialog.styles());
+	fillTextStyles();
+	if (m_read_only)
+		return;
+	QList<QGraphicsItem *> items;
+	for (CustomElementPart *part : m_elmt_scene->primitives())
+		items << part->toItem();
+	if (QUndoCommand *undo = ElementTextStyles::update(dialog.styles(), dialog.renames(),
+							   ElementTextStyles::texts(items)))
+		m_elmt_scene->undoStack().push(undo);
 }
 
 /**

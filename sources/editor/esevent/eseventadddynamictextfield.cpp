@@ -50,7 +50,7 @@ ESEventAddDynamicTextField::~ESEventAddDynamicTextField()
 */
 bool ESEventAddDynamicTextField::mouseMoveEvent(QGraphicsSceneMouseEvent *event)
 {
-	QPointF pos = m_scene->snapToGrid(event->scenePos());
+	QPointF pos = snappedPos(event, m_text);
 	updateHelpCross(pos);
 	m_text->setPos(pos);
 	return true;
@@ -70,7 +70,7 @@ bool ESEventAddDynamicTextField::mouseReleaseEvent(QGraphicsSceneMouseEvent *eve
 			//Set new text
 		m_text = new PartDynamicTextField(m_editor);
 		m_scene->addItem(m_text);
-		m_text->setPos(m_scene->snapToGrid(event->scenePos()));
+		m_text->setPos(snappedPos(event, m_text));
 
 		return true;
 	}

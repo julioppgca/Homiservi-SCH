@@ -50,7 +50,7 @@ ESEventAddEllipse::~ESEventAddEllipse()
 bool ESEventAddEllipse::mousePressEvent(QGraphicsSceneMouseEvent *event) {
 	if (event -> button() == Qt::LeftButton) {
 		if(!m_running) m_running = true;
-		QPointF pos = m_scene->snapToGrid(event -> scenePos());
+		QPointF pos = snappedPos(event, m_ellipse);
 
 			//create new ellpise
 		if (!m_ellipse) {
@@ -79,10 +79,10 @@ bool ESEventAddEllipse::mousePressEvent(QGraphicsSceneMouseEvent *event) {
 	@return
 */
 bool ESEventAddEllipse::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
-	updateHelpCross(event -> scenePos());
+	updateHelpCross(snappedPos(event, m_ellipse));
 	if (!m_ellipse) return false;
 
-	QPointF pos = m_scene -> snapToGrid(event -> scenePos());
+	QPointF pos = snappedPos(event, m_ellipse);
 	if (pos == m_new_pos) return true;
 	m_new_pos = pos;
 

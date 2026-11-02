@@ -25,6 +25,7 @@
 
 class ElementScene;
 class QActionGroup;
+class QComboBox;
 class ElementItemEditor;
 class ElementView;
 class QListWidget;
@@ -118,6 +119,10 @@ class QETElementEditor : public QMainWindow
 		void showTerminalTable();
 		void showDatasheet();
 		void showPictureComponent();
+		void placeTerminalsOnGrid();
+		void editTextStyles();
+		void applyTextStyle(int index);
+		void showTextStyle();
 
 	private:
 		bool canClose();
@@ -130,6 +135,7 @@ class QETElementEditor : public QMainWindow
 		void initGui();
 		QWidget *clearToolsDock();
 		void copyAndPasteXml(const QDomDocument &xml_document);
+		void fillTextStyles();
 
 	private:
 		Ui::QETElementEditor *ui;
@@ -146,6 +152,7 @@ class QETElementEditor : public QMainWindow
 			*m_depth_action_group  = nullptr;
 
 		QList<QAction *> m_context_menu_action_list;
+		QComboBox *m_text_style_combo = nullptr;
 
 		QAction
 			*m_scale_element_action = nullptr,
@@ -154,6 +161,8 @@ class QETElementEditor : public QMainWindow
 			*m_terminal_table_action = nullptr,
 			*m_datasheet_action = nullptr,
 			*m_picture_action = nullptr,
+			*m_terminals_grid_action = nullptr,
+			*m_text_styles_action = nullptr,
 			*m_undo_action = nullptr,
 			*m_redo_action = nullptr;
 

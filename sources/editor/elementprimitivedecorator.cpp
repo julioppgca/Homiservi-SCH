@@ -22,6 +22,7 @@
 #include "../qet.h"
 #include "editorcommands.h"
 #include "elementscene.h"
+#include "graphicspart/partterminal.h"
 
 #include <QGraphicsScene>
 #include <QGraphicsSceneHoverEvent>
@@ -206,14 +207,19 @@ void ElementPrimitiveDecorator::mouseMoveEvent(QGraphicsSceneMouseEvent *event)
 	{
 		// When moving the selection, consider the position of the first selected item
 		QPointF current_position = scene_pos - mouse_offset_;
-			// Snap to the editor's grid, as a single part does (bugtracker
-			// #112); Ctrl keeps the fine 1-unit step.
+			// Snap as a single part does (bugtracker #112): the terminals
+			// on the diagrams' grid, else on the key points of the other
+			// parts or the editor's grid; Ctrl keeps the fine 1-unit step.
 		ElementScene *element_scene = qobject_cast<ElementScene *>(scene());
-		QPointF rounded_current_position =
-			(element_scene && !(event->modifiers() & Qt::ControlModifier))
-				? element_scene->snapToGrid(current_position)
-				: snapConstPointToGrid(current_position);
-		movement = rounded_current_position - decorated_items_.at(0) -> toItem() -> scenePos();
+		movement = current_position - decorated_items_.at(0) -> toItem() -> scenePos();
+		if (element_scene && !(event->modifiers() & Qt::ControlModifier)) {
+			QList<QGraphicsItem *> items;
+			for (CustomElementPart *part : decorated_items_)
+				items << part -> toItem();
+			movement = element_scene -> snapTranslation(items, movement, event -> modifiers());
+		} else {
+			movement = snapConstPointToGrid(current_position) - decorated_items_.at(0) -> toItem() -> scenePos();
+		}
 		
 		QRectF bounding_rect = modified_bounding_rect_;
 		applyMovementToRect(current_operation_square_, movement, modified_bounding_rect_);
@@ -287,6 +293,17 @@ void ElementPrimitiveDecorator::keyPressEvent(QKeyEvent *e)
 		case Qt::Key_Up:    movement = QPointF(0.0, -movement_length); break;
 		case Qt::Key_Down:  movement = QPointF(0.0, +movement_length); break;
 	}
+			// With terminals, the first one steps from a point of the
+			// diagrams' grid to the next
+		ElementScene *element_scene = qobject_cast<ElementScene *>(scene());
+		for (CustomElementPart *part : decorated_items_) {
+			QGraphicsItem *item = part -> toItem();
+			if (element_scene && !movement.isNull() && item -> type() == PartTerminal::Type) {
+				const QPointF now = item -> scenePos();
+				movement = element_scene -> snapTerminal(now + movement * ElementScene::terminal_grid, Qt::NoModifier) - now;
+				break;
+			}
+		}
 	}
 	if (!movement.isNull() && focusItem() == this)
 	{

@@ -105,6 +105,7 @@ ICONS = {
     "draw-fillet": "homiservi/icons/draw-fillet.svg",
     "terminalstrip": "homiservi/icons/terminalstrip.svg",
     "terminal": "homiservi/icons/terminal.svg",
+    "snap-points": "homiservi/icons/snap-points.svg",
     # Depth
     "bring_forward": "lucide/bring-to-front.svg",
     "raise": "lucide/arrow-up.svg",

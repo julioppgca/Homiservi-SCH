@@ -55,7 +55,7 @@ TextStylesDialog::TextStylesDialog(const QList<Style> &styles, QWidget *parent) 
 	resize(760, 360);
 	auto layout = new QVBoxLayout(this);
 
-	auto help = new QLabel(tr("Cada estilo define a fonte e a cor de um grupo de textos, como uma camada:"
+	auto help = m_help = new QLabel(tr("Cada estilo define a fonte e a cor de um grupo de textos, como uma camada:"
 				  " mudar o estilo muda todos os seus textos, em todos os fólios. Um estilo pode"
 				  " pegar sozinho todos os textos de um tipo (todas as identificações, todos os"
 				  " textos livres...); os outros textos recebem um estilo pelo menu Édition >"
@@ -80,7 +80,7 @@ TextStylesDialog::TextStylesDialog(const QList<Style> &styles, QWidget *parent) 
 	auto remove = new QPushButton(tr("Remover"), this);
 	auto up = new QPushButton(tr("Subir"), this);
 	auto down = new QPushButton(tr("Descer"), this);
-	auto examples_button = new QPushButton(tr("Usar exemplos"), this);
+	auto examples_button = m_examples_button = new QPushButton(tr("Usar exemplos"), this);
 	examples_button->setToolTip(tr("Identificação, Função, Localização e Notas"));
 	row_buttons->addWidget(add);
 	row_buttons->addWidget(remove);
@@ -119,10 +119,11 @@ TextStylesDialog::TextStylesDialog(const QList<Style> &styles, QWidget *parent) 
 	connect(down, &QPushButton::clicked, this, [this]() { moveCurrentRow(1); });
 	connect(examples_button, &QPushButton::clicked, this, [this]() {
 		readNames();
-		for (const Style &style : examples())
+		for (const Style &style : m_examples)
 			if (!TextStyles::find(m_styles, style.name)) addStyle(style);
 		rebuild();
 	});
+	m_examples = examples();
 	connect(buttons, &QDialogButtonBox::accepted, this, &TextStylesDialog::validate);
 	connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
 
@@ -146,6 +147,26 @@ QHash<QString, QString> TextStylesDialog::renames() const
 		if (!m_origins.at(i).isEmpty() && m_origins.at(i) != m_styles.at(i).name)
 			renames.insert(m_origins.at(i), m_styles.at(i).name);
 	return renames;
+}
+
+/**
+	@brief TextStylesDialog::setForElements
+	Edit the text styles of the element editor instead of a project's:
+	they take no text by themselves, and "Usar exemplos" adds examples.
+*/
+void TextStylesDialog::setForElements(const QList<Style> &examples)
+{
+	setWindowTitle(tr("Estilos de texto dos elementos"));
+	m_help->setText(tr("Cada estilo define a fonte e a cor de um tipo de texto dos elementos (nome do borne,"
+			   " texto da caixa, r�tulo...). Escolha os textos e aplique um estilo pela barra Estilos"
+			   " de texto; mudar o estilo aqui muda os textos do elemento aberto que o usam. Os estilos"
+			   " valem para todos os elementos que voc� desenhar."));
+	m_table->setColumnHidden(TargetColumn, true);
+	m_examples = examples;
+	QStringList names;
+	for (const Style &style : examples)
+		names << style.name;
+	m_examples_button->setToolTip(names.join(QStringLiteral(", ")));
 }
 
 /**

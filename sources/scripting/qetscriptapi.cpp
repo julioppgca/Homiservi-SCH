@@ -95,6 +95,18 @@
 #include "../undocommand/removediagramcommand.h"
 #include "../utils/conductorcreator.h"
 
+#include "../editor/elementscene.h"
+#include "../editor/elementtextstyles.h"
+#include "../editor/graphicspart/partarc.h"
+#include "../editor/graphicspart/partdynamictextfield.h"
+#include "../editor/graphicspart/partellipse.h"
+#include "../editor/graphicspart/partline.h"
+#include "../editor/graphicspart/partpolygon.h"
+#include "../editor/graphicspart/partrectangle.h"
+#include "../editor/graphicspart/partterminal.h"
+#include "../editor/graphicspart/parttext.h"
+#include "../editor/ui/qetelementeditor.h"
+
 #include <QSqlError>
 #include <QSqlQuery>
 #include <QSqlRecord>
@@ -3015,6 +3027,84 @@ QVariantMap QetScriptApi::pictureComponent(const QVariantList &pins, bool drawPa
 				      {"drawn", PictureComponent::canDraw(part, result.pins)}};
 	return {{"parts", parts},
 		{"definition", PictureComponent::build(result, drawParts).toString(1)}};
+}
+
+/**
+	Check the snapping and text styles of the element editor on the
+	element definition (XML), in an editor not shown, step by step:
+	{op: "cursor", x, y} where a point drawn goes; {op: "move", type:
+	"terminal"|"text"|"line"|..., index, dx, dy} the movement a part
+	moved by the mouse gets; {op: "offGrid"} the terminals off the
+	diagrams' grid; {op: "fixTerminals"} put them on it; {op: "style",
+	index} give every text the element text style at index;
+	{op: "definition"} the element as it is now. Returns one result
+	per step.
+*/
+QVariantList QetScriptApi::elementEditorSnap(const QString &definition, const QVariantList &steps)
+{
+	QDomDocument document;
+	if (!document.setContent(definition))
+		return {QStringLiteral("invalid definition")};
+	QETElementEditor editor;
+	ElementScene *scene = editor.elementScene();
+	scene->fromXml(document);
+
+	const QMap<QString, int> types {{"line", PartLine::Type}, {"rect", PartRectangle::Type},
+					{"ellipse", PartEllipse::Type}, {"arc", PartArc::Type},
+					{"polygon", PartPolygon::Type}, {"terminal", PartTerminal::Type},
+					{"text", PartText::Type}, {"field", PartDynamicTextField::Type}};
+	auto point = [](const QPointF &p) { return QVariantList {p.x(), p.y()}; };
+	QVariantList results;
+	for (const QVariant &value : steps) {
+		const QVariantMap step = value.toMap();
+		const QString op = step.value("op").toString();
+		if (op == "cursor") {
+			results << QVariant(point(scene->snapCursor(QPointF(step.value("x").toDouble(), step.value("y").toDouble()),
+								    Qt::NoModifier)));
+		} else if (op == "move") {
+			QList<QGraphicsItem *> found;
+			for (CustomElementPart *part : scene->primitives())
+				if (part->toItem()->type() == types.value(step.value("type").toString(), -1))
+					found << part->toItem();
+			const int index = step.value("index").toInt();
+			if (index < 0 || index >= found.size()) {
+				results << QStringLiteral("no such part");
+				continue;
+			}
+			QGraphicsItem *item = found.at(index);
+			const QPointF movement = scene->snapTranslation({item}, QPointF(step.value("dx").toDouble(), step.value("dy").toDouble()),
+								       Qt::NoModifier);
+			item->setPos(item->pos() + movement);
+			results << QVariant(point(movement));
+		} else if (op == "offGrid") {
+			QVariantList list;
+			for (PartTerminal *terminal : scene->terminalsOffGrid())
+				list << QVariant(point(terminal->scenePos()));
+			results << QVariant(list);
+		} else if (op == "fixTerminals") {
+			for (PartTerminal *terminal : scene->terminalsOffGrid())
+				terminal->setPos(scene->snapTerminal(terminal->pos(), Qt::NoModifier));
+			results << scene->terminalsOffGrid().size();
+		} else if (op == "style") {
+			const QList<TextStyles::Style> styles = ElementTextStyles::examples();
+			const int index = step.value("index").toInt();
+			QList<QGraphicsItem *> items;
+			for (CustomElementPart *part : scene->primitives())
+				items << part->toItem();
+			QUndoCommand *undo = index >= 0 && index < styles.size()
+					? ElementTextStyles::apply(styles.at(index), ElementTextStyles::texts(items)) : nullptr;
+			if (undo) {
+				undo->redo();
+				delete undo;
+			}
+			results << bool(undo);
+		} else if (op == "definition") {
+			results << scene->toXml().toString(1);
+		} else {
+			results << QStringLiteral("unknown op");
+		}
+	}
+	return results;
 }
 
 QList<QetGraphicsTableItem *> QetScriptApi::sortedTables(int folioIndex) const

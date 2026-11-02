@@ -115,6 +115,20 @@ bool ESEventInterface::isFinish() const
 	return !m_running;
 }
 
+/**
+	@brief ESEventInterface::snappedPos
+	@return where the cursor of event draws: on a key point of a part
+	within reach (other than drawing, the part being drawn), else on the
+	grid, or where it is with Ctrl
+*/
+QPointF ESEventInterface::snappedPos(QGraphicsSceneMouseEvent *event, QGraphicsItem *drawing)
+{
+	QList<QGraphicsItem *> ignore;
+	if (drawing)
+		ignore << drawing;
+	return m_scene->snapCursor(event->scenePos(), event->modifiers(), ignore);
+}
+
 void ESEventInterface::updateHelpCross(const QPointF &p) {
 	//If line isn't created yet, we create it.
 	if (!m_help_horiz || !m_help_verti) {
@@ -135,7 +149,7 @@ void ESEventInterface::updateHelpCross(const QPointF &p) {
 	}
 
 	//Update the position of the cross
-	QPointF point = m_scene -> snapToGrid(p);
+	QPointF point = p;
 
 	m_help_horiz -> setY(point.y());
 	m_help_verti -> setX(point.x());

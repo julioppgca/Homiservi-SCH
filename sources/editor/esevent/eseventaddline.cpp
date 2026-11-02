@@ -55,7 +55,7 @@ bool ESEventAddLine::mousePressEvent(QGraphicsSceneMouseEvent *event) {
 	if (event -> button() == Qt::LeftButton) {
 
 		if (! m_running) m_running = true;
-		QPointF pos = m_scene -> snapToGrid(event -> scenePos());
+		QPointF pos = snappedPos(event, m_line);
 
 		//Create new line
 		if (!m_line) {
@@ -84,11 +84,11 @@ bool ESEventAddLine::mousePressEvent(QGraphicsSceneMouseEvent *event) {
 */
 bool ESEventAddLine::mouseMoveEvent(QGraphicsSceneMouseEvent *event)
 {
-	updateHelpCross (event -> scenePos());
+	updateHelpCross(snappedPos(event, m_line));
 	if (!m_line) return false;
 
 	QLineF line = m_line->line();
-	line.setP2(m_scene -> snapToGrid(event -> scenePos()));
+	line.setP2(snappedPos(event, m_line));
 	m_line -> setLine(line);
 	return true;
 }

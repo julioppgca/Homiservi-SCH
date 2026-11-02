@@ -23,6 +23,8 @@
 #include <QDialog>
 #include <QHash>
 
+class QLabel;
+class QPushButton;
 class QTableWidget;
 
 /**
@@ -41,6 +43,7 @@ class TextStylesDialog : public QDialog
 
 		QList<TextStyles::Style> styles() const;
 		QHash<QString, QString> renames() const;
+		void setForElements(const QList<TextStyles::Style> &examples);
 
 	private:
 		void readNames();
@@ -50,6 +53,10 @@ class TextStylesDialog : public QDialog
 		void validate();
 
 		QTableWidget *m_table = nullptr;
+		QLabel *m_help = nullptr;
+		QPushButton *m_examples_button = nullptr;
+			///The styles "Usar exemplos" adds, TextStyles::examples() by default
+		QList<TextStyles::Style> m_examples;
 		QList<TextStyles::Style> m_styles;
 			///The name each style had when the dialog opened, empty for a new one
 		QStringList m_origins;

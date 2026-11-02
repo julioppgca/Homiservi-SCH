@@ -463,7 +463,7 @@ void PartPolygon::handlerMouseMoveEvent(QetGraphicsHandlerItem *qghi, QGraphicsS
 
 	QPointF new_pos = event->scenePos();
 	if (event->modifiers() != Qt::ControlModifier)
-		new_pos = elementScene()->snapToGrid(event->scenePos());
+		new_pos = elementScene()->snapCursor(event->scenePos(), event->modifiers(), {this});
 	new_pos = mapFromScene(new_pos);
 
 	prepareGeometryChange();

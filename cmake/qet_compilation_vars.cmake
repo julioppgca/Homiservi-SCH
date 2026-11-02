@@ -446,6 +446,8 @@ set(QET_SRC_FILES
   ${QET_DIR}/sources/editor/datasheetreader.h
   ${QET_DIR}/sources/editor/picturecomponent.cpp
   ${QET_DIR}/sources/editor/picturecomponent.h
+  ${QET_DIR}/sources/editor/elementtextstyles.cpp
+  ${QET_DIR}/sources/editor/elementtextstyles.h
   ${QET_DIR}/sources/editor/modulegenerator.cpp
   ${QET_DIR}/sources/editor/modulegenerator.h
 

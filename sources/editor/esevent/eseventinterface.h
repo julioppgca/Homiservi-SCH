@@ -23,6 +23,7 @@ class QGraphicsSceneWheelEvent;
 class QKeyEvent;
 class ElementScene;
 class QETElementEditor;
+class QGraphicsItem;
 class QGraphicsLineItem;
 class QPointF;
 
@@ -46,6 +47,7 @@ class ESEventInterface
 
 	protected:
 		void updateHelpCross (const QPointF &p);
+		QPointF snappedPos(QGraphicsSceneMouseEvent *event, QGraphicsItem *drawing = nullptr);
 
 	protected:
 		ElementScene     *m_scene;

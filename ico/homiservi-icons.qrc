@@ -46,6 +46,7 @@
         <file>themes/homiservi/scalable/rectangle.svg</file>
         <file>themes/homiservi/scalable/select.svg</file>
         <file>themes/homiservi/scalable/send_backward.svg</file>
+        <file>themes/homiservi/scalable/snap-points.svg</file>
         <file>themes/homiservi/scalable/terminal.svg</file>
         <file>themes/homiservi/scalable/terminalstrip.svg</file>
         <file>themes/homiservi/scalable/text.svg</file>
@@ -101,6 +102,7 @@
         <file>themes/homiservi-dark/scalable/rectangle.svg</file>
         <file>themes/homiservi-dark/scalable/select.svg</file>
         <file>themes/homiservi-dark/scalable/send_backward.svg</file>
+        <file>themes/homiservi-dark/scalable/snap-points.svg</file>
         <file>themes/homiservi-dark/scalable/terminal.svg</file>
         <file>themes/homiservi-dark/scalable/terminalstrip.svg</file>
         <file>themes/homiservi-dark/scalable/text.svg</file>

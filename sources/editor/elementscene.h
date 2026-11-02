@@ -34,6 +34,7 @@ class ESEventInterface;
 class QKeyEvent;
 class CustomElementGraphicPart;
 class TextResizeHandles;
+class PartTerminal;
 /**
 	@brief The ElementScene class
 	This class is the canvas allowing the visual edition of an electrical element.
@@ -94,6 +95,10 @@ class ElementScene : public QGraphicsScene
 		QPointer<TextResizeHandles> m_text_resize_handles;
 
 		bool m_hotspot_visible = true;
+		bool m_point_snap = true;
+			/// The point the last snap went to, marked in drawForeground()
+		QPointF m_snap_marker;
+		bool m_snap_marker_visible = false;
 		bool m_background_frame_visible = false;
 		QSizeF m_background_frame_size;
 	
@@ -109,6 +114,19 @@ class ElementScene : public QGraphicsScene
 		ElementScene::Behavior behavior() const;
 
 		QPointF snapToGrid(QPointF point);
+			/// Step of the diagrams' grid: a terminal off it can not meet a
+			/// conductor, so terminals stay on it whatever the editor's grid
+		static constexpr int terminal_grid = 10;
+		bool pointSnap() const {return m_point_snap;}
+		void setPointSnap(bool snap);
+		QPointF snapCursor(const QPointF &pos, Qt::KeyboardModifiers modifiers,
+				   const QList<QGraphicsItem *> &ignore = {});
+		QPointF snapTerminal(const QPointF &pos, Qt::KeyboardModifiers modifiers) const;
+		QPointF snapTranslation(const QList<QGraphicsItem *> &items, const QPointF &movement,
+					Qt::KeyboardModifiers modifiers);
+		QList<QPointF> keyPoints(const QGraphicsItem *item) const;
+		void clearSnapMarker();
+		QList<PartTerminal *> terminalsOffGrid() const;
 		virtual int xGrid() const;
 		virtual int yGrid() const;
 		virtual void setGrid(int, int);
@@ -163,6 +181,10 @@ class ElementScene : public QGraphicsScene
 	
 	private:
 		QRectF elementContentBoundingRect(const ElementContent &) const;
+		qreal snapTolerance() const;
+		bool nearestKeyPoint(const QList<QPointF> &points, const QList<QGraphicsItem *> &ignore,
+				     QPointF *moving, QPointF *target) const;
+		void setSnapMarker(const QPointF &point);
 		ElementContent loadContent(const QDomDocument &);
 		ElementContent addContent(const ElementContent &);
 		ElementContent addContentAtPos(const ElementContent &, const QPointF &);
