@@ -121,6 +121,7 @@ class QETElementEditor : public QMainWindow
 		void scaleElement();
 		void createComponent();
 		void generateModule();
+		void showConnectorGenerator();
 		void showTerminalTable();
 		void showDatasheet();
 		void showPictureComponent();
@@ -176,6 +177,7 @@ class QETElementEditor : public QMainWindow
 			*m_text_styles_action = nullptr,
 			*m_check_action = nullptr,
 			*m_part_library_action = nullptr,
+			*m_connector_action = nullptr,
 			*m_repeat_action = nullptr,
 			*m_undo_action = nullptr,
 			*m_redo_action = nullptr;

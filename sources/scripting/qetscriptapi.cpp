@@ -42,6 +42,7 @@
 #include "../iomap.h"
 #include "../editor/datasheetreader.h"
 #include "../editor/picturecomponent.h"
+#include "../editor/connectorgenerator.h"
 #include "../qetresult.h"
 #include "../qetgraphicsitem/conductor.h"
 #include "../qetgraphicsitem/conductortextitem.h"
@@ -3121,6 +3122,20 @@ QVariantList QetScriptApi::elementEditorSnap(const QString &definition, const QV
 				}
 			}
 			results << fixed;
+		} else if (op == "connector") {
+				//Replace the drawing by a connector; give its pins and signals
+			const ConnectorGenerator::Settings settings =
+				ConnectorGenerator::Settings::fromJson(QJsonObject::fromVariantMap(step.value("settings").toMap()));
+			for (CustomElementPart *part : scene->primitives())
+				delete part->toItem();
+			scene->fromXml(ConnectorGenerator::build(settings), QPointF(), false);
+			QVariantList pins;
+			const QStringList names = ConnectorGenerator::presetSignals(settings);
+			const QList<ConnectorGenerator::Pin> list = ConnectorGenerator::pins(settings);
+			for (int i = 0; i < list.size(); ++i)
+				pins << list.at(i).id + QLatin1Char('=') + names.value(i);
+			results << QVariantMap {{"name", ConnectorGenerator::defaultName(settings)}, {"pins", pins},
+						{"parts", scene->primitives().size()}};
 		} else if (op == "insert") {
 			const QDomDocument piece = PartLibrary::build(step.value("id").toString(), step.value("values").toMap());
 			ElementContent content;

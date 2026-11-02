@@ -452,6 +452,10 @@ set(QET_SRC_FILES
   ${QET_DIR}/sources/editor/elementchecker.h
   ${QET_DIR}/sources/editor/partlibrary.cpp
   ${QET_DIR}/sources/editor/partlibrary.h
+  ${QET_DIR}/sources/editor/connectorgenerator.cpp
+  ${QET_DIR}/sources/editor/connectorgenerator.h
+  ${QET_DIR}/sources/editor/elementpreview.cpp
+  ${QET_DIR}/sources/editor/elementpreview.h
   ${QET_DIR}/sources/editor/elementalign.cpp
   ${QET_DIR}/sources/editor/elementalign.h
   ${QET_DIR}/sources/editor/modulegenerator.cpp
@@ -526,6 +530,8 @@ set(QET_SRC_FILES
   ${QET_DIR}/sources/editor/ui/elementcheckdialog.h
   ${QET_DIR}/sources/editor/ui/partlibrarydialog.cpp
   ${QET_DIR}/sources/editor/ui/partlibrarydialog.h
+  ${QET_DIR}/sources/editor/ui/connectordialog.cpp
+  ${QET_DIR}/sources/editor/ui/connectordialog.h
   ${QET_DIR}/sources/editor/ui/selectionpanel.cpp
   ${QET_DIR}/sources/editor/ui/selectionpanel.h
   ${QET_DIR}/sources/editor/ui/modulegeneratordialog.cpp

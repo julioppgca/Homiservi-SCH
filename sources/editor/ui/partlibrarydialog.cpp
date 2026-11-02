@@ -17,6 +17,8 @@
 */
 #include "partlibrarydialog.h"
 
+#include "../elementpreview.h"
+
 #include <QCheckBox>
 #include <QComboBox>
 #include <QDialogButtonBox>
@@ -35,61 +37,6 @@
 #include <QSplitter>
 #include <QTreeWidget>
 #include <QVBoxLayout>
-
-namespace {
-		///Draw the parts of an element definition on scene, for the preview
-	void drawDefinition(QGraphicsScene *scene, const QDomDocument &document)
-	{
-		const QDomElement description = document.documentElement().firstChildElement(QStringLiteral("description"));
-		for (QDomElement e = description.firstChildElement(); !e.isNull(); e = e.nextSiblingElement()) {
-			auto number = [&e](const char *name) { return e.attribute(QString::fromLatin1(name)).toDouble(); };
-			const QString style = e.attribute(QStringLiteral("style"));
-			QPen pen(Qt::black, 1);
-			pen.setCosmetic(true);
-			if (style.contains(QLatin1String("dashed")))
-				pen.setStyle(Qt::DashLine);
-			const QBrush brush = style.contains(QLatin1String("filling:black")) ? QBrush(Qt::black) : QBrush();
-			const QString tag = e.tagName();
-			if (tag == QLatin1String("line")) {
-				scene->addLine(number("x1"), number("y1"), number("x2"), number("y2"), pen);
-			} else if (tag == QLatin1String("rect")) {
-				QPainterPath path;
-				path.addRoundedRect(QRectF(number("x"), number("y"), number("width"), number("height")),
-						    number("rx"), number("ry"));
-				scene->addPath(path, pen, brush);
-			} else if (tag == QLatin1String("circle")) {
-				scene->addEllipse(number("x"), number("y"), number("diameter"), number("diameter"), pen, brush);
-			} else if (tag == QLatin1String("arc")) {
-				QPainterPath path;
-				const QRectF rect(number("x"), number("y"), number("width"), number("height"));
-				path.arcMoveTo(rect, number("start"));
-				path.arcTo(rect, number("start"), number("angle"));
-				scene->addPath(path, pen);
-			} else if (tag == QLatin1String("polygon")) {
-				QPolygonF points;
-				for (int i = 1; e.hasAttribute(QStringLiteral("x%1").arg(i)); ++i)
-					points << QPointF(e.attribute(QStringLiteral("x%1").arg(i)).toDouble(),
-							  e.attribute(QStringLiteral("y%1").arg(i)).toDouble());
-				QPainterPath path;
-				path.addPolygon(points);
-				if (e.attribute(QStringLiteral("closed")) != QLatin1String("false"))
-					path.closeSubpath();
-				scene->addPath(path, pen, brush);
-			} else if (tag == QLatin1String("terminal")) {
-				scene->addEllipse(number("x") - 1.5, number("y") - 1.5, 3, 3, QPen(Qt::red, 0.5), QBrush(Qt::red));
-				auto *name = scene->addSimpleText(e.attribute(QStringLiteral("name")), QFont(QStringLiteral("Sans Serif"), 4));
-				name->setBrush(Qt::darkRed);
-				name->setPos(number("x") + 2, number("y") - 7);
-			} else if (tag == QLatin1String("text")) {
-				QFont font;
-				font.fromString(e.attribute(QStringLiteral("font")));
-				auto *item = scene->addSimpleText(e.attribute(QStringLiteral("text")), font);
-					//The part's position is the left end of its baseline
-				item->setPos(number("x"), number("y") - QFontMetricsF(font).ascent());
-			}
-		}
-	}
-}
 
 PartLibraryDialog::PartLibraryDialog(QWidget *parent) :
 	QDialog(parent),
@@ -236,7 +183,7 @@ void PartLibraryDialog::showEvent(QShowEvent *event)
 void PartLibraryDialog::updatePreview()
 {
 	m_preview_scene->clear();
-	drawDefinition(m_preview_scene, drawing());
+	ElementPreview::draw(m_preview_scene, drawing());
 	const QRectF rect = m_preview_scene->itemsBoundingRect().adjusted(-10, -10, 10, 10);
 	m_preview_scene->setSceneRect(rect);
 	m_preview->fitInView(rect, Qt::KeepAspectRatio);

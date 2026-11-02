@@ -70,6 +70,7 @@
 #include "../elementchecker.h"
 #include "elementcheckdialog.h"
 #include "partlibrarydialog.h"
+#include "connectordialog.h"
 #include "selectionpanel.h"
 #include "../elementalign.h"
 #include "../esevent/eseventmeasure.h"
@@ -1207,6 +1208,12 @@ void QETElementEditor::setupActions()
 	ShortcutManager::instance().registerAction(m_generate_module_action, "elementeditor.generate_module", tr("Éditeur d'élément"), QKeySequence());
 	connect(m_generate_module_action, &QAction::triggered, this, &QETElementEditor::generateModule);
 
+	m_connector_action = new QAction(QET::Icons::Terminal, tr("Gerar conector padrão..."), this);
+	m_connector_action->setStatusTip(tr("Desenha um conector D-sub, RJ45, USB ou genérico: o símbolo com os pinos na grade e a vista frontal numerada"));
+	ui->m_edit_menu->addAction(m_connector_action);
+	ShortcutManager::instance().registerAction(m_connector_action, "elementeditor.connector", tr("Éditeur d'élément"), QKeySequence());
+	connect(m_connector_action, &QAction::triggered, this, &QETElementEditor::showConnectorGenerator);
+
 	m_terminal_table_action = new QAction(QET::Icons::Terminal, tr("Tabela de bornes..."), this);
 	m_terminal_table_action->setStatusTip(tr("Lista todas as bornes do elemento para editar nome, posição, orientação e tipo, e renomear em série"));
 	ui->m_edit_menu->addAction(m_terminal_table_action);
@@ -1311,6 +1318,7 @@ void QETElementEditor::setupActions()
 	styles_toolbar->addSeparator();
 	styles_toolbar->addAction(m_check_action);
 	styles_toolbar->addAction(m_part_library_action);
+	styles_toolbar->addAction(m_connector_action);
 	styles_toolbar->addAction(m_repeat_action);
 	addToolBar(Qt::TopToolBarArea, styles_toolbar);
 	fillTextStyles();
@@ -1423,6 +1431,7 @@ void QETElementEditor::updateAction()
 			<< m_picture_action
 			<< m_terminals_grid_action
 			<< m_part_library_action
+			<< m_connector_action
 			<< m_repeat_action;
 	ro_list << m_align_actions;
 	for (auto action : std::as_const(ro_list)) {
@@ -2138,6 +2147,52 @@ void QETElementEditor::placeTerminalsOnGrid()
 					 m_elmt_scene->snapTerminal(pos, Qt::NoModifier), undo);
 	}
 	m_elmt_scene->undoStack().push(undo);
+}
+
+/**
+	@brief QETElementEditor::showConnectorGenerator
+	Draw a connector (ConnectorDialog), in place of the drawing or beside
+	it, and name the element, as one undo step.
+*/
+void QETElementEditor::showConnectorGenerator()
+{
+	ConnectorDialog dialog(!m_elmt_scene->primitives().isEmpty(), this);
+	if (dialog.exec() != QDialog::Accepted) {
+		return;
+	}
+	auto undo = new QUndoCommand(tr("Gerar o conector %1").arg(dialog.name()));
+
+		//The parts to replace, taken before fromXml() adds the new ones
+	QVector<QGraphicsItem *> old_parts;
+	if (dialog.replaceDrawing()) {
+		for (CustomElementPart *part : m_elmt_scene->primitives()) {
+			old_parts << part->toItem();
+		}
+	}
+	ElementContent content;
+	m_elmt_scene->fromXml(dialog.drawing(), QPointF(), false, &content);
+	if (!content.isEmpty()) {
+		if (!old_parts.isEmpty()) {
+			new DeletePartsCommand(m_elmt_scene, old_parts, undo);
+		}
+		m_elmt_scene->clearSelection();
+		new PastePartsCommand(m_view, content, undo);
+	}
+
+	const ElementData old_data = m_elmt_scene->elementData();
+	ElementData new_data = old_data;
+	if (!dialog.name().isEmpty()) {
+		new_data.m_names_list.addName(QETApp::langFromSetting().left(2), dialog.name());
+	}
+	if (new_data != old_data) {
+		new changeElementDataCommand(m_elmt_scene, old_data, new_data, undo);
+	}
+
+	if (undo->childCount()) {
+		m_elmt_scene->undoStack().push(undo);
+	} else {
+		delete undo;
+	}
 }
 
 /**
