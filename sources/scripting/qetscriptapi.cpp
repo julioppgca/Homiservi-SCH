@@ -41,6 +41,7 @@
 #include "../terminalsheet.h"
 #include "../iomap.h"
 #include "../editor/datasheetreader.h"
+#include "../editor/picturecomponent.h"
 #include "../qetresult.h"
 #include "../qetgraphicsitem/conductor.h"
 #include "../qetgraphicsitem/conductortextitem.h"
@@ -2984,6 +2985,36 @@ QVariantMap QetScriptApi::readDatasheet(const QString &pdfFile)
 		pins << QVariantMap {{"name", pin.name}, {"function", pin.function},
 				     {"side", QString::fromLatin1(sides[pin.side])}};
 	return {{"name", result.name}, {"info", info}, {"pins", pins}};
+}
+
+/**
+	The element a picture of a component gives (PictureComponent), from
+	its terminals pins: [{name, side: left|right|top|bottom, position}].
+	The contacts are guessed from the names. Returns {parts: [{kind,
+	pinA, pinB, drawn}], definition: the element definition as XML}.
+*/
+QVariantMap QetScriptApi::pictureComponent(const QVariantList &pins, bool drawParts,
+					   const QString &bodyText)
+{
+	const QStringList sides {"left", "right", "top", "bottom"};
+	PictureComponent::Result result;
+	for (const QVariant &value : pins) {
+		const QVariantMap map = value.toMap();
+		PictureComponent::Pin pin;
+		pin.name = map.value("name").toString();
+		pin.side = ModuleGenerator::Side(std::max<qsizetype>(0, sides.indexOf(map.value("side").toString())));
+		pin.position = map.value("position").toInt();
+		result.pins << pin;
+	}
+	result.parts = PictureComponent::guessParts(result.pins);
+	result.body_text = bodyText;
+	const QStringList kinds {"normally_open", "normally_closed", "coil"};
+	QVariantList parts;
+	for (const PictureComponent::Part &part : result.parts)
+		parts << QVariantMap {{"kind", kinds.at(part.kind)}, {"pinA", part.pin_a}, {"pinB", part.pin_b},
+				      {"drawn", PictureComponent::canDraw(part, result.pins)}};
+	return {{"parts", parts},
+		{"definition", PictureComponent::build(result, drawParts).toString(1)}};
 }
 
 QList<QetGraphicsTableItem *> QetScriptApi::sortedTables(int folioIndex) const

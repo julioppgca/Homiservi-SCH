@@ -349,17 +349,61 @@ QByteArray DatasheetReader::aiRequestBody(const QByteArray &pdf)
 		{"source", QJsonObject {{"type", "base64"},
 					{"media_type", "application/pdf"},
 					{"data", QString::fromLatin1(pdf.toBase64())}}}};
-	const QJsonObject question {{"type", "text"}, {"text", QString::fromUtf8(prompt)}};
-	const QJsonObject message {{"role", "user"}, {"content", QJsonArray {document, question}}};
+	return aiBody(document, QString::fromUtf8(prompt), schema());
+}
+
+/**
+	@return the body of a request asking Claude about source (a document
+	or image content block) with prompt, its answer constrained to the
+	JSON of schema
+*/
+QByteArray DatasheetReader::aiBody(const QJsonObject &source, const QString &prompt, const QJsonObject &schema)
+{
+	const QJsonObject question {{"type", "text"}, {"text", prompt}};
+	const QJsonObject message {{"role", "user"}, {"content", QJsonArray {source, question}}};
 	const QJsonObject body {
 		{"model", model},
 		{"max_tokens", 16000},
 		{"fallbacks", "default"},
 		{"output_config", QJsonObject {{"effort", "medium"},
 					       {"format", QJsonObject {{"type", "json_schema"},
-								       {"schema", schema()}}}}},
+								       {"schema", schema}}}}},
 		{"messages", QJsonArray {message}}};
 	return QJsonDocument(body).toJson(QJsonDocument::Compact);
+}
+
+/**
+	@return the JSON Claude answered with, or an empty object and error set
+	when the request failed, was declined or was cut short
+*/
+QJsonObject DatasheetReader::aiData(const QByteArray &reply, QString *error)
+{
+	const QJsonObject root = QJsonDocument::fromJson(reply).object();
+	if (root.value("type").toString() == QLatin1String("error")) {
+		if (error)
+			*error = root.value("error").toObject().value("message").toString();
+		return {};
+	}
+	const QString stop = root.value("stop_reason").toString();
+	if (stop == QLatin1String("refusal")) {
+		if (error)
+			*error = tr("A IA recusou ler este arquivo.");
+		return {};
+	}
+	if (stop == QLatin1String("max_tokens")) {
+		if (error)
+			*error = tr("A resposta da IA ficou incompleta: o componente tem pinos demais.");
+		return {};
+	}
+
+	QString text;
+	for (const QJsonValue &block : root.value("content").toArray())
+		if (block.toObject().value("type").toString() == QLatin1String("text"))
+			text += block.toObject().value("text").toString();
+	const QJsonObject data = QJsonDocument::fromJson(text.toUtf8()).object();
+	if (data.isEmpty() && error)
+		*error = tr("A resposta da IA não pôde ser lida.");
+	return data;
 }
 
 /**
@@ -369,34 +413,9 @@ QByteArray DatasheetReader::aiRequestBody(const QByteArray &pdf)
 DatasheetReader::Result DatasheetReader::fromAiReply(const QByteArray &reply, QString *error)
 {
 	Result result;
-	const QJsonObject root = QJsonDocument::fromJson(reply).object();
-	if (root.value("type").toString() == QLatin1String("error")) {
-		if (error)
-			*error = root.value("error").toObject().value("message").toString();
+	const QJsonObject data = aiData(reply, error);
+	if (data.isEmpty())
 		return result;
-	}
-	const QString stop = root.value("stop_reason").toString();
-	if (stop == QLatin1String("refusal")) {
-		if (error)
-			*error = tr("A IA recusou ler este datasheet.");
-		return result;
-	}
-	if (stop == QLatin1String("max_tokens")) {
-		if (error)
-			*error = tr("A resposta da IA ficou incompleta: o datasheet tem pinos demais.");
-		return result;
-	}
-
-	QString text;
-	for (const QJsonValue &block : root.value("content").toArray())
-		if (block.toObject().value("type").toString() == QLatin1String("text"))
-			text += block.toObject().value("text").toString();
-	const QJsonObject data = QJsonDocument::fromJson(text.toUtf8()).object();
-	if (data.isEmpty()) {
-		if (error)
-			*error = tr("A resposta da IA não pôde ser lida.");
-		return result;
-	}
 
 	result.name = data.value("name").toString().trimmed();
 	for (const QString &key : infoKeys()) {

@@ -57,6 +57,7 @@
 #include "scaleelementdialog.h"
 #include "componentwizarddialog.h"
 #include "datasheetdialog.h"
+#include "picturecomponentdialog.h"
 #include "../../qetinformation.h"
 #include "modulegeneratordialog.h"
 #include "terminaltabledialog.h"
@@ -1192,6 +1193,12 @@ void QETElementEditor::setupActions()
 	ShortcutManager::instance().registerAction(m_datasheet_action, "elementeditor.datasheet", tr("Éditeur d'élément"), QKeySequence());
 	connect(m_datasheet_action, &QAction::triggered, this, &QETElementEditor::showDatasheet);
 
+	m_picture_action = new QAction(QET::Icons::adding_image, tr("Componente a partir de imagem..."), this);
+	m_picture_action->setStatusTip(tr("Cria o desenho do componente (caixa, bornes e contatos) a partir do diagrama de ligação dele e preenche os dados"));
+	ui->m_edit_menu->addAction(m_picture_action);
+	ShortcutManager::instance().registerAction(m_picture_action, "elementeditor.picture_component", tr("Éditeur d'élément"), QKeySequence());
+	connect(m_picture_action, &QAction::triggered, this, &QETElementEditor::showPictureComponent);
+
 
 		//Zoom action
 	ShortcutManager::instance().registerAction(ui->m_zoom_in_action, "elementeditor.zoom_in", tr("Éditeur d'élément"), QKeySequence::ZoomIn);
@@ -1290,7 +1297,8 @@ void QETElementEditor::updateAction()
 			<< m_component_wizard_action
 			<< m_generate_module_action
 			<< m_terminal_table_action
-			<< m_datasheet_action;
+			<< m_datasheet_action
+			<< m_picture_action;
 	for (auto action : std::as_const(ro_list)) {
 		action->setDisabled(m_read_only);
 	}
@@ -1961,6 +1969,54 @@ void QETElementEditor::showDatasheet()
 	const ElementData old_data = m_elmt_scene->elementData();
 	ElementData new_data = old_data;
 	new_data.m_informations.addValue(QETInformation::ELMT_DATASHEET, dialog.datasheet());
+	const QMap<QString, QString> information = dialog.information();
+	for (auto it = information.cbegin(); it != information.cend(); ++it) {
+		new_data.m_informations.addValue(it.key(), it.value());
+	}
+	if (!dialog.name().isEmpty()) {
+		new_data.m_names_list.addName(QETApp::langFromSetting().left(2), dialog.name());
+	}
+	if (new_data != old_data) {
+		new changeElementDataCommand(m_elmt_scene, old_data, new_data, undo);
+	}
+
+	if (undo->childCount()) {
+		m_elmt_scene->undoStack().push(undo);
+	} else {
+		delete undo;
+	}
+}
+
+/**
+	@brief QETElementEditor::showPictureComponent
+	Make the element from a picture of the component
+	(PictureComponentDialog): its drawing and information, applied as
+	one undo step.
+*/
+void QETElementEditor::showPictureComponent()
+{
+	PictureComponentDialog dialog(m_elmt_scene->elementData(), !m_elmt_scene->primitives().isEmpty(), this);
+	if (dialog.exec() != QDialog::Accepted) {
+		return;
+	}
+	auto undo = new QUndoCommand(tr("Componente a partir de imagem"));
+
+	ElementContent content;
+	m_elmt_scene->fromXml(dialog.drawing(), QPointF(), false, &content);
+	if (!content.isEmpty()) {
+		if (dialog.replaceDrawing()) {
+			QVector<QGraphicsItem *> old_parts;
+			for (CustomElementPart *part : m_elmt_scene->primitives()) {
+				old_parts << part->toItem();
+			}
+			new DeletePartsCommand(m_elmt_scene, old_parts, undo);
+		}
+		m_elmt_scene->clearSelection();
+		new PastePartsCommand(m_view, content, undo);
+	}
+
+	const ElementData old_data = m_elmt_scene->elementData();
+	ElementData new_data = old_data;
 	const QMap<QString, QString> information = dialog.information();
 	for (auto it = information.cbegin(); it != information.cend(); ++it) {
 		new_data.m_informations.addValue(it.key(), it.value());

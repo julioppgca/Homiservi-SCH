@@ -21,6 +21,7 @@
 #include "modulegenerator.h"
 
 #include <QByteArray>
+#include <QJsonObject>
 #include <QList>
 #include <QMap>
 #include <QNetworkRequest>
@@ -68,6 +69,8 @@ namespace DatasheetReader
 	QNetworkRequest aiRequest();
 	QByteArray aiRequestBody(const QByteArray &pdf);
 	Result fromAiReply(const QByteArray &reply, QString *error);
+	QByteArray aiBody(const QJsonObject &source, const QString &prompt, const QJsonObject &schema);
+	QJsonObject aiData(const QByteArray &reply, QString *error);
 
 	QString sideName(ModuleGenerator::Side side);
 	ModuleGenerator::Settings drawing(const QList<Pin> &pins, const QString &body_text);

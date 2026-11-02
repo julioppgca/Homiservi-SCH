@@ -19,6 +19,7 @@
 #define MODULEGENERATOR_H
 
 #include <QDomDocument>
+#include <QList>
 #include <QString>
 #include <QStringList>
 
@@ -47,6 +48,22 @@ namespace ModuleGenerator
 		int step = 1;
 			///Names given one by one (a datasheet), used instead of the numbering
 		QStringList names;
+			///Place of each name along the side, from 0; empty: one after
+			///the other. Pins of the top and bottom sides at the same
+			///place face each other, as do left and right ones.
+		QList<int> places;
+	};
+
+	enum SymbolKind { NormallyOpen, NormallyClosed, Coil, SymbolKindCount };
+
+		///A contact or coil drawn inside the box, between the two pins at
+		///one place: top to bottom when vertical, else left to right
+	struct Symbol
+	{
+		SymbolKind kind = NormallyOpen;
+		bool vertical = true;
+		int place = 0;
+		QString label;
 	};
 
 	struct Settings
@@ -57,6 +74,7 @@ namespace ModuleGenerator
 		bool show_names = true;
 		QString body_text;
 		bool label_field = true;
+		QList<Symbol> symbols;
 	};
 
 	QStringList pinNames(const SidePins &pins);

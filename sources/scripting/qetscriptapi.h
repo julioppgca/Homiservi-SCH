@@ -516,6 +516,8 @@ class QetScriptApi : public QObject
 		Q_INVOKABLE int generateTerminalSheets();
 		Q_INVOKABLE int generateIoMaps();
 		Q_INVOKABLE QVariantMap readDatasheet(const QString &pdfFile);
+		Q_INVOKABLE QVariantMap pictureComponent(const QVariantList &pins, bool drawParts,
+							 const QString &bodyText = QString());
 
 		// -- a BOM/nomenclature or summary table placed on a folio --
 		Q_INVOKABLE QStringList tables(int folioIndex) const;
