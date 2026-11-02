@@ -131,6 +131,24 @@ namespace {
 				m_description.appendChild(e);
 			}
 
+				///A text read from the bottom up, its letters centred on x,
+				///starting at y
+			void uprightText(const QString &text, qreal x, qreal y, const TextStyles::Style &style)
+			{
+				if (text.isEmpty())
+					return;
+				QDomElement e = m_document.createElement(QStringLiteral("text"));
+				e.setAttribute(QStringLiteral("text"), text);
+				e.setAttribute(QStringLiteral("x"), number(x + QFontMetricsF(style.font).capHeight() / 2));
+				e.setAttribute(QStringLiteral("y"), number(y));
+				e.setAttribute(QStringLiteral("rotation"), 270);
+				e.setAttribute(QStringLiteral("font"), style.font.toString());
+				e.setAttribute(QStringLiteral("color"), style.color.name());
+				if (!style.name.isEmpty())
+					e.setAttribute(QStringLiteral("element_style"), style.name);
+				m_description.appendChild(e);
+			}
+
 			void terminal(const QString &name, qreal x, qreal y, const char *orientation)
 			{
 				QDomElement e = m_document.createElement(QStringLiteral("terminal"));
@@ -225,6 +243,86 @@ namespace {
 				return style;
 		return TextStyles::Style {QString(), QETApp::diagramTextsFont(size), Qt::black};
 	}
+
+		///A FANUC connector: its signals as the FANUC diagrams draw them
+	struct FanucPreset
+	{
+		const char *variant;
+		QString name;
+			///The connector names it stands for, the first given by default
+		QStringList titles;
+		QList<QPair<QString, QString>> pins;
+	};
+
+		///The FANUC connectors known, checked against the diagrams of a
+		///0i-TF / βi SVSP machine; the pins without signal are left out
+	QList<FanucPreset> fanucPresets()
+	{
+		using P = QList<QPair<QString, QString>>;
+		const P serial {{"1", "SIN"}, {"2", "*SIN"}, {"3", "SOUT"}, {"4", "*SOUT"},
+				{"12", "0V"}, {"14", "0V"}, {"16", "0V"}};
+		const P io_link {{"1", "SIN"}, {"2", "*SIN"}, {"3", "SOUT"}, {"4", "*SOUT"},
+				 {"11", "0V"}, {"12", "0V"}, {"13", "0V"}, {"14", "0V"}};
+		const P keys {{"1", "KEY00"}, {"11", "KEY01"}, {"2", "KEY02"}, {"12", "KEY03"},
+			      {"3", "KEY04"}, {"13", "KEY05"}, {"4", "KEY06"}, {"14", "KEY07"},
+			      {"5", "COM00"}, {"15", "COM01"}, {"6", "COM02"}, {"16", "COM03"},
+			      {"7", "COM04"}, {"17", "COM05"}, {"8", "COM06"}, {"18", "COM07"},
+			      {"9", "COM08"}, {"19", "COM09"}, {"10", "COM10"}, {"20", "COM11"}};
+		const P coder {{"1", "PR"}, {"2", "*PR"}, {"5", "PA"}, {"6", "*PA"}, {"7", "PB"}, {"8", "*PB"},
+			       {"9", "5V"}, {"18", "5V"}, {"20", "5V"}, {"12", "0V"}, {"14", "0V"}, {"16", "0V"}};
+		return QList<FanucPreset> {
+			{"honda20", tr("JD1A / JD1B – I/O Link"), {"JD1A", "JD1B"}, io_link},
+			{"honda20", tr("JD51A – I/O Link i"), {"JD51A"},
+			 {{"1", "SIN1"}, {"2", "*SIN1"}, {"3", "SOUT1"}, {"4", "*SOUT1"},
+			  {"11", "0V"}, {"12", "0V"}, {"13", "0V"}, {"14", "0V"}}},
+			{"honda20", tr("JA41, JA7A / JA7B – spindle serial"), {"JA41", "JA7A", "JA7B"}, serial},
+			{"honda20", tr("JF1 / JF2 / JF3 – encoder do servo"), {"JF1", "JF2", "JF3"},
+			 {{"5", "RD"}, {"6", "*RD"}, {"9", "5V"}, {"20", "5V"}, {"12", "0V"}, {"14", "0V"},
+			  {"7", "6V"}, {"16", "FG"}}},
+			{"honda20", tr("JYA2 – sensor do motor do spindle"), {"JYA2"},
+			 {{"1", "MZ"}, {"2", "*MZ"}, {"5", "MA"}, {"6", "*MA"}, {"7", "MB"}, {"8", "*MB"},
+			  {"9", "5V"}, {"18", "5V"}, {"20", "5V"}, {"12", "0V"}, {"14", "0V"}, {"16", "0V"},
+			  {"13", "THR1"}, {"15", "THR2"}, {"10", "SS"}}},
+			{"honda20", tr("JYA3 / JYA4 – position coder"), {"JYA3", "JYA4"}, coder},
+			{"honda20", tr("JY1 – sinais analógicos do spindle"), {"JY1"},
+			 {{"1", "OVR1"}, {"2", "OVR2"}, {"16", "LM"}, {"17", "SM"}, {"18", "OM"}, {"19", "OM"}, {"20", "0V"}}},
+			{"honda20", tr("JD36A / JD36B – RS-232"), {"JD36A", "JD36B"},
+			 {{"1", "RD"}, {"2", "0V"}, {"3", "DR"}, {"4", "0V"}, {"5", "CS"}, {"6", "0V"}, {"7", "CD"},
+			  {"8", "0V"}, {"10", "24V"}, {"11", "SD"}, {"12", "0V"}, {"13", "ER"}, {"14", "0V"},
+			  {"15", "RS"}, {"16", "0V"}, {"19", "24V"}}},
+			{"honda20", tr("JA40 – entradas rápidas (HDI)"), {"JA40"},
+			 {{"1", "HDI0"}, {"2", "0V"}, {"11", "HDI1"}, {"12", "0V"}, {"3", "HDI2"}, {"4", "0V"},
+			  {"13", "HDI3"}, {"14", "0V"}, {"6", "HDI4"}, {"5", "0V"}, {"10", "0V"}, {"15", "HDI5"},
+			  {"16", "0V"}, {"17", "HDI6"}, {"18", "0V"}, {"19", "HDI7"}, {"20", "0V"}}},
+			{"honda20", tr("CNK1 – matriz de teclas do painel"), {"CNK1"}, keys},
+			{"hif3ba20", tr("JA2 – teclado MDI"), {"JA2"},
+			 {{"A1", "KEY00"}, {"B1", "KEY02"}, {"A2", "KEY01"}, {"B2", "KEY03"}, {"A3", "KEY04"},
+			  {"B3", "KEY06"}, {"A4", "KEY05"}, {"B4", "KEY07"}, {"B5", "COM00"}, {"A5", "COM02"},
+			  {"A6", "COM01"}, {"B6", "COM03"}, {"A7", "COM04"}, {"B7", "COM06"}, {"A8", "COM05"},
+			  {"B8", "COM07"}, {"A9", "COM08"}, {"B9", "COM10"}, {"A10", "COM09"}, {"B10", "COM11"}}},
+			{"tyco8", tr("CXA2A / CXA2B – 24 V, ESP, MIFA"), {"CXA2A", "CXA2B"},
+			 {{"A1", "24V"}, {"B1", "24V"}, {"A2", "0V"}, {"B2", "0V"}, {"A3", "MIFA"}, {"B3", "BATL"},
+			  {"A4", "*ESP"}, {"B4", "XMIFA"}}},
+			{"tyco2", tr("CXA2C – 24 V"), {"CXA2C"}, {{"A1", "24V"}, {"A2", "0V"}}},
+			{"tyco4", tr("CZ2L / CZ2M / CZ2N – potência do motor"), {"CZ2L", "CZ2M", "CZ2N", "CZ2"},
+			 {{"B1", "U"}, {"A1", "V"}, {"B2", "W"}, {"A2", "GND"}}},
+			{"tyco3", tr("CX1A / CX1B – 200 V"), {"CX1A", "CX1B"}, {{"1", "200R"}, {"2", "200S"}, {"3", "GND"}}},
+			{"tyco3", tr("CX4 – parada de emergência"), {"CX4"}, {{"2", "ESP"}, {"3", "24V"}}},
+			{"tyco3", tr("CX3 – contato do MCC"), {"CX3"}, {{"1", "MCCOFF3"}, {"3", "MCCOFF4"}}},
+			{"tyco3", tr("CP1A, CA64 – 24 V"), {"CP1A", "CA64"}, {{"1", "24V"}, {"2", "0V"}}},
+		};
+	}
+
+		///The FANUC connector chosen by the preset of s, nullptr if none
+	const FanucPreset *fanucPreset(const ConnectorGenerator::Settings &s)
+	{
+		static const QList<FanucPreset> list = fanucPresets();
+		int index = 0;
+		for (const FanucPreset &preset : list)
+			if (s.variant == QLatin1String(preset.variant) && ++index == s.preset)
+				return &preset;
+		return nullptr;
+	}
 }
 
 QJsonObject ConnectorGenerator::Settings::toJson() const
@@ -233,7 +331,8 @@ QJsonObject ConnectorGenerator::Settings::toJson() const
 		{"variant", variant}, {"male", male}, {"symbol", symbol}, {"front_view", front_view},
 		{"solder_side", solder_side}, {"side", int(side)}, {"preset", preset}, {"colours", colours},
 		{"signals", QJsonArray::fromStringList(signal_names)}, {"rows", rows}, {"columns", columns},
-		{"numbering", int(numbering)}, {"prefix", prefix}, {"first", first}};
+		{"numbering", int(numbering)}, {"prefix", prefix}, {"first", first},
+		{"style", int(style)}, {"top", top}, {"used_only", used_only}, {"title", title}};
 }
 
 ConnectorGenerator::Settings ConnectorGenerator::Settings::fromJson(const QJsonObject &json)
@@ -254,6 +353,10 @@ ConnectorGenerator::Settings ConnectorGenerator::Settings::fromJson(const QJsonO
 	s.numbering = Numbering(json.value("numbering").toInt(s.numbering));
 	s.prefix = json.value("prefix").toString();
 	s.first = json.value("first").toInt(s.first);
+	s.style = Style(json.value("style").toInt(s.style));
+	s.top = json.value("top").toBool(s.top);
+	s.used_only = json.value("used_only").toBool(s.used_only);
+	s.title = json.value("title").toString();
 	return s;
 }
 
@@ -263,6 +366,7 @@ QString ConnectorGenerator::familyName(Family family)
 		case DSub:    return tr("D-sub (DB, HD)");
 		case Modular: return tr("Modular (RJ45, RJ11, RJ12)");
 		case Usb:     return tr("USB");
+		case Fanuc:   return tr("FANUC (Honda, Hirose, Tyco)");
 		case Generic: return tr("Genérico (fileiras × colunas)");
 		case FamilyCount: break;
 	}
@@ -272,7 +376,7 @@ QString ConnectorGenerator::familyName(Family family)
 QList<ConnectorGenerator::Variant> ConnectorGenerator::variants()
 {
 	const QString none = tr("Nenhum (preencher)");
-	return {
+	QList<Variant> list {
 		{QStringLiteral("db9"), DSub, QStringLiteral("DB9 (DE-9)"), {none, tr("RS-232 (DTE, como no PC)")}},
 		{QStringLiteral("da15"), DSub, QStringLiteral("DA15"), {none}},
 		{QStringLiteral("db25"), DSub, QStringLiteral("DB25"), {none, tr("RS-232 (DTE)")}},
@@ -289,8 +393,20 @@ QList<ConnectorGenerator::Variant> ConnectorGenerator::variants()
 		{QStringLiteral("usb_mini"), Usb, tr("USB mini-B"), {none, tr("USB 2.0")}},
 		{QStringLiteral("usb_micro"), Usb, tr("USB micro-B"), {none, tr("USB 2.0")}},
 		{QStringLiteral("usb_c"), Usb, tr("USB-C (24 pinos)"), {none, tr("USB-C")}},
+		{QStringLiteral("honda20"), Fanuc, tr("Honda PCR-E20 (20 pinos)"), {none}},
+		{QStringLiteral("hif3ba20"), Fanuc, tr("Hirose HIF3BA-20 (A1–B10)"), {none}},
+		{QStringLiteral("hif3ba50"), Fanuc, tr("Hirose HIF3BA-50 (A1–B25)"), {none}},
+		{QStringLiteral("tyco8"), Fanuc, tr("Tyco 2×4 (A1–B4)"), {none}},
+		{QStringLiteral("tyco4"), Fanuc, tr("Tyco 2×2 (A1–B2)"), {none}},
+		{QStringLiteral("tyco3"), Fanuc, tr("Tyco 3 pinos (1–3)"), {none}},
+		{QStringLiteral("tyco2"), Fanuc, tr("Tyco 2 pinos (A1, A2)"), {none}},
 		{QStringLiteral("generic"), Generic, tr("Genérico"), {none}},
 	};
+	for (Variant &v : list)
+		for (const FanucPreset &preset : fanucPresets())
+			if (v.id == QLatin1String(preset.variant))
+				v.presets << preset.name;
+	return list;
 }
 
 const ConnectorGenerator::Variant *ConnectorGenerator::variant(const QString &id)
@@ -339,6 +455,23 @@ QList<ConnectorGenerator::Pin> ConnectorGenerator::pins(const Settings &s)
 			list << Pin {QStringLiteral("A%1").arg(i + 1), QPointF(11 - i, 0)};
 		for (int i = 0; i < 12; ++i)
 			list << Pin {QStringLiteral("B%1").arg(i + 1), QPointF(i, 1)};
+	} else if (id == QLatin1String("honda20")) {
+			//Two staggered rows: 1 to 10 over 11 to 20
+		for (int i = 0; i < 20; ++i)
+			list << Pin {QString::number(i + 1), i < 10 ? QPointF(i, 0) : QPointF(i - 10 + 0.5, 1)};
+	} else if (id.startsWith(QLatin1String("hif3ba")) || id == QLatin1String("tyco8")
+		   || id == QLatin1String("tyco4")) {
+			//Row A over row B, in the order A1, B1, A2, B2...
+		const int columns = id == QLatin1String("hif3ba20") ? 10 : id == QLatin1String("hif3ba50") ? 25
+				  : id == QLatin1String("tyco8") ? 4 : 2;
+		for (int i = 0; i < columns; ++i)
+			list << Pin {QStringLiteral("A%1").arg(i + 1), QPointF(i, 0)}
+			     << Pin {QStringLiteral("B%1").arg(i + 1), QPointF(i, 1)};
+	} else if (id == QLatin1String("tyco3")) {
+		for (int i = 0; i < 3; ++i)
+			list << Pin {QString::number(i + 1), QPointF(i, 0)};
+	} else if (id == QLatin1String("tyco2")) {
+		list << Pin {QStringLiteral("A1"), QPointF(0, 0)} << Pin {QStringLiteral("A2"), QPointF(1, 0)};
 	} else if (id == QLatin1String("generic")) {
 		const int rows = qMax(1, s.rows), columns = qMax(1, s.columns);
 		for (int i = 0; i < rows * columns; ++i) {
@@ -394,6 +527,13 @@ QStringList ConnectorGenerator::presetSignals(const Settings &s)
 	}
 	while (names.size() < count)
 		names << QString();
+	if (const FanucPreset *preset = fanucPreset(s)) {
+		const QList<Pin> list = pins(s);
+		for (const auto &pin : preset->pins)
+			for (int i = 0; i < list.size(); ++i)
+				if (list.at(i).id == pin.first)
+					names[i] = pin.second;
+	}
 
 	if (id == QLatin1String("rj45") && s.colours > 0) {
 		const QStringList t568b {tr("branco-laranja"), tr("laranja"), tr("branco-verde"), tr("azul"),
@@ -415,7 +555,18 @@ QString ConnectorGenerator::defaultName(const Settings &s)
 	QString name = v ? v->name : s.variant;
 	if (s.variant == QLatin1String("generic"))
 		name = tr("Conector %1 pinos").arg(pins(s).size());
-	return name + (s.male ? tr(" macho") : tr(" fêmea"));
+	name += s.male ? tr(" macho") : tr(" fêmea");
+	return s.title.isEmpty() ? name : s.title + QStringLiteral(" – ") + name;
+}
+
+/**
+	@return the connector names the preset of s stands for (JD1A,
+	JD1B...), empty when it is not one of the FANUC connectors
+*/
+QStringList ConnectorGenerator::presetTitles(const Settings &s)
+{
+	const FanucPreset *preset = fanucPreset(s);
+	return preset ? preset->titles : QStringList();
 }
 
 /**
@@ -442,14 +593,77 @@ QDomDocument ConnectorGenerator::build(const Settings &s)
 	const QString title = defaultName(s);
 
 	qreal view_x = 0, view_y = 10;
-	if (s.symbol) {
+	if (s.symbol && s.style == FanucStyle) {
+			//The pins drawn, in the order of the FANUC diagrams
+		QList<int> shown;
+		if (const FanucPreset *preset = fanucPreset(s)) {
+			for (const auto &pin : preset->pins)
+				for (int i = 0; i < pin_list.size(); ++i)
+					if (pin_list.at(i).id == pin.first && !shown.contains(i))
+						shown << i;
+		}
+		for (int i = 0; i < pin_list.size(); ++i)
+			if (!shown.contains(i) && (!s.used_only || !names.at(i).isEmpty()))
+				shown << i;
+		if (s.used_only)
+			shown.erase(std::remove_if(shown.begin(), shown.end(), [&](int i) {return names.at(i).isEmpty();}),
+				    shown.end());
+
+			//The signals as small as the numbers, as FANUC draws them
+		const TextStyles::Style &upright_style = number_style;
+		const QFontMetricsF number_metrics(number_style.font);
+		const QFontMetricsF upright_metrics(upright_style.font);
+		qreal number_length = 0, signal_length = 0;
+		for (int i : shown) {
+			number_length = qMax(number_length, number_metrics.horizontalAdvance(QStringLiteral("(%1)").arg(pin_list.at(i).id)));
+			signal_length = qMax(signal_length, upright_metrics.horizontalAdvance(names.at(i)));
+		}
+			//Inward from the edge of the unit (y = 0): the numbers, the
+			//signals, the bracket and the name of the connector; the
+			//terminals outside. dir is 1 when the unit is under its edge.
+		const qreal dir = s.top ? 1 : -1;
+		const qreal last = qMax(0, int(shown.size()) - 1) * 10.0;
+		const qreal signals_end = 3 + number_length + 3 + signal_length;
+		const qreal bracket = dir * (signals_end + 3);
+		for (int k = 0; k < shown.size(); ++k) {
+			const int i = shown.at(k);
+			const qreal x = k * 10.0;
+			const QString number = QStringLiteral("(%1)").arg(pin_list.at(i).id);
+			w.line(x, 0, x, -dir * 10);
+			w.terminal(pin_list.at(i).id, x, -dir * 10, s.top ? "n" : "s");
+			w.rect(QRectF(x - 1.2, s.top ? -2.5 : 0, 2.4, 2.5), 0, filled_style);
+				//Read from the bottom up: the start is the lower end
+			const qreal number_width = number_metrics.horizontalAdvance(number);
+			const qreal signal_width = upright_metrics.horizontalAdvance(names.at(i));
+			if (s.top) {
+				w.uprightText(number, x, 3 + number_width, number_style);
+				w.uprightText(names.at(i), x, signals_end, upright_style);
+			} else {
+				w.uprightText(number, x, -3, number_style);
+				w.uprightText(names.at(i), x, -signals_end + signal_width, upright_style);
+			}
+		}
+		w.line(-4, bracket, last + 4, bracket, thin_style);
+		w.line(-4, bracket, -4, bracket - dir * 2, thin_style);
+		w.line(last + 4, bracket, last + 4, bracket - dir * 2, thin_style);
+		const QString name = s.title.isEmpty() ? defaultName(s) : s.title;
+		const qreal name_height = QFontMetricsF(signal_style.font).capHeight();
+		w.text(name, last / 2, s.top ? bracket + name_height + 3 : bracket - 3, signal_style, 0);
+			//The label of the unit (-N131) at the left of the pins
+		w.labelField(-40, s.top ? 2 : -14, label_style.name);
+		view_x = last + 50;
+		view_y = s.top ? 10 : bracket;
+	} else if (s.symbol) {
 			//Which pins leave by the left, which by the right, top to bottom
-		QList<int> left, rightward;
-		for (int i = 0; i < pin_list.size(); ++i) {
-			if (s.side == Left || (s.side == BothSides && i < (pin_list.size() + 1) / 2))
-				left << i;
+		QList<int> shown, left, rightward;
+		for (int i = 0; i < pin_list.size(); ++i)
+			if (!s.used_only || !names.at(i).isEmpty())
+				shown << i;
+		for (int k = 0; k < shown.size(); ++k) {
+			if (s.side == Left || (s.side == BothSides && k < (shown.size() + 1) / 2))
+				left << shown.at(k);
 			else
-				rightward << i;
+				rightward << shown.at(k);
 		}
 		auto widest = [&](const QList<int> &which) {
 			qreal width = 0;

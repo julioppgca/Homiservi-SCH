@@ -375,6 +375,8 @@ if (NOT MINGW)
     install(DIRECTORY ico/breeze-icons/128x128 DESTINATION ${QET_ICONS_PATH})
     install(DIRECTORY ico/breeze-icons/256x256 DESTINATION ${QET_ICONS_PATH})
     install(DIRECTORY elements    DESTINATION share/qelectrotech)
+    # Elements of this fork (FANUC connectors...), merged into the collection
+    install(DIRECTORY elements_homiservi/ DESTINATION share/qelectrotech/elements)
     install(DIRECTORY examples    DESTINATION share/qelectrotech)
     install(DIRECTORY titleblocks DESTINATION share/qelectrotech)
     # The MCP server (misc/qet-mcp) finds this QElectroTech and its elements

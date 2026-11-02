@@ -1,0 +1,35 @@
+<definition height="90" hotspot_x="10" hotspot_y="72" link_type="simple" type="element" version="0.200.1" width="30">
+    <uuid uuid="{6fe04364-a2f9-56d8-ba2e-586a03d8b8fa}"/>
+    <names>
+        <name lang="en">CX3</name>
+        <name lang="fr">CX3</name>
+        <name lang="pt">CX3 – contato do MCC (cabos por baixo)</name>
+        <name lang="pt_BR">CX3 – contato do MCC (cabos por baixo)</name>
+    </names>
+    <elementInformations>
+        <elementInformation name="manufacturer" show="1">FANUC</elementInformation>
+        <elementInformation name="designation" show="1">CX3</elementInformation>
+        <elementInformation name="description" show="1">CX3 – contato do MCC (cabos por baixo)</elementInformation>
+    </elementInformations>
+    <informations>Homiservi-SCH: gerado pelo gerador de conectores (estilo FANUC). Pinagem conferida em diagrama de máquina com CNC FANUC 0i e amplificador βi SVSP; confira no manual FANUC da sua unidade.</informations>
+    <description>
+        <line antialias="false" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" uuid="{eee948d0-60f3-4344-8bf5-59f40d9db378}" x1="0" x2="0" y1="0" y2="10"/>
+        <dynamic_text Halignment="AlignLeft" Valignment="AlignTop" element_style="Rótulo" font="Liberation Sans,9,-1,0,50,0,0,0,0,0,Regular" frame="false" keep_visual_rotation="true" rotation="0" rotation_point_center="false" text_from="ElementInfo" text_width="-1" uuid="{8a47e6a2-7e81-4e9d-8818-67b4abbda788}" x="-40" y="-14" z="1">
+            <text/>
+            <info_name>label</info_name>
+        </dynamic_text>
+        <rect antialias="false" height="2.5" rx="0" ry="0" style="line-style:normal;line-weight:thin;filling:black;color:black" uuid="{f8776c89-4651-418b-9248-bdc0c977c012}" width="2.4" x="-1.2" y="0"/>
+        <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="(1)" uuid="{b636cce5-17a1-46ad-89c7-0e9b67e01615}" x="3.09" y="-3"/>
+        <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="MCCOFF3" uuid="{e9954d73-fcf0-4a0d-8cf9-e788f72f4cfb}" x="3.09" y="-17"/>
+        <line antialias="false" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" uuid="{80fdc534-4de2-4b17-a525-ac7597e7209b}" x1="10" x2="10" y1="0" y2="10"/>
+        <rect antialias="false" height="2.5" rx="0" ry="0" style="line-style:normal;line-weight:thin;filling:black;color:black" uuid="{6a42fa77-b58e-4b72-9206-06e48578affe}" width="2.4" x="8.8" y="0"/>
+        <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="(3)" uuid="{c15534fe-8eb0-4395-9e98-5864a5d04da1}" x="13.09" y="-3"/>
+        <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="MCCOFF4" uuid="{398fd032-7b0f-4dd4-96ef-8612dd9575a0}" x="13.09" y="-17"/>
+        <line antialias="false" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:thin;filling:none;color:black" uuid="{e1df7384-9008-4cf7-bc02-12d83bd504f3}" x1="-4" x2="14" y1="-66" y2="-66"/>
+        <line antialias="false" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:thin;filling:none;color:black" uuid="{27468719-85de-49cf-9ce6-31d1c9651b13}" x1="-4" x2="-4" y1="-66" y2="-64"/>
+        <line antialias="false" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:thin;filling:none;color:black" uuid="{3648f0cb-6d91-4086-9883-e9d343b97cce}" x1="14" x2="14" y1="-66" y2="-64"/>
+        <text color="#000000" element_style="Texto da caixa" font="Liberation Sans,9,-1,0,50,0,0,0,0,0,Regular" rotation="0" text="CX3" uuid="{7e524360-ba75-490d-b1d9-2473edc005a0}" x="-7" y="-69"/>
+        <terminal name="1" orientation="s" type="Generic" uuid="{81dc8383-0856-4676-a3d2-99661f02df14}" x="0" y="10"/>
+        <terminal name="3" orientation="s" type="Generic" uuid="{4f484961-9354-4dc8-8352-8864694e02cb}" x="10" y="10"/>
+    </description>
+</definition>

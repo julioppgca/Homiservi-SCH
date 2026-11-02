@@ -131,6 +131,17 @@ ConnectorDialog::ConnectorDialog(bool has_drawing, QWidget *parent) :
 	m_side = new QComboBox(left);
 	m_side->addItems({tr("À esquerda"), tr("À direita"), tr("Dos dois lados")});
 	form->addRow(tr("Pinos do símbolo:"), m_side);
+	m_style = new QComboBox(left);
+	m_style->addItems({tr("Caixa com os pinos ao lado"), tr("Como nos diagramas FANUC")});
+	form->insertRow(form->rowCount() - 1, tr("Símbolo:"), m_style);
+	m_edge = new QComboBox(left);
+	m_edge->addItems({tr("Por cima da unidade"), tr("Por baixo da unidade")});
+	form->addRow(tr("Saída dos cabos:"), m_edge);
+	m_title = new QLineEdit(left);
+	m_title->setPlaceholderText(tr("ex.: JD1A"));
+	form->addRow(tr("Nome do conector:"), m_title);
+	m_used_only = new QCheckBox(tr("Desenhar só os pinos com sinal"), left);
+	form->addRow(QString(), m_used_only);
 
 	m_table = new QTableWidget(0, 2, left);
 	m_table->setHorizontalHeaderLabels({tr("Pino"), tr("Sinal")});
@@ -192,6 +203,7 @@ ConnectorDialog::ConnectorDialog(bool has_drawing, QWidget *parent) :
 			return;
 		readSettings();
 		m_settings.signal_names = ConnectorGenerator::presetSignals(m_settings);
+		followTitle();
 		fillSignals();
 		updatePreview();
 	};
@@ -214,6 +226,15 @@ ConnectorDialog::ConnectorDialog(bool has_drawing, QWidget *parent) :
 	connect(m_front_view, &QCheckBox::toggled, this, drawing_changed);
 	connect(m_face, &QComboBox::currentIndexChanged, this, drawing_changed);
 	connect(m_side, &QComboBox::currentIndexChanged, this, drawing_changed);
+	connect(m_style, &QComboBox::currentIndexChanged, this, [this]() {
+		if (m_updating)
+			return;
+		readSettings();
+		showSettings();
+	});
+	connect(m_edge, &QComboBox::currentIndexChanged, this, drawing_changed);
+	connect(m_used_only, &QCheckBox::toggled, this, drawing_changed);
+	connect(m_title, &QLineEdit::textChanged, this, drawing_changed);
 	connect(m_table, &QTableWidget::cellChanged, this, [this](int row, int column) {
 		if (m_updating || column != 1)
 			return;
@@ -270,6 +291,12 @@ void ConnectorDialog::variantChanged()
 	m_settings.variant = m_variant->currentData().toString();
 	m_settings.preset = 0;
 	const ConnectorGenerator::Variant *v = ConnectorGenerator::variant(m_settings.variant);
+		//The FANUC connectors are drawn as in the FANUC diagrams
+	const bool fanuc = v && v->family == ConnectorGenerator::Fanuc;
+	m_updating = true;
+	m_style->setCurrentIndex(fanuc ? ConnectorGenerator::FanucStyle : ConnectorGenerator::Box);
+	m_used_only->setChecked(fanuc);
+	m_updating = false;
 	m_updating = true;
 	m_preset->clear();
 	if (v)
@@ -280,7 +307,23 @@ void ConnectorDialog::variantChanged()
 	m_updating = false;
 	readSettings();
 	m_settings.signal_names = ConnectorGenerator::presetSignals(m_settings);
+	followTitle();
 	showSettings();
+}
+
+	///The name of the connector from its preset, unless the user typed one
+void ConnectorDialog::followTitle()
+{
+	const QStringList titles = ConnectorGenerator::presetTitles(m_settings);
+	const QString title = titles.isEmpty() ? QString() : titles.first();
+	if (m_settings.title.isEmpty() || m_settings.title == m_auto_title) {
+		m_settings.title = title;
+		const bool updating = m_updating;
+		m_updating = true;
+		m_title->setText(title);
+		m_updating = updating;
+	}
+	m_auto_title = title;
 }
 
 /**
@@ -311,7 +354,14 @@ void ConnectorDialog::showSettings()
 	m_front_view->setChecked(m_settings.front_view);
 	m_face->setCurrentIndex(m_settings.solder_side ? 1 : 0);
 	m_side->setCurrentIndex(m_settings.side);
+	m_style->setCurrentIndex(m_settings.style);
+	m_edge->setCurrentIndex(m_settings.top ? 0 : 1);
+	m_used_only->setChecked(m_settings.used_only);
+	m_title->setText(m_settings.title);
 	m_updating = false;
+	const bool fanuc_style = m_settings.style == ConnectorGenerator::FanucStyle;
+	m_form->setRowVisible(m_side, !fanuc_style);
+	m_form->setRowVisible(m_edge, fanuc_style);
 
 	const bool rj45 = m_settings.variant == QLatin1String("rj45");
 	m_form->setRowVisible(m_colours, rj45);
@@ -338,6 +388,10 @@ void ConnectorDialog::readSettings()
 	m_settings.front_view = m_front_view->isChecked();
 	m_settings.solder_side = m_face->currentIndex() == 1;
 	m_settings.side = ConnectorGenerator::PinSide(m_side->currentIndex());
+	m_settings.style = ConnectorGenerator::Style(m_style->currentIndex());
+	m_settings.top = m_edge->currentIndex() == 0;
+	m_settings.used_only = m_used_only->isChecked();
+	m_settings.title = m_title->text().trimmed();
 }
 
 	///One row per pin: its number, its signal to edit

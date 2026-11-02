@@ -59,6 +59,7 @@ class ConnectorDialog : public QDialog
 		void fillSignals();
 		void showSettings();
 		void readSettings();
+		void followTitle();
 		void updatePreview();
 		void fillTemplates();
 		void loadTemplate();
@@ -80,6 +81,13 @@ class ConnectorDialog : public QDialog
 		QCheckBox *m_front_view = nullptr;
 		QComboBox *m_face = nullptr;
 		QComboBox *m_side = nullptr;
+		QComboBox *m_style = nullptr;
+		QComboBox *m_edge = nullptr;
+		QCheckBox *m_used_only = nullptr;
+		QLineEdit *m_title = nullptr;
+			///The connector name given by the preset, followed until the
+			///user types one
+		QString m_auto_title;
 		QWidget *m_generic = nullptr;
 		QSpinBox *m_rows = nullptr;
 		QSpinBox *m_columns = nullptr;

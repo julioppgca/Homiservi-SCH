@@ -34,13 +34,22 @@
 	the solder side.
 
 	The variants know how their pins are numbered: D-sub (standard and
-	high density), modular jacks (RJ45, RJ11, RJ12), USB, and a generic
-	grid. Some have the signals of a public standard (RS-232, VGA,
-	Ethernet and its T568A/B colours, USB); the user fills the others.
+	high density), modular jacks (RJ45, RJ11, RJ12), USB, the Honda,
+	Hirose and Tyco connectors of the FANUC units, and a generic grid.
+	Some have the signals of a public standard (RS-232, VGA, Ethernet and
+	its T568A/B colours, USB) or of the FANUC connectors (JD1A, JF1...,
+	as drawn in the FANUC diagrams); the user fills the others.
+
+	The symbol is a box, or drawn as in the FANUC diagrams: the pins on
+	the edge of the unit, their number in brackets and their signal
+	upright, under a bracket naming the connector.
 */
 namespace ConnectorGenerator
 {
-	enum Family {DSub, Modular, Usb, Generic, FamilyCount};
+	enum Family {DSub, Modular, Usb, Fanuc, Generic, FamilyCount};
+
+		///How the symbol is drawn: a box, or the FANUC way
+	enum Style {Box, FanucStyle};
 
 		///How the pins of the symbol leave the box
 	enum PinSide {Left, Right, BothSides};
@@ -71,6 +80,13 @@ namespace ConnectorGenerator
 		bool male = true;
 		bool symbol = true;
 		bool front_view = true;
+		Style style = Box;
+			///FANUC style: the pins leave the unit by its top (or bottom)
+		bool top = true;
+			///Draw only the pins having a signal
+		bool used_only = false;
+			///Name of the connector on the unit (JD1A, CZ2L...)
+		QString title;
 			///Face seen from the solder (back) side instead of the mating side
 		bool solder_side = false;
 		PinSide side = Left;
@@ -97,6 +113,7 @@ namespace ConnectorGenerator
 	QList<Pin> pins(const Settings &settings);
 	QStringList presetSignals(const Settings &settings);
 	QString defaultName(const Settings &settings);
+	QStringList presetTitles(const Settings &settings);
 	QDomDocument build(const Settings &settings);
 }
 
