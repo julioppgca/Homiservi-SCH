@@ -20,12 +20,14 @@
 
 #include "../../ElementsCollection/elementslocation.h"
 
+#include <QPointer>
 #include <QCloseEvent>
 #include <QMainWindow>
 
 class ElementScene;
 class QActionGroup;
 class QComboBox;
+class ElementCheckDialog;
 class ElementItemEditor;
 class ElementView;
 class QListWidget;
@@ -120,6 +122,7 @@ class QETElementEditor : public QMainWindow
 		void showDatasheet();
 		void showPictureComponent();
 		void placeTerminalsOnGrid();
+		void showElementCheck();
 		void editTextStyles();
 		void applyTextStyle(int index);
 		void showTextStyle();
@@ -153,6 +156,7 @@ class QETElementEditor : public QMainWindow
 
 		QList<QAction *> m_context_menu_action_list;
 		QComboBox *m_text_style_combo = nullptr;
+		QPointer<ElementCheckDialog> m_check_dialog;
 
 		QAction
 			*m_scale_element_action = nullptr,
@@ -163,6 +167,7 @@ class QETElementEditor : public QMainWindow
 			*m_picture_action = nullptr,
 			*m_terminals_grid_action = nullptr,
 			*m_text_styles_action = nullptr,
+			*m_check_action = nullptr,
 			*m_undo_action = nullptr,
 			*m_redo_action = nullptr;
 

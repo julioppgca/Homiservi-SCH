@@ -97,6 +97,7 @@
 
 #include "../editor/elementscene.h"
 #include "../editor/elementtextstyles.h"
+#include "../editor/elementchecker.h"
 #include "../editor/graphicspart/partarc.h"
 #include "../editor/graphicspart/partdynamictextfield.h"
 #include "../editor/graphicspart/partellipse.h"
@@ -3098,6 +3099,24 @@ QVariantList QetScriptApi::elementEditorSnap(const QString &definition, const QV
 				delete undo;
 			}
 			results << bool(undo);
+		} else if (op == "check") {
+			QVariantList list;
+			for (const ElementChecker::Issue &issue : ElementChecker::check(scene))
+				list << QVariantMap {{"id", issue.id}, {"severity", int(issue.severity)},
+						     {"detail", issue.detail}, {"parts", issue.items.size()},
+						     {"fix", ElementChecker::fixName(issue.fix)}};
+			results << QVariant(list);
+		} else if (op == "fix") {
+			bool fixed = false;
+			for (const ElementChecker::Issue &issue : ElementChecker::check(scene)) {
+				if (issue.id != step.value("id").toString())
+					continue;
+				if (QUndoCommand *undo = ElementChecker::fix(scene, issue)) {
+					scene->undoStack().push(undo);
+					fixed = true;
+				}
+			}
+			results << fixed;
 		} else if (op == "definition") {
 			results << scene->toXml().toString(1);
 		} else {

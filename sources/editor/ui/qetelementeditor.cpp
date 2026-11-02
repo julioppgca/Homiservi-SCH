@@ -67,6 +67,8 @@
 #include "../../QPropertyUndoCommand/qpropertyundocommand.h"
 #include "../../ui/textstylesdialog.h"
 #include "../elementtextstyles.h"
+#include "../elementchecker.h"
+#include "elementcheckdialog.h"
 
 #include <QSettings>
 #include <QActionGroup>
@@ -906,6 +908,15 @@ bool QETElementEditor::checkElement()
 		}
 	}
 
+		// Terminals a conductor cannot reach well: off the diagrams' grid,
+		// on top of each other, facing into the drawing
+	for (const ElementChecker::Issue &issue : ElementChecker::check(m_elmt_scene)) {
+		if (issue.id == QLatin1String("off_grid") || issue.id == QLatin1String("stacked")
+		    || issue.id == QLatin1String("facing_in"))
+			warnings << qMakePair(issue.title, QStringLiteral("<br>") + issue.detail.toHtmlEscaped()
+					      + tr("<br>Édition > Verificar componente (F7) corrige ou mostra as partes."));
+	}
+
 	if (!errors.count() && !warnings.count()) {
 		return(true);
 	}
@@ -1210,6 +1221,12 @@ void QETElementEditor::setupActions()
 	ShortcutManager::instance().registerAction(m_terminals_grid_action, "elementeditor.terminals_on_grid", tr("Éditeur d'élément"), QKeySequence());
 	connect(m_terminals_grid_action, &QAction::triggered, this, &QETElementEditor::placeTerminalsOnGrid);
 
+	m_check_action = new QAction(QET::Icons::DialogInformation, tr("Verificar componente..."), this);
+	m_check_action->setStatusTip(tr("Procura bornes fora da grade, sobrepostos, virados para dentro ou sem nome, falta do campo de rótulo, textos sobre bornes e partes vazias, e corrige o que der"));
+	ui->m_edit_menu->addAction(m_check_action);
+	ShortcutManager::instance().registerAction(m_check_action, "elementeditor.check_element", tr("Éditeur d'élément"), QKeySequence(Qt::Key_F7));
+	connect(m_check_action, &QAction::triggered, this, &QETElementEditor::showElementCheck);
+
 		//Point snap: the cursor and the parts moved snap to the ends,
 		//corners, centres, terminals and text anchors of the other parts
 	auto *point_snap_action = new QAction(QIcon::fromTheme("snap-points", QET::Icons::SnapToGrid), tr("Encaixe em pontos"), this);
@@ -1241,6 +1258,8 @@ void QETElementEditor::setupActions()
 	m_text_style_combo->setSizeAdjustPolicy(QComboBox::AdjustToContents);
 	styles_toolbar->addWidget(m_text_style_combo);
 	styles_toolbar->addAction(m_text_styles_action);
+	styles_toolbar->addSeparator();
+	styles_toolbar->addAction(m_check_action);
 	addToolBar(Qt::TopToolBarArea, styles_toolbar);
 	fillTextStyles();
 	connect(m_text_style_combo, QOverload<int>::of(&QComboBox::activated), this, &QETElementEditor::applyTextStyle);
@@ -2060,6 +2079,22 @@ void QETElementEditor::placeTerminalsOnGrid()
 					 m_elmt_scene->snapTerminal(pos, Qt::NoModifier), undo);
 	}
 	m_elmt_scene->undoStack().push(undo);
+}
+
+/**
+	@brief QETElementEditor::showElementCheck
+	Show what is wrong with the element, kept up to date while it is edited
+*/
+void QETElementEditor::showElementCheck()
+{
+	if (!m_check_dialog) {
+		m_check_dialog = new ElementCheckDialog(m_elmt_scene, this);
+		m_check_dialog->setAttribute(Qt::WA_DeleteOnClose);
+	}
+	m_check_dialog->refresh();
+	m_check_dialog->show();
+	m_check_dialog->raise();
+	m_check_dialog->activateWindow();
 }
 
 /**

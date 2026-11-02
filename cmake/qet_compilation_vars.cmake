@@ -448,6 +448,8 @@ set(QET_SRC_FILES
   ${QET_DIR}/sources/editor/picturecomponent.h
   ${QET_DIR}/sources/editor/elementtextstyles.cpp
   ${QET_DIR}/sources/editor/elementtextstyles.h
+  ${QET_DIR}/sources/editor/elementchecker.cpp
+  ${QET_DIR}/sources/editor/elementchecker.h
   ${QET_DIR}/sources/editor/modulegenerator.cpp
   ${QET_DIR}/sources/editor/modulegenerator.h
 
@@ -514,6 +516,8 @@ set(QET_SRC_FILES
   ${QET_DIR}/sources/editor/ui/datasheetdialog.h
   ${QET_DIR}/sources/editor/ui/picturecomponentdialog.cpp
   ${QET_DIR}/sources/editor/ui/picturecomponentdialog.h
+  ${QET_DIR}/sources/editor/ui/elementcheckdialog.cpp
+  ${QET_DIR}/sources/editor/ui/elementcheckdialog.h
   ${QET_DIR}/sources/editor/ui/modulegeneratordialog.cpp
   ${QET_DIR}/sources/editor/ui/modulegeneratordialog.h
   ${QET_DIR}/sources/editor/ui/terminaltabledialog.cpp
