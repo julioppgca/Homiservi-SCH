@@ -1663,7 +1663,6 @@ void QETDiagramEditor::setUpMenu()
 	menu_edition -> addAction(m_rotate_selection);
 	menu_edition -> addAction(m_rotate_group_selection);
 	menu_edition -> addAction(m_rotate_texts);
-	menu_edition -> addAction(m_find_element);
 	menu_edition -> addAction(m_edit_selection);
 	QMenu *group_menu = menu_edition -> addMenu(QET::Icons::textGroup, tr("Grouper"));
 	group_menu -> addAction(m_group_selection);
@@ -1692,9 +1691,9 @@ void QETDiagramEditor::setUpMenu()
 	m_variant_menu -> addSeparator();
 	connect(m_variant_menu -> addAction(tr("Sem tipo (conta como padrão)")), &QAction::triggered,
 		this, [this]() { applyVariant(QString()); });
-	menu_edition -> addSeparator();
-	menu_edition -> addAction(m_conductor_reset);
-	menu_edition -> addAction(m_conductor_numerate_ends);
+	QMenu *conductor_menu = menu_edition -> addMenu(QET::Icons::Conductor, tr("Condutores"));
+	conductor_menu -> addAction(m_conductor_reset);
+	conductor_menu -> addAction(m_conductor_numerate_ends);
 	menu_edition -> addSeparator();
 	menu_edition -> addAction(m_edit_diagram_properties);
 		//Shared with the folio's context menu (see
@@ -1705,56 +1704,76 @@ void QETDiagramEditor::setUpMenu()
 	QMenu *depth_menu = menu_edition -> addMenu(QET::Icons::BringForward, tr("Profondeur"));
 	depth_menu -> addActions(m_depth_action_group->actions());
 	menu_edition -> addSeparator();
-	menu_edition -> addAction(m_find);
-	menu_edition -> addAction(m_jump_to_element);
-	menu_edition -> addAction(m_command_search);
+	QMenu *search_menu = menu_edition -> addMenu(QET::Icons::ZoomDraw, tr("Localizar"));
+	search_menu -> addAction(m_find);
+	search_menu -> addAction(m_jump_to_element);
+	search_menu -> addAction(m_command_search);
+	search_menu -> addAction(m_find_element);
 	menu_edition -> addSeparator();
 	menu_edition -> addAction(m_show_shortcut_bar);
 	menu_edition -> addAction(m_repeat_last_command);
 
 	// menu Projet
+		//Thirty entries in one column did not fit on a laptop screen: the
+		//families sit one level down, as in the Edit menu. Every action and
+		//its shortcut is unchanged.
 	menu_project -> addAction(m_project_edit_properties);
-	menu_project -> addAction(m_auto_conductor);
-		//Sits beside m_auto_conductor, the setting it pairs with. It was
-		//toolbar-only and so had no keyboard route at all.
-	menu_project -> addAction(m_auto_break_conductor);
+	menu_project -> addAction(m_homiservi_data);
+	menu_project -> addAction(m_project_revisions);
 	menu_project -> addSeparator();
 	menu_project -> addAction(m_project_add_diagram);
 	menu_project -> addAction(m_remove_diagram_from_project);
-	menu_project -> addAction(m_clean_project);
-	menu_project -> addAction(m_project_history);
-	menu_project -> addAction(m_project_compare);
 	menu_project -> addSeparator();
-	menu_project -> addAction(m_add_summary);
-	menu_project -> addAction(m_add_nomenclature);
-	menu_project -> addAction(m_csv_export);
-	menu_project -> addAction(m_project_export_conductor_num);
-	menu_project -> addAction(m_terminal_strip_dialog);
-	menu_project -> addAction(m_project_terminalBloc);
-	menu_project -> addAction(m_project_export_wiring_list);
-	menu_project -> addAction(m_project_print_wire_tags);
-	menu_project -> addAction(m_project_export_wire_tags_csv);
-	menu_project -> addAction(m_project_wiring_list_view);
-	menu_project -> addAction(m_wiring_editor);
-	menu_project -> addAction(m_potential_rules);
+
+	QMenu *generated_menu = menu_project -> addMenu(QET::Icons::TableOfContent, tr("Folhas automáticas"));
+	generated_menu -> addAction(m_add_summary);
+	generated_menu -> addAction(m_add_nomenclature);
+	generated_menu -> addAction(m_add_component_list);
+	generated_menu -> addSeparator();
+	generated_menu -> addAction(m_terminal_sheets);
+	generated_menu -> addAction(m_io_maps);
+
+	QMenu *wiring_menu = menu_project -> addMenu(QET::Icons::Conductor, tr("Fiação e condutores"));
+	wiring_menu -> addAction(m_auto_conductor);
+		//Sits beside m_auto_conductor, the setting it pairs with. It was
+		//toolbar-only and so had no keyboard route at all.
+	wiring_menu -> addAction(m_auto_break_conductor);
+	wiring_menu -> addSeparator();
+	wiring_menu -> addAction(m_wiring_editor);
+	wiring_menu -> addAction(m_project_wiring_list_view);
+	wiring_menu -> addAction(m_potential_rules);
+
+	QMenu *terminal_menu = menu_project -> addMenu(QET::Icons::TerminalStrip, tr("Bornes"));
+	terminal_menu -> addAction(m_terminal_strip_dialog);
+	terminal_menu -> addAction(m_project_terminalBloc);
+	terminal_menu -> addAction(m_terminal_numbering);
+
+	QMenu *export_menu = menu_project -> addMenu(QET::Icons::DocumentSpreadsheet, tr("Exportar listas"));
+	export_menu -> addAction(m_csv_export);
+	export_menu -> addAction(m_project_export_conductor_num);
+	export_menu -> addAction(m_project_export_wiring_list);
+	export_menu -> addSeparator();
+	export_menu -> addAction(m_project_print_wire_tags);
+	export_menu -> addAction(m_project_export_wire_tags_csv);
+#ifdef QET_EXPORT_PROJECT_DB
+	export_menu -> addSeparator();
+	export_menu -> addAction(m_export_project_db);
+#endif
 	menu_project -> addAction(m_text_styles);
-	menu_project -> addAction(m_homiservi_data);
-	menu_project -> addAction(m_project_revisions);
-	menu_project -> addAction(m_add_component_list);
-	menu_project -> addAction(m_terminal_sheets);
-	menu_project -> addAction(m_io_maps);
-	menu_project -> addAction(m_terminal_numbering);
-	menu_project -> addAction(m_reload_element_drawings);
+	menu_project -> addSeparator();
+
+	QMenu *maintenance_menu = menu_project -> addMenu(QET::Icons::EditClear, tr("Manutenção"));
+	maintenance_menu -> addAction(m_clean_project);
+	maintenance_menu -> addAction(m_reload_element_drawings);
+	maintenance_menu -> addSeparator();
+	maintenance_menu -> addAction(m_project_history);
+	maintenance_menu -> addAction(m_project_compare);
 #ifdef QET_HAS_SCRIPTING
 	m_scripts_menu = menu_project -> addMenu(tr("Scripts"));
 	rebuildScriptActions();
 	connect(&ScriptLibrary::instance(), &ScriptLibrary::changed,
 		this, &QETDiagramEditor::rebuildScriptActions);
 	AssistantInfo::watch();
-#endif
-#ifdef QET_EXPORT_PROJECT_DB
-	menu_project -> addSeparator();
-	menu_project -> addAction(m_export_project_db);
 #endif
 
 	main_tool_bar         -> toggleViewAction() -> setStatusTip(tr("Affiche ou non la barre d'outils principale"));
