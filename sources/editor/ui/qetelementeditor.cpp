@@ -1950,15 +1950,18 @@ void QETElementEditor::showDatasheet()
 	auto undo = new QUndoCommand(tr("Aplicar o datasheet"));
 
 	if (dialog.drawPins()) {
+			//The parts to replace, taken before fromXml() adds the new ones
+		QVector<QGraphicsItem *> old_parts;
+		if (dialog.replaceDrawing()) {
+			for (CustomElementPart *part : m_elmt_scene->primitives()) {
+				old_parts << part->toItem();
+			}
+		}
 		ElementContent content;
 		m_elmt_scene->fromXml(ModuleGenerator::build(DatasheetReader::drawing(dialog.pins(), dialog.bodyText())),
 				      QPointF(), false, &content);
 		if (!content.isEmpty()) {
-			if (dialog.replaceDrawing()) {
-				QVector<QGraphicsItem *> old_parts;
-				for (CustomElementPart *part : m_elmt_scene->primitives()) {
-					old_parts << part->toItem();
-				}
+			if (!old_parts.isEmpty()) {
 				new DeletePartsCommand(m_elmt_scene, old_parts, undo);
 			}
 			m_elmt_scene->clearSelection();
@@ -2001,14 +2004,17 @@ void QETElementEditor::showPictureComponent()
 	}
 	auto undo = new QUndoCommand(tr("Componente a partir de imagem"));
 
+		//The parts to replace, taken before fromXml() adds the new ones
+	QVector<QGraphicsItem *> old_parts;
+	if (dialog.replaceDrawing()) {
+		for (CustomElementPart *part : m_elmt_scene->primitives()) {
+			old_parts << part->toItem();
+		}
+	}
 	ElementContent content;
 	m_elmt_scene->fromXml(dialog.drawing(), QPointF(), false, &content);
 	if (!content.isEmpty()) {
-		if (dialog.replaceDrawing()) {
-			QVector<QGraphicsItem *> old_parts;
-			for (CustomElementPart *part : m_elmt_scene->primitives()) {
-				old_parts << part->toItem();
-			}
+		if (!old_parts.isEmpty()) {
 			new DeletePartsCommand(m_elmt_scene, old_parts, undo);
 		}
 		m_elmt_scene->clearSelection();

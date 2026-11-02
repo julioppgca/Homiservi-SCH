@@ -161,7 +161,7 @@ QDomDocument PictureComponentDialog::drawing() const
 
 bool PictureComponentDialog::replaceDrawing() const
 {
-	return m_replace->isChecked();
+	return m_has_drawing && m_replace->isChecked();
 }
 
 QString PictureComponentDialog::name() const
