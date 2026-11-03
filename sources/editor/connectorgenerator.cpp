@@ -227,7 +227,8 @@ namespace {
 		///The round motor connectors (JAE JN2, MS)
 	bool isRound(const QString &id)
 	{
-		return id == QLatin1String("jn2_10") || id == QLatin1String("jn2_4") || id == QLatin1String("ms18_10");
+		return id == QLatin1String("jn2_10") || id == QLatin1String("jn2_4") || id == QLatin1String("ms18_10")
+		       || id == QLatin1String("jl10_22_22");
 	}
 
 	bool isHighDensity(const QString &id)
@@ -362,9 +363,12 @@ namespace {
 			{"jn2_10", tr("Pulsecoder αi / βiS – conector do motor"), {"Pulsecoder"},
 			 {{"3", "FG"}, {"4", "+6V"}, {"5", "*RD"}, {"6", "RD"}, {"7", "0V"}, {"8", "+5V"},
 			  {"9", "+5V"}, {"10", "0V"}}},
-			{"jn2_4", tr("Freio – JN2AS04MK2-R (αiS 8 a 200)"), {"Freio"},
+			{"jn2_4", tr("Freio – JN2AS04MK2-R (αiS 8 a 200, βiS 8 a 40)"), {"Freio"},
 			 {{"1", "BK"}, {"2", "BK"}, {"4", "GND"}}},
 			{"ms18_10", tr("Potência do servomotor – MS3102A18-10P"), {"Motor"},
+			 {{"A", "U"}, {"B", "V"}, {"C", "W"}, {"D", "GND"}}},
+				//B-65302EN (1.3.3), βiS 22/3000-B and the like
+			{"jl10_22_22", tr("Potência do servomotor βiS – JL10-2E22-22PE"), {"Motor"},
 			 {{"A", "U"}, {"B", "V"}, {"C", "W"}, {"D", "GND"}}},
 			{"tyco1x6", tr("Potência e freio – 1473060-2 (αiS 2 a 4)"), {"Motor"},
 			 {{"1", "U"}, {"2", "V"}, {"3", "W"}, {"4", "GND"}, {"5", "BK"}, {"6", "BK"}}},
@@ -584,6 +588,7 @@ QList<ConnectorGenerator::Variant> ConnectorGenerator::variants()
 		{QStringLiteral("jn2_10"), Fanuc, tr("JAE JN2 10 pinos (pulsecoder)"), {none}},
 		{QStringLiteral("jn2_4"), Fanuc, tr("JAE JN2 4 pinos (freio)"), {none}},
 		{QStringLiteral("ms18_10"), Fanuc, tr("MS3102A18-10P (4 pinos, potência)"), {none}},
+		{QStringLiteral("jl10_22_22"), Fanuc, tr("JAE JL10-2E22-22PE (4 pinos, potência βiS)"), {none}},
 		{QStringLiteral("generic"), Generic, tr("Genérico"), {none}},
 	};
 	for (Variant &v : list)
@@ -680,8 +685,8 @@ QList<ConnectorGenerator::Pin> ConnectorGenerator::pins(const Settings &s)
 			//A cross: 1 at the top, 2 left, 3 right, 4 at the bottom
 		list << Pin {"1", QPointF(1, 0)} << Pin {"2", QPointF(0, 1)} << Pin {"3", QPointF(2, 1)}
 		     << Pin {"4", QPointF(1, 2)};
-	} else if (id == QLatin1String("ms18_10")) {
-			//D A over C B, the key on top (B-65262EN 7.2.5)
+	} else if (id == QLatin1String("ms18_10") || id == QLatin1String("jl10_22_22")) {
+			//D A over C B, the key on top (B-65262EN 7.2.5, B-65302EN 1.3.3)
 		list << Pin {"A", QPointF(1, 0)} << Pin {"B", QPointF(1, 1)} << Pin {"C", QPointF(0, 1)}
 		     << Pin {"D", QPointF(0, 0)};
 	} else if (id == QLatin1String("generic")) {
