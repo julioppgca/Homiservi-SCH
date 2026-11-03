@@ -854,6 +854,22 @@ void QetShapeItem::mousePressEvent(QGraphicsSceneMouseEvent *event)
 	// -- so deciding "reshape vs. cycle" at press time would make it
 	// impossible to ever click onward to RotateSkew once in NodeEdit.
 	// Deferred to mouseMoveEvent/mouseReleaseEvent instead, below.
+		//The label of a cable is dragged on its own, the cable stays
+	if (isCable() && event->button() == Qt::LeftButton && cableLabelRect().contains(event->pos()))
+	{
+		if (!isSelected())
+		{
+			if (!(event->modifiers() & Qt::ControlModifier) && scene())
+				scene()->clearSelection();
+			setSelected(true);
+		}
+		m_label_drag = true;
+		m_label_drag_start = event->scenePos();
+		m_label_old_offset = m_cable.label_offset;
+		event->accept();
+		return;
+	}
+
 	if (m_shapeType == Path && m_handleMode == HandleMode::NodeEdit && event->button() == Qt::LeftButton)
 	{
 		const auto hit = nearestPathSegment(event->pos());
@@ -896,6 +912,20 @@ void QetShapeItem::mousePressEvent(QGraphicsSceneMouseEvent *event)
 */
 void QetShapeItem::mouseMoveEvent(QGraphicsSceneMouseEvent *event)
 {
+	if (m_label_drag)
+	{
+		QPointF offset = m_label_old_offset + mapFromScene(event->scenePos()) - mapFromScene(m_label_drag_start);
+		if (!(event->modifiers() & Qt::ControlModifier))
+			offset = QPointF(qRound(offset.x() / 5) * 5, qRound(offset.y() / 5) * 5);
+		if (offset != m_cable.label_offset)
+		{
+			prepareGeometryChange();
+			m_cable.label_offset = offset;
+			update();
+		}
+		event->accept();
+		return;
+	}
 	if (m_curveDragSegment >= 0)
 	{
 		if (!m_curveDragEngaged)
@@ -927,6 +957,20 @@ void QetShapeItem::mouseMoveEvent(QGraphicsSceneMouseEvent *event)
 */
 void QetShapeItem::mouseReleaseEvent(QGraphicsSceneMouseEvent *event)
 {
+	if (m_label_drag)
+	{
+		m_label_drag = false;
+		if (m_cable.label_offset != m_label_old_offset && diagram())
+		{
+			CableData old_data = m_cable;
+			old_data.label_offset = m_label_old_offset;
+			auto *undo = new QPropertyUndoCommand(this, "cableData", old_data.toMap(), m_cable.toMap());
+			undo->setText(tr("Mover a etiqueta do cabo %1").arg(m_cable.name));
+			diagram()->undoStack().push(undo);
+		}
+		event->accept();
+		return;
+	}
 	if (m_curveDragSegment >= 0)
 	{
 		if (m_curveDragEngaged)
@@ -3543,7 +3587,7 @@ void QetShapeItem::updateCableMembers(const QString &name, QGraphicsScene *scene
 /**
 	@brief QetShapeItem::cableLabelRect
 	@return where the name of the cable is written: beside the middle of
-	its longest segment
+	its longest segment, moved by where the user dragged it
 */
 QRectF QetShapeItem::cableLabelRect() const
 {
@@ -3564,8 +3608,8 @@ QRectF QetShapeItem::cableLabelRect() const
 	const QFontMetricsF metrics(QETApp::diagramTextsFont(8));
 	const QSizeF size(metrics.horizontalAdvance(m_cable.label()) + 10, metrics.height() + 4);
 	if (qAbs(b.x() - a.x()) >= qAbs(b.y() - a.y()))
-		return QRectF(QPointF(middle.x() - size.width() / 2, middle.y() - 7 - size.height()), size);
-	return QRectF(QPointF(middle.x() + 7, middle.y() - size.height() / 2), size);
+		return QRectF(QPointF(middle.x() - size.width() / 2, middle.y() - 7 - size.height()) + m_cable.label_offset, size);
+	return QRectF(QPointF(middle.x() + 7, middle.y() - size.height() / 2) + m_cable.label_offset, size);
 }
 
 /**
@@ -3680,6 +3724,18 @@ void QetShapeItem::paintCable(QPainter *painter)
 	const QList<Conductor *> members = cableMembers();
 	const bool too_many = m_cable.cores > 0 && members.size() > m_cable.cores;
 	const QRectF label = cableLabelRect();
+		//Dragged away from the cable: a leader line back to it
+	const CableGeometry::Projection anchor = CableGeometry::project(m_polygon, label.center());
+	if (anchor.valid && !m_cable.label_offset.isNull())
+	{
+		const QPointF edge(qBound(label.left(), anchor.point.x(), label.right()),
+				   qBound(label.top(), anchor.point.y(), label.bottom()));
+		if (QLineF(edge, anchor.point).length() > 10)
+		{
+			painter->setPen(QPen(color, 1, Qt::DashLine));
+			painter->drawLine(edge, anchor.point);
+		}
+	}
 	painter->setPen(QPen(too_many ? QColor(Qt::red) : color, 1));
 	painter->setBrush(QColor(230, 241, 251));
 	painter->drawRect(label);

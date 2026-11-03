@@ -55,7 +55,7 @@ class CableDialog : public QDialog
 		CableData m_data;
 		QLineEdit *m_name, *m_code, *m_formation, *m_length;
 		QSpinBox *m_cores;
-		QCheckBox *m_shielded;
+		QCheckBox *m_shielded, *m_reset_label;
 		QComboBox *m_shield_ground;
 };
 

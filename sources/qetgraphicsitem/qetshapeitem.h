@@ -373,6 +373,8 @@ class QetShapeItem : public QetGraphicsItem
 		QPointer<QGraphicsScene> m_cable_scene;   // the scene the cable was last in, for its wires to be redrawn once it leaves
 		QVector<PathNode> m_nodes;
 		QVector<PathNode> m_old_nodes;              // saved at handle press, for undo
+		bool             m_label_drag = false;     // dragging the label of a cable
+		QPointF          m_label_drag_start, m_label_old_offset;
 		int              m_curveDragSegment = -1;   // >=0 while dragging the curve itself (not a handle) between two nodes
 		qreal            m_curveDragT = 0;          // parameter along that segment where the drag started
 		QPointF          m_curveDragOriginalP1, m_curveDragOriginalP2;   // absolute control points at drag start, fixed for the whole drag

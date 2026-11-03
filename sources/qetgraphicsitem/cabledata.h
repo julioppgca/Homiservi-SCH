@@ -20,6 +20,7 @@
 
 #include <QDomElement>
 #include <QPainterPath>
+#include <QPointF>
 #include <QPolygonF>
 #include <QString>
 #include <QVariantMap>
@@ -46,12 +47,13 @@ struct CableData
 	int cores = 0;		///< 0: not given, no check of the wires against it
 	bool shielded = false;
 	int shield_ground = GroundStart;
+	QPointF label_offset;	///< Where the label was dragged, from its default place
 
 	bool operator==(const CableData &other) const {
 		return enabled == other.enabled && name == other.name && code == other.code
 			&& formation == other.formation && length == other.length
 			&& cores == other.cores && shielded == other.shielded
-			&& shield_ground == other.shield_ground;
+			&& shield_ground == other.shield_ground && label_offset == other.label_offset;
 	}
 	bool operator!=(const CableData &other) const {return !(*this == other);}
 
@@ -70,6 +72,8 @@ struct CableData
 		map.insert(QStringLiteral("cores"), cores);
 		map.insert(QStringLiteral("shielded"), shielded);
 		map.insert(QStringLiteral("shield_ground"), shield_ground);
+		map.insert(QStringLiteral("label_dx"), label_offset.x());
+		map.insert(QStringLiteral("label_dy"), label_offset.y());
 		return map;
 	}
 
@@ -83,6 +87,8 @@ struct CableData
 		data.cores = map.value(QStringLiteral("cores")).toInt();
 		data.shielded = map.value(QStringLiteral("shielded")).toBool();
 		data.shield_ground = map.value(QStringLiteral("shield_ground"), int(GroundStart)).toInt();
+		data.label_offset = QPointF(map.value(QStringLiteral("label_dx")).toDouble(),
+					    map.value(QStringLiteral("label_dy")).toDouble());
 		return data;
 	}
 
@@ -95,6 +101,11 @@ struct CableData
 		e.setAttribute(QStringLiteral("cores"), cores);
 		e.setAttribute(QStringLiteral("shielded"), shielded ? 1 : 0);
 		e.setAttribute(QStringLiteral("shield_ground"), shield_ground);
+		if (!label_offset.isNull())
+		{
+			e.setAttribute(QStringLiteral("label_dx"), label_offset.x());
+			e.setAttribute(QStringLiteral("label_dy"), label_offset.y());
+		}
 		return e;
 	}
 
@@ -112,6 +123,8 @@ struct CableData
 		data.cores = e.attribute(QStringLiteral("cores"), QStringLiteral("0")).toInt();
 		data.shielded = e.attribute(QStringLiteral("shielded"), QStringLiteral("0")).toInt();
 		data.shield_ground = e.attribute(QStringLiteral("shield_ground"), QStringLiteral("1")).toInt();
+		data.label_offset = QPointF(e.attribute(QStringLiteral("label_dx"), QStringLiteral("0")).toDouble(),
+					    e.attribute(QStringLiteral("label_dy"), QStringLiteral("0")).toDouble());
 		return data;
 	}
 };

@@ -68,6 +68,9 @@ CableDialog::CableDialog(QetShapeItem *cable, QWidget *parent) :
 	form->addRow(tr("Vias"), m_cores);
 	form->addRow(QString(), m_shielded);
 	form->addRow(tr("Blindagem aterrada"), m_shield_ground);
+	m_reset_label = new QCheckBox(tr("Voltar a etiqueta para junto do cabo"), this);
+	m_reset_label->setVisible(!m_data.label_offset.isNull());
+	form->addRow(QString(), m_reset_label);
 
 		//The wires already in the cable, to check them against the cores
 	QStringList wires;
@@ -114,6 +117,8 @@ CableData CableDialog::data() const
 	data.cores = m_cores->value();
 	data.shielded = m_shielded->isChecked();
 	data.shield_ground = m_shield_ground->currentData().toInt();
+	if (m_reset_label->isChecked())
+		data.label_offset = QPointF();
 	return data;
 }
 
