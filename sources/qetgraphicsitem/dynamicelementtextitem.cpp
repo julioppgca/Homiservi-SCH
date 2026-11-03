@@ -24,6 +24,7 @@
 #include "../qetgraphicsitem/conductor.h"
 #include "../qetgraphicsitem/terminal.h"
 #include "../qetinformation.h"
+#include "../ioaddress.h"
 #include "../utils/qetutils.h"
 #include "../QetGraphicsItemModeler/qetgraphicshandleritem.h"
 #include "crossrefitem.h"
@@ -469,7 +470,7 @@ void DynamicElementTextItem::setTextFrom(DynamicElementTextItem::TextFrom text_f
 			updateLabel();
 		}
 		else
-			setPlainText(autonum::AssignVariables::replaceVariable(m_composite_text, elementUseForInfo()->elementInformations()));
+			setPlainText(autonum::AssignVariables::replaceVariable(m_composite_text, IoAddress::context(elementUseForInfo())));
 		
 		if(old_text_from == UserText)
 			connect(elementUseForInfo(), &Element::elementInfoChange, this, &DynamicElementTextItem::elementInfoChanged);
@@ -1099,12 +1100,23 @@ void DynamicElementTextItem::handlerMouseReleaseEvent(QetGraphicsHandlerItem *ha
 	}
 }
 
+/**
+	@brief DynamicElementTextItem::refreshIoAddresses
+	Shows again the I/O addresses of this text (see IoAddress), once the
+	base of its element is known or has changed
+*/
+void DynamicElementTextItem::refreshIoAddresses()
+{
+	if (m_text_from == CompositeText && IoAddress::contains(m_composite_text))
+		elementInfoChanged();
+}
+
 void DynamicElementTextItem::elementInfoChanged()
 {
 	DiagramContext dc;
 	Element *element = elementUseForInfo();
 	if(element) {
-		dc = element->elementInformations();
+		dc = IoAddress::context(element);
 	}
 	
 	QString final_text;
@@ -1386,7 +1398,7 @@ void DynamicElementTextItem::updateLabel()
 		DiagramContext dc;
 		Element *element = elementUseForInfo();
 		if(element) {
-			dc = element->elementInformations();
+			dc = IoAddress::context(element);
 		}
 		
 

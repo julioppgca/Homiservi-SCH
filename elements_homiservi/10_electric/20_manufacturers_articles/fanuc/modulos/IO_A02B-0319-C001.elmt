@@ -212,5 +212,21 @@
         <rect antialias="false" height="2.5" rx="0" ry="0" style="line-style:normal;line-weight:thin;filling:black;color:black" uuid="{aa06c11b-49e5-54c3-9796-a6b9875b6909}" width="2.4" x="298.8" y="200"/>
         <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="GND" uuid="{7a275d8f-5f0c-5441-8c87-f3229bbe8f43}" x="303.09" y="183"/>
         <terminal name="GND" orientation="s" type="Generic" uuid="{142548e8-9a44-5b3b-97b6-48d225283fd4}" x="300" y="210"/>
+        <line antialias="false" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" uuid="{cba38e1a-a948-4b11-a1ba-be60974f58c3}" x1="340" x2="340" y1="180" y2="210"/>
+        <rect antialias="false" height="2.5" rx="0" ry="0" style="line-style:normal;line-weight:thin;filling:black;color:black" uuid="{e5177b35-af64-47b4-bff5-f104fee93f4a}" width="2.4" x="338.8" y="200"/>
+        <terminal name="CB104" orientation="s" type="Generic" uuid="{e5d1333b-1edf-418a-9f31-e3b78dc22898}" x="340" y="210"/>
+        <line antialias="false" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" uuid="{cbf715c9-60d1-4ba9-a619-5cc390d84898}" x1="370" x2="370" y1="180" y2="210"/>
+        <rect antialias="false" height="2.5" rx="0" ry="0" style="line-style:normal;line-weight:thin;filling:black;color:black" uuid="{b3e3c3c0-7fef-4540-9ca4-8a38b73fec80}" width="2.4" x="368.8" y="200"/>
+        <terminal name="CB105" orientation="s" type="Generic" uuid="{2d31a963-c053-42ba-b321-0027b7bfe29b}" x="370" y="210"/>
+        <line antialias="false" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" uuid="{792b24f2-1349-446f-91d6-8ffa030a6f4c}" x1="400" x2="400" y1="180" y2="210"/>
+        <rect antialias="false" height="2.5" rx="0" ry="0" style="line-style:normal;line-weight:thin;filling:black;color:black" uuid="{7408d2b4-3b49-4c75-bc60-1da427010c87}" width="2.4" x="398.8" y="200"/>
+        <terminal name="CB106" orientation="s" type="Generic" uuid="{61df2182-12e1-4aaf-a648-69a124e71e7f}" x="400" y="210"/>
+        <line antialias="false" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" uuid="{2f314fb6-df99-40bb-9c25-03213d6fc46b}" x1="430" x2="430" y1="180" y2="210"/>
+        <rect antialias="false" height="2.5" rx="0" ry="0" style="line-style:normal;line-weight:thin;filling:black;color:black" uuid="{8585561f-eaea-4182-971c-5b3df6c2a464}" width="2.4" x="428.8" y="200"/>
+        <terminal name="CB107" orientation="s" type="Generic" uuid="{7f9a707e-6525-425f-9eba-be93eb08f3e7}" x="430" y="210"/>
+        <dynamic_text Halignment="AlignLeft" Valignment="AlignTop" element_style="Rótulo" font="Liberation Sans,8,-1,0,50,0,0,0,0,0,Regular" frame="false" keep_visual_rotation="true" rotation="0" rotation_point_center="false" text_from="CompositeText" text_width="-1" uuid="{e7fa7513-fd30-44d5-b8a9-5c3ff8d5c272}" x="106" y="113" z="2">
+            <text/>
+            <composite_text>%{Xm+0} a %{Xm+11} / %{Yn+0} a %{Yn+7}</composite_text>
+        </dynamic_text>
     </description>
 </definition>

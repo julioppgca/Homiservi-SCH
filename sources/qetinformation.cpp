@@ -208,6 +208,8 @@ QStringList QETInformation::elementInfoKeys()
 					 ELMT_APPLICATION,
 					 ELMT_DATASHEET,
 					 ELMT_XREF,
+					 ELMT_IO_X_BASE,
+					 ELMT_IO_Y_BASE,
 					 "exclude_from_bom" };
 	return list;
 }
@@ -380,6 +382,8 @@ QString QETInformation::translatedInfoKey(const QString &info)
 	else if (info == ELMT_VARIANT)                       return QObject::tr("Tipo (X/O/V/E)");
 	else if (info == ELMT_APPLICATION)                   return QObject::tr("Aplicação");
 	else if (info == ELMT_DATASHEET)                     return QObject::tr("Datasheet (arquivo ou link)");
+	else if (info == ELMT_IO_X_BASE)                     return QObject::tr("Endereço base das entradas X (m)");
+	else if (info == ELMT_IO_Y_BASE)                     return QObject::tr("Endereço base das saídas Y (n)");
 	else return QString();
 }
 

@@ -17,6 +17,7 @@
 */
 
 #include "qetproject.h"
+#include "ioaddress.h"
 
 #include "ElementsCollection/xmlelementcollection.h"
 #include "autoNum/assignvariables.h"
@@ -2145,6 +2146,7 @@ void QETProject::readProjectXml(QDomDocument &xml_project)
 
 		//Now that all are loaded we refresh content of the project.
 	refresh();
+	IoAddress::refresh(this);
 	const qint64 refresh_ms = phase_timer.restart();
 
 	m_data_base.blockSignals(false);

@@ -204,6 +204,11 @@ class Element : public QetGraphicsItem
 		void addDynamicTextItem(DynamicElementTextItem *deti = nullptr);
 		void removeDynamicTextItem(DynamicElementTextItem *deti);
 		QList<DynamicElementTextItem *> dynamicTextItems() const;
+			///Whether a text of this element shows I/O addresses (IoAddress)
+		bool hasIoAddressTexts() const;
+			///The bases X and Y this element takes from another one (IoAddress)
+		QPair<QString, QString> inheritedIoBase() const {return m_io_inherited_base;}
+		void setInheritedIoBase(const QPair<QString, QString> &base) {m_io_inherited_base = base;}
 		ElementTextItemGroup *addTextGroup(const QString &name);
 		void addTextGroup(ElementTextItemGroup *group);
 		void removeTextGroup(ElementTextItemGroup *group);
@@ -296,6 +301,7 @@ class Element : public QetGraphicsItem
 			//ATTRIBUTES related to linked element
 		QList <Element *> connected_elements;
 		QList <LinkInfo>  tmp_uuids_link;
+		QPair<QString, QString> m_io_inherited_base;
 		QHash <Element *, int> m_group_index_map;  ///< Maps linked elements to their group index (for slave->master links)
 		QUuid             m_uuid;
 		kind              m_link_type = Element::Simple;

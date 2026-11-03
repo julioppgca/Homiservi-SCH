@@ -299,6 +299,14 @@ void ElementInfoWidget::buildInterface()
 		//has no entry for it that row carries no label at all - an anonymous
 		//line that currentInfo() then fills with "true"/"false".
 	keys.removeAll(QStringLiteral("exclude_from_bom"));
+		//The I/O bases only where they mean something (IoAddress)
+	const DiagramContext info = m_element.data()->elementInformations();
+	if (!m_element.data()->hasIoAddressTexts() && !info.contains(QETInformation::ELMT_IO_X_BASE)
+			&& !info.contains(QETInformation::ELMT_IO_Y_BASE))
+	{
+		keys.removeAll(QETInformation::ELMT_IO_X_BASE);
+		keys.removeAll(QETInformation::ELMT_IO_Y_BASE);
+	}
 
 	for (auto str : keys)
 	{

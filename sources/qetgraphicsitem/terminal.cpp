@@ -21,6 +21,8 @@
 #include "../qetproject.h"
 #include "../conductorautonumerotation.h"
 #include "../diagram.h"
+#include "../ioaddress.h"
+#include "../qetinformation.h"
 #include "../undocommand/addgraphicsobjectcommand.h"
 #include "../properties/terminaldata.h"
 #include "../qetgraphicsitem/conductor.h"
@@ -163,7 +165,24 @@ bool Terminal::addConductor(Conductor *conductor)
 
 	m_conductors_list.append(conductor);
 	emit conductorWasAdded(conductor);
+	scheduleIoRefresh();
 	return(true);
+}
+
+/**
+	@brief Terminal::scheduleIoRefresh
+	A terminal of an I/O module, or of what takes its I/O base from one,
+	gained or lost a conductor: where the bases come from may have changed
+*/
+void Terminal::scheduleIoRefresh()
+{
+	Element *element = parentElement();
+	if (!element || !diagram() || name().isEmpty())
+		return;
+	const DiagramContext dc = element->elementInformations();
+	if (element->hasIoAddressTexts() || dc.contains(QETInformation::ELMT_IO_X_BASE)
+			|| dc.contains(QETInformation::ELMT_IO_Y_BASE))
+		IoAddress::scheduleRefresh(diagram()->project());
 }
 
 /**
@@ -177,6 +196,7 @@ void Terminal::removeConductor(Conductor *conductor)
 	if (index == -1) return;
 	m_conductors_list.removeAt(index);
 	emit conductorWasRemoved(conductor);
+	scheduleIoRefresh();
 }
 
 /**

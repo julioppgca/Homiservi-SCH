@@ -28,163 +28,283 @@
         <line antialias="false" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" uuid="{6f2d97e3-ad34-42a9-aded-2a7ca9164c96}" x1="20" x2="20" y1="0" y2="-10"/>
         <rect antialias="false" height="2.5" rx="0" ry="0" style="line-style:normal;line-weight:thin;filling:black;color:black" uuid="{3d83fce2-7585-4a18-b6ca-b3597f0fa351}" width="2.4" x="18.8" y="-2.5"/>
         <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="(A2)" uuid="{b443a0a4-0a4d-4045-929d-cc078840c035}" x="23.09" y="20"/>
-        <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="Xm+7.0" uuid="{54d46242-8c36-49e4-937a-c80b8751dd62}" x="23.09" y="65"/>
+        <dynamic_text Halignment="AlignLeft" Valignment="AlignTop" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" frame="false" keep_visual_rotation="true" rotation="270" rotation_point_center="false" text_from="CompositeText" text_width="-1" uuid="{070cbae2-50ea-497d-b4b3-ee0e1997d00f}" x="10.64" y="69.00" z="2">
+            <text/>
+            <composite_text>%{Xm+7.0}</composite_text>
+        </dynamic_text>
         <line antialias="false" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" uuid="{dd80b171-967c-4089-8df7-8c5b6a0e0adc}" x1="30" x2="30" y1="0" y2="-10"/>
         <rect antialias="false" height="2.5" rx="0" ry="0" style="line-style:normal;line-weight:thin;filling:black;color:black" uuid="{42fe4a0d-7aea-4761-992c-7204c012fd7b}" width="2.4" x="28.8" y="-2.5"/>
         <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="(B2)" uuid="{c13aedf7-182b-40a5-975d-2843c7d2dffa}" x="33.09" y="20"/>
-        <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="Xm+7.1" uuid="{9b1735ed-ede3-48cd-bf41-1640000a0135}" x="33.09" y="65"/>
+        <dynamic_text Halignment="AlignLeft" Valignment="AlignTop" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" frame="false" keep_visual_rotation="true" rotation="270" rotation_point_center="false" text_from="CompositeText" text_width="-1" uuid="{35183433-c2f7-442f-a9a1-3d4baf4a71d3}" x="20.64" y="69.00" z="2">
+            <text/>
+            <composite_text>%{Xm+7.1}</composite_text>
+        </dynamic_text>
         <line antialias="false" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" uuid="{c091c26a-32e8-41a7-b35c-1302d3dd1626}" x1="40" x2="40" y1="0" y2="-10"/>
         <rect antialias="false" height="2.5" rx="0" ry="0" style="line-style:normal;line-weight:thin;filling:black;color:black" uuid="{d7d36239-7115-4f0a-9e6d-e93bcf2faced}" width="2.4" x="38.8" y="-2.5"/>
         <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="(A3)" uuid="{4af57eaf-cf9b-4850-a2ef-ce97b32b6cdf}" x="43.09" y="20"/>
-        <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="Xm+7.2" uuid="{dc3088fa-faaa-43af-9563-0bdbcabd8ad9}" x="43.09" y="65"/>
+        <dynamic_text Halignment="AlignLeft" Valignment="AlignTop" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" frame="false" keep_visual_rotation="true" rotation="270" rotation_point_center="false" text_from="CompositeText" text_width="-1" uuid="{d6183d69-fe73-4b3d-86e2-7b6ff5fa0c84}" x="30.64" y="69.00" z="2">
+            <text/>
+            <composite_text>%{Xm+7.2}</composite_text>
+        </dynamic_text>
         <line antialias="false" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" uuid="{a9288d68-745c-4558-a0b1-214458805058}" x1="50" x2="50" y1="0" y2="-10"/>
         <rect antialias="false" height="2.5" rx="0" ry="0" style="line-style:normal;line-weight:thin;filling:black;color:black" uuid="{13a6b01f-d35a-4486-acd0-28f3ec5cb77b}" width="2.4" x="48.8" y="-2.5"/>
         <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="(B3)" uuid="{197c7906-4818-49d6-9c30-b1c41db2a215}" x="53.09" y="20"/>
-        <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="Xm+7.3" uuid="{042eca94-713d-4e52-aca1-dc4aa5fa28c9}" x="53.09" y="65"/>
+        <dynamic_text Halignment="AlignLeft" Valignment="AlignTop" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" frame="false" keep_visual_rotation="true" rotation="270" rotation_point_center="false" text_from="CompositeText" text_width="-1" uuid="{159db558-476d-4d8d-9333-953e6327ddf1}" x="40.64" y="69.00" z="2">
+            <text/>
+            <composite_text>%{Xm+7.3}</composite_text>
+        </dynamic_text>
         <line antialias="false" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" uuid="{797a1669-6bca-49bb-9fc3-bf905bcb00ad}" x1="60" x2="60" y1="0" y2="-10"/>
         <rect antialias="false" height="2.5" rx="0" ry="0" style="line-style:normal;line-weight:thin;filling:black;color:black" uuid="{4825161a-bef7-450d-94f8-9f16f2485e4a}" width="2.4" x="58.8" y="-2.5"/>
         <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="(A4)" uuid="{7146af20-2512-480f-9547-c57d17d46d47}" x="63.09" y="20"/>
-        <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="Xm+7.4" uuid="{c70749cd-1ef3-4abc-9aba-63005d19758a}" x="63.09" y="65"/>
+        <dynamic_text Halignment="AlignLeft" Valignment="AlignTop" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" frame="false" keep_visual_rotation="true" rotation="270" rotation_point_center="false" text_from="CompositeText" text_width="-1" uuid="{610370e9-2e3f-4875-bacc-2ca599e0d356}" x="50.64" y="69.00" z="2">
+            <text/>
+            <composite_text>%{Xm+7.4}</composite_text>
+        </dynamic_text>
         <line antialias="false" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" uuid="{3f32bb3c-6ca0-499e-af38-9ff6e480017a}" x1="70" x2="70" y1="0" y2="-10"/>
         <rect antialias="false" height="2.5" rx="0" ry="0" style="line-style:normal;line-weight:thin;filling:black;color:black" uuid="{235e8c1f-019e-4c89-a083-39fcefae64fb}" width="2.4" x="68.8" y="-2.5"/>
         <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="(B4)" uuid="{70de248b-28f4-49bf-baaf-f027fe87efc8}" x="73.09" y="20"/>
-        <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="Xm+7.5" uuid="{cb74f34a-c480-4c06-85e9-a51aa9caf94b}" x="73.09" y="65"/>
+        <dynamic_text Halignment="AlignLeft" Valignment="AlignTop" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" frame="false" keep_visual_rotation="true" rotation="270" rotation_point_center="false" text_from="CompositeText" text_width="-1" uuid="{a0cbba5f-8d91-42ed-b0cc-ae1e0ba45282}" x="60.64" y="69.00" z="2">
+            <text/>
+            <composite_text>%{Xm+7.5}</composite_text>
+        </dynamic_text>
         <line antialias="false" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" uuid="{e22efa6f-6191-4e42-a13b-4c4bde0e222d}" x1="80" x2="80" y1="0" y2="-10"/>
         <rect antialias="false" height="2.5" rx="0" ry="0" style="line-style:normal;line-weight:thin;filling:black;color:black" uuid="{a0621815-e057-4535-aba2-e5384ebe1f61}" width="2.4" x="78.8" y="-2.5"/>
         <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="(A5)" uuid="{737d246e-e3ac-4654-bc55-543d3265631f}" x="83.09" y="20"/>
-        <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="Xm+7.6" uuid="{77ecdf35-d6d8-43d3-8c80-c07904e91106}" x="83.09" y="65"/>
+        <dynamic_text Halignment="AlignLeft" Valignment="AlignTop" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" frame="false" keep_visual_rotation="true" rotation="270" rotation_point_center="false" text_from="CompositeText" text_width="-1" uuid="{c10dfdba-6a68-43dc-9d0e-198e8c4f445f}" x="70.64" y="69.00" z="2">
+            <text/>
+            <composite_text>%{Xm+7.6}</composite_text>
+        </dynamic_text>
         <line antialias="false" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" uuid="{04f4f5c9-a9b5-42f4-8b48-3cc28d175382}" x1="90" x2="90" y1="0" y2="-10"/>
         <rect antialias="false" height="2.5" rx="0" ry="0" style="line-style:normal;line-weight:thin;filling:black;color:black" uuid="{0962cee4-745f-477d-a54b-7bc086c705cb}" width="2.4" x="88.8" y="-2.5"/>
         <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="(B5)" uuid="{8c007620-29c1-4523-a630-67129926c653}" x="93.09" y="20"/>
-        <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="Xm+7.7" uuid="{bdd8d2b4-6c8a-4577-9bcd-3fb66b778759}" x="93.09" y="65"/>
+        <dynamic_text Halignment="AlignLeft" Valignment="AlignTop" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" frame="false" keep_visual_rotation="true" rotation="270" rotation_point_center="false" text_from="CompositeText" text_width="-1" uuid="{f2cb5eaf-f57b-44bc-beef-ca958b0a800c}" x="80.64" y="69.00" z="2">
+            <text/>
+            <composite_text>%{Xm+7.7}</composite_text>
+        </dynamic_text>
         <line antialias="false" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" uuid="{a94b0263-bd83-44fa-bfe7-c2f6e9641d18}" x1="100" x2="100" y1="0" y2="-10"/>
         <rect antialias="false" height="2.5" rx="0" ry="0" style="line-style:normal;line-weight:thin;filling:black;color:black" uuid="{e7d34046-1c92-431d-87a9-6f3b5ac0bea7}" width="2.4" x="98.8" y="-2.5"/>
         <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="(A6)" uuid="{da4938aa-7e4f-4a8b-bdb6-9a0fa5c412dd}" x="103.09" y="20"/>
-        <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="Xm+10.0" uuid="{9d29e0a6-cbd1-4511-b1b3-8a0712a8777f}" x="103.09" y="65"/>
+        <dynamic_text Halignment="AlignLeft" Valignment="AlignTop" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" frame="false" keep_visual_rotation="true" rotation="270" rotation_point_center="false" text_from="CompositeText" text_width="-1" uuid="{2f116314-6f5f-4cfd-93e4-2a5954dfae7d}" x="90.64" y="69.00" z="2">
+            <text/>
+            <composite_text>%{Xm+10.0}</composite_text>
+        </dynamic_text>
         <line antialias="false" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" uuid="{0b898d13-5bc6-491e-a6ee-02dcd4f8665a}" x1="110" x2="110" y1="0" y2="-10"/>
         <rect antialias="false" height="2.5" rx="0" ry="0" style="line-style:normal;line-weight:thin;filling:black;color:black" uuid="{e861734b-d3ca-4cae-9634-f722adeedcda}" width="2.4" x="108.8" y="-2.5"/>
         <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="(B6)" uuid="{81fff93d-30c4-4663-a218-206d170de937}" x="113.09" y="20"/>
-        <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="Xm+10.1" uuid="{ba732e52-4c74-4466-83e9-c9a7ee8b129b}" x="113.09" y="65"/>
+        <dynamic_text Halignment="AlignLeft" Valignment="AlignTop" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" frame="false" keep_visual_rotation="true" rotation="270" rotation_point_center="false" text_from="CompositeText" text_width="-1" uuid="{778fb59f-5671-4185-8624-00b752cb2c30}" x="100.64" y="69.00" z="2">
+            <text/>
+            <composite_text>%{Xm+10.1}</composite_text>
+        </dynamic_text>
         <line antialias="false" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" uuid="{aeb2e232-ed36-46f2-bb9d-d8e0d64f0d48}" x1="120" x2="120" y1="0" y2="-10"/>
         <rect antialias="false" height="2.5" rx="0" ry="0" style="line-style:normal;line-weight:thin;filling:black;color:black" uuid="{ff4bd59c-938b-4a9f-a434-59f636d591c0}" width="2.4" x="118.8" y="-2.5"/>
         <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="(A7)" uuid="{38b60a58-83ad-4849-81a3-6c3f99068bfb}" x="123.09" y="20"/>
-        <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="Xm+10.2" uuid="{8a5090a8-f15b-49d4-872a-ab499ef56d93}" x="123.09" y="65"/>
+        <dynamic_text Halignment="AlignLeft" Valignment="AlignTop" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" frame="false" keep_visual_rotation="true" rotation="270" rotation_point_center="false" text_from="CompositeText" text_width="-1" uuid="{e2d8b667-4acb-4d4e-a6fa-aa5aa52fbd36}" x="110.64" y="69.00" z="2">
+            <text/>
+            <composite_text>%{Xm+10.2}</composite_text>
+        </dynamic_text>
         <line antialias="false" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" uuid="{abdc7554-9b6f-4034-8999-6c6daaa3123b}" x1="130" x2="130" y1="0" y2="-10"/>
         <rect antialias="false" height="2.5" rx="0" ry="0" style="line-style:normal;line-weight:thin;filling:black;color:black" uuid="{4e33d46b-d889-4977-a089-74a536321920}" width="2.4" x="128.8" y="-2.5"/>
         <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="(B7)" uuid="{eeb8e506-ef99-4582-ac21-01da1a0807d9}" x="133.09" y="20"/>
-        <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="Xm+10.3" uuid="{efd96dd8-748a-42b8-9f45-b18c5728e479}" x="133.09" y="65"/>
+        <dynamic_text Halignment="AlignLeft" Valignment="AlignTop" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" frame="false" keep_visual_rotation="true" rotation="270" rotation_point_center="false" text_from="CompositeText" text_width="-1" uuid="{69f4ebaa-b2d8-47d1-be5f-88c5d44ea6f0}" x="120.64" y="69.00" z="2">
+            <text/>
+            <composite_text>%{Xm+10.3}</composite_text>
+        </dynamic_text>
         <line antialias="false" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" uuid="{692bbb92-5593-4ef5-b9c1-c1cf404a48e8}" x1="140" x2="140" y1="0" y2="-10"/>
         <rect antialias="false" height="2.5" rx="0" ry="0" style="line-style:normal;line-weight:thin;filling:black;color:black" uuid="{60368a1e-79c8-4686-975c-ffea92c04fb8}" width="2.4" x="138.8" y="-2.5"/>
         <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="(A8)" uuid="{1a5ea0b5-4979-4b53-ac88-716bff5184d2}" x="143.09" y="20"/>
-        <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="Xm+10.4" uuid="{e40e511f-ed2d-41c6-866a-422d7d4cde74}" x="143.09" y="65"/>
+        <dynamic_text Halignment="AlignLeft" Valignment="AlignTop" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" frame="false" keep_visual_rotation="true" rotation="270" rotation_point_center="false" text_from="CompositeText" text_width="-1" uuid="{5e32b233-0de3-4ff2-9602-48a33a0a07b4}" x="130.64" y="69.00" z="2">
+            <text/>
+            <composite_text>%{Xm+10.4}</composite_text>
+        </dynamic_text>
         <line antialias="false" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" uuid="{0b4a0f50-3a77-4ac3-af8d-0cb2be2eabcf}" x1="150" x2="150" y1="0" y2="-10"/>
         <rect antialias="false" height="2.5" rx="0" ry="0" style="line-style:normal;line-weight:thin;filling:black;color:black" uuid="{177c8dc6-93d4-4c81-9472-8d8b783d48e1}" width="2.4" x="148.8" y="-2.5"/>
         <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="(B8)" uuid="{43f644ba-5da9-4eb1-a62d-76bdb9de6cd2}" x="153.09" y="20"/>
-        <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="Xm+10.5" uuid="{b2099529-8d9f-40bc-b1f8-427fecb7dbec}" x="153.09" y="65"/>
+        <dynamic_text Halignment="AlignLeft" Valignment="AlignTop" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" frame="false" keep_visual_rotation="true" rotation="270" rotation_point_center="false" text_from="CompositeText" text_width="-1" uuid="{57323c80-c44b-4d86-ada4-08f4b5e30383}" x="140.64" y="69.00" z="2">
+            <text/>
+            <composite_text>%{Xm+10.5}</composite_text>
+        </dynamic_text>
         <line antialias="false" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" uuid="{18131d36-7bf4-4d6f-9486-fb611aa768f5}" x1="160" x2="160" y1="0" y2="-10"/>
         <rect antialias="false" height="2.5" rx="0" ry="0" style="line-style:normal;line-weight:thin;filling:black;color:black" uuid="{8b2fe7ec-fae2-4641-9669-f0b288c6cb34}" width="2.4" x="158.8" y="-2.5"/>
         <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="(A9)" uuid="{08d10dd4-f907-40a2-bb30-71592c11fe96}" x="163.09" y="20"/>
-        <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="Xm+10.6" uuid="{fa06f685-a081-4c12-bbf7-e50eb82f9d61}" x="163.09" y="65"/>
+        <dynamic_text Halignment="AlignLeft" Valignment="AlignTop" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" frame="false" keep_visual_rotation="true" rotation="270" rotation_point_center="false" text_from="CompositeText" text_width="-1" uuid="{9571e56b-4a21-4394-b250-0649c35b8537}" x="150.64" y="69.00" z="2">
+            <text/>
+            <composite_text>%{Xm+10.6}</composite_text>
+        </dynamic_text>
         <line antialias="false" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" uuid="{3b698128-6c16-47a0-a654-fa75f4f533f8}" x1="170" x2="170" y1="0" y2="-10"/>
         <rect antialias="false" height="2.5" rx="0" ry="0" style="line-style:normal;line-weight:thin;filling:black;color:black" uuid="{dccff57d-5420-4db3-8604-273296fcbe03}" width="2.4" x="168.8" y="-2.5"/>
         <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="(B9)" uuid="{3099aa89-59b8-4138-ba04-51e6d631660f}" x="173.09" y="20"/>
-        <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="Xm+10.7" uuid="{af0cdd4a-d0bc-4181-8d21-cf13cfe1217d}" x="173.09" y="65"/>
+        <dynamic_text Halignment="AlignLeft" Valignment="AlignTop" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" frame="false" keep_visual_rotation="true" rotation="270" rotation_point_center="false" text_from="CompositeText" text_width="-1" uuid="{f41164a5-b73a-4b23-9ee0-da962ac477b5}" x="160.64" y="69.00" z="2">
+            <text/>
+            <composite_text>%{Xm+10.7}</composite_text>
+        </dynamic_text>
         <line antialias="false" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" uuid="{a898b092-c99b-4fbe-8dd3-6ace7dcbc554}" x1="180" x2="180" y1="0" y2="-10"/>
         <rect antialias="false" height="2.5" rx="0" ry="0" style="line-style:normal;line-weight:thin;filling:black;color:black" uuid="{6e1d396c-948a-4e23-a82b-2e65b08ca9e0}" width="2.4" x="178.8" y="-2.5"/>
         <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="(A10)" uuid="{9a6e10fc-da33-47fd-93bb-a212bbb6d98a}" x="183.09" y="25"/>
-        <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="Xm+11.0" uuid="{9855fdba-1eba-44bd-85ec-2b29a03ee941}" x="183.09" y="65"/>
+        <dynamic_text Halignment="AlignLeft" Valignment="AlignTop" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" frame="false" keep_visual_rotation="true" rotation="270" rotation_point_center="false" text_from="CompositeText" text_width="-1" uuid="{8e515bcf-17a8-4160-a05e-64eafbf04df0}" x="170.64" y="69.00" z="2">
+            <text/>
+            <composite_text>%{Xm+11.0}</composite_text>
+        </dynamic_text>
         <line antialias="false" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" uuid="{989c5626-2274-4712-9b9a-4d6ce5b5cfe7}" x1="190" x2="190" y1="0" y2="-10"/>
         <rect antialias="false" height="2.5" rx="0" ry="0" style="line-style:normal;line-weight:thin;filling:black;color:black" uuid="{8518c3be-ddb0-4660-b585-79615187cf04}" width="2.4" x="188.8" y="-2.5"/>
         <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="(B10)" uuid="{6d81f3ac-b8e2-41da-b577-b94b3c8848c6}" x="193.09" y="25"/>
-        <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="Xm+11.1" uuid="{639b1cc7-8451-49b4-93e0-c913f44c584f}" x="193.09" y="65"/>
+        <dynamic_text Halignment="AlignLeft" Valignment="AlignTop" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" frame="false" keep_visual_rotation="true" rotation="270" rotation_point_center="false" text_from="CompositeText" text_width="-1" uuid="{5572b8ea-20c3-486c-af12-092d8f69c059}" x="180.64" y="69.00" z="2">
+            <text/>
+            <composite_text>%{Xm+11.1}</composite_text>
+        </dynamic_text>
         <line antialias="false" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" uuid="{d13d88dc-f42c-4b1e-8670-3029938c0a56}" x1="200" x2="200" y1="0" y2="-10"/>
         <rect antialias="false" height="2.5" rx="0" ry="0" style="line-style:normal;line-weight:thin;filling:black;color:black" uuid="{a852b6d7-e802-4c47-81e2-d8306c283341}" width="2.4" x="198.8" y="-2.5"/>
         <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="(A11)" uuid="{174b8414-48d1-496e-b442-2de9fca8573a}" x="203.09" y="24"/>
-        <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="Xm+11.2" uuid="{15df2f33-6c95-46f5-b8d9-6f45789ae212}" x="203.09" y="65"/>
+        <dynamic_text Halignment="AlignLeft" Valignment="AlignTop" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" frame="false" keep_visual_rotation="true" rotation="270" rotation_point_center="false" text_from="CompositeText" text_width="-1" uuid="{47721b06-7262-430b-af10-e2003eee773b}" x="190.64" y="69.00" z="2">
+            <text/>
+            <composite_text>%{Xm+11.2}</composite_text>
+        </dynamic_text>
         <line antialias="false" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" uuid="{4c107327-bf53-4496-901e-3f805d521f9a}" x1="210" x2="210" y1="0" y2="-10"/>
         <rect antialias="false" height="2.5" rx="0" ry="0" style="line-style:normal;line-weight:thin;filling:black;color:black" uuid="{59120c18-9381-4af3-965e-722d3d979fb9}" width="2.4" x="208.8" y="-2.5"/>
         <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="(B11)" uuid="{52b6dba1-96d0-4506-8562-f9610f623927}" x="213.09" y="24"/>
-        <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="Xm+11.3" uuid="{88fbad0d-5a22-4679-8b4d-430d72dfdb58}" x="213.09" y="65"/>
+        <dynamic_text Halignment="AlignLeft" Valignment="AlignTop" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" frame="false" keep_visual_rotation="true" rotation="270" rotation_point_center="false" text_from="CompositeText" text_width="-1" uuid="{3487d751-0e4f-4e62-b637-cb0ff0696f90}" x="200.64" y="69.00" z="2">
+            <text/>
+            <composite_text>%{Xm+11.3}</composite_text>
+        </dynamic_text>
         <line antialias="false" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" uuid="{58b82b9c-70a7-4e05-9b99-f7cc0f4677fa}" x1="220" x2="220" y1="0" y2="-10"/>
         <rect antialias="false" height="2.5" rx="0" ry="0" style="line-style:normal;line-weight:thin;filling:black;color:black" uuid="{5aaa30ca-758b-4e93-8fbe-289feddb7e10}" width="2.4" x="218.8" y="-2.5"/>
         <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="(A12)" uuid="{4758449c-cb6e-4a18-9a45-c1d097bfd9f6}" x="223.09" y="25"/>
-        <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="Xm+11.4" uuid="{2d967146-309d-48ec-9754-e2b298755cfb}" x="223.09" y="65"/>
+        <dynamic_text Halignment="AlignLeft" Valignment="AlignTop" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" frame="false" keep_visual_rotation="true" rotation="270" rotation_point_center="false" text_from="CompositeText" text_width="-1" uuid="{82b6eb51-f01d-4dea-9908-107a67ffc523}" x="210.64" y="69.00" z="2">
+            <text/>
+            <composite_text>%{Xm+11.4}</composite_text>
+        </dynamic_text>
         <line antialias="false" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" uuid="{ba9f2658-49dd-4176-a02a-411b68f4c04e}" x1="230" x2="230" y1="0" y2="-10"/>
         <rect antialias="false" height="2.5" rx="0" ry="0" style="line-style:normal;line-weight:thin;filling:black;color:black" uuid="{86eaad9f-6e8d-4b38-af0f-a4424e1d5fd7}" width="2.4" x="228.8" y="-2.5"/>
         <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="(B12)" uuid="{3d1ef3ce-6dc5-465f-80e8-185c4ae35a00}" x="233.09" y="25"/>
-        <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="Xm+11.5" uuid="{5d0eca15-3fbb-4996-9b54-57ba9931797f}" x="233.09" y="65"/>
+        <dynamic_text Halignment="AlignLeft" Valignment="AlignTop" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" frame="false" keep_visual_rotation="true" rotation="270" rotation_point_center="false" text_from="CompositeText" text_width="-1" uuid="{1c694921-c946-4cb4-8fa1-5cd711a02607}" x="220.64" y="69.00" z="2">
+            <text/>
+            <composite_text>%{Xm+11.5}</composite_text>
+        </dynamic_text>
         <line antialias="false" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" uuid="{d002b8b5-b1d8-4391-bc6f-ac944bf9808b}" x1="240" x2="240" y1="0" y2="-10"/>
         <rect antialias="false" height="2.5" rx="0" ry="0" style="line-style:normal;line-weight:thin;filling:black;color:black" uuid="{38cded75-5a49-4276-9518-9689dc086a51}" width="2.4" x="238.8" y="-2.5"/>
         <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="(A13)" uuid="{17eef7d3-2581-4baa-b6a3-94fca9ab967b}" x="243.09" y="25"/>
-        <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="Xm+11.6" uuid="{763f264f-3e4a-449c-a7e0-9caca17676d6}" x="243.09" y="65"/>
+        <dynamic_text Halignment="AlignLeft" Valignment="AlignTop" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" frame="false" keep_visual_rotation="true" rotation="270" rotation_point_center="false" text_from="CompositeText" text_width="-1" uuid="{a359f4ae-8913-4a78-b266-e53905b472ed}" x="230.64" y="69.00" z="2">
+            <text/>
+            <composite_text>%{Xm+11.6}</composite_text>
+        </dynamic_text>
         <line antialias="false" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" uuid="{79a2b795-498b-4452-b21a-870c8dec8f60}" x1="250" x2="250" y1="0" y2="-10"/>
         <rect antialias="false" height="2.5" rx="0" ry="0" style="line-style:normal;line-weight:thin;filling:black;color:black" uuid="{4cf9f727-bac0-4363-8e2b-2d95bcd6ee1b}" width="2.4" x="248.8" y="-2.5"/>
         <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="(B13)" uuid="{961a2e92-859f-4b76-87a4-891b10cb1c42}" x="253.09" y="25"/>
-        <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="Xm+11.7" uuid="{fb151fc4-83b4-43da-a002-57a4d63a3c94}" x="253.09" y="65"/>
+        <dynamic_text Halignment="AlignLeft" Valignment="AlignTop" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" frame="false" keep_visual_rotation="true" rotation="270" rotation_point_center="false" text_from="CompositeText" text_width="-1" uuid="{d5461950-fd6e-49f3-8f83-b757f69b6fad}" x="240.64" y="69.00" z="2">
+            <text/>
+            <composite_text>%{Xm+11.7}</composite_text>
+        </dynamic_text>
         <line antialias="false" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" uuid="{1933c845-2ca1-4b1a-bd9c-ed18551e11be}" x1="260" x2="260" y1="0" y2="-10"/>
         <rect antialias="false" height="2.5" rx="0" ry="0" style="line-style:normal;line-weight:thin;filling:black;color:black" uuid="{274aac95-2093-426d-874b-4f6815219ba6}" width="2.4" x="258.8" y="-2.5"/>
         <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="(A16)" uuid="{f7857130-d093-418c-b39a-a62c47f5f645}" x="263.09" y="25"/>
-        <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="Yn+6.0" uuid="{2fef4956-ba75-4c9e-83fc-a5cb58cf24d7}" x="263.09" y="65"/>
+        <dynamic_text Halignment="AlignLeft" Valignment="AlignTop" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" frame="false" keep_visual_rotation="true" rotation="270" rotation_point_center="false" text_from="CompositeText" text_width="-1" uuid="{a04944d8-0773-4ee7-ab60-329806135eb2}" x="250.64" y="69.00" z="2">
+            <text/>
+            <composite_text>%{Yn+6.0}</composite_text>
+        </dynamic_text>
         <line antialias="false" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" uuid="{48a39f55-7ae7-449e-8608-6184cd36178b}" x1="270" x2="270" y1="0" y2="-10"/>
         <rect antialias="false" height="2.5" rx="0" ry="0" style="line-style:normal;line-weight:thin;filling:black;color:black" uuid="{c4e2049e-5960-4639-80df-941a8c62dba2}" width="2.4" x="268.8" y="-2.5"/>
         <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="(B16)" uuid="{dd73b6a3-771f-4f2c-8e4f-b972ce6dc93c}" x="273.09" y="25"/>
-        <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="Yn+6.1" uuid="{2be5f4bb-b7b0-481f-b70b-ea6abf5c638f}" x="273.09" y="65"/>
+        <dynamic_text Halignment="AlignLeft" Valignment="AlignTop" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" frame="false" keep_visual_rotation="true" rotation="270" rotation_point_center="false" text_from="CompositeText" text_width="-1" uuid="{1a05465d-f774-4b21-8773-357a9071e365}" x="260.64" y="69.00" z="2">
+            <text/>
+            <composite_text>%{Yn+6.1}</composite_text>
+        </dynamic_text>
         <line antialias="false" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" uuid="{e6d11136-30d8-44d2-8d6b-7d2c24f09d0f}" x1="280" x2="280" y1="0" y2="-10"/>
         <rect antialias="false" height="2.5" rx="0" ry="0" style="line-style:normal;line-weight:thin;filling:black;color:black" uuid="{3520af23-2f62-4ad9-b21a-1cda47fa1446}" width="2.4" x="278.8" y="-2.5"/>
         <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="(A17)" uuid="{2c1f69b7-3138-4b6f-b880-631325b07805}" x="283.09" y="25"/>
-        <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="Yn+6.2" uuid="{0103f8ce-e5c7-4363-bade-21a56cfdb165}" x="283.09" y="65"/>
+        <dynamic_text Halignment="AlignLeft" Valignment="AlignTop" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" frame="false" keep_visual_rotation="true" rotation="270" rotation_point_center="false" text_from="CompositeText" text_width="-1" uuid="{f262c2e9-873e-48ca-bf41-043da21017b4}" x="270.64" y="69.00" z="2">
+            <text/>
+            <composite_text>%{Yn+6.2}</composite_text>
+        </dynamic_text>
         <line antialias="false" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" uuid="{cb43f402-2941-47c0-8908-51437d9ec933}" x1="290" x2="290" y1="0" y2="-10"/>
         <rect antialias="false" height="2.5" rx="0" ry="0" style="line-style:normal;line-weight:thin;filling:black;color:black" uuid="{e167bb5d-bbac-4a1c-9ee3-c9d6fdd29a39}" width="2.4" x="288.8" y="-2.5"/>
         <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="(B17)" uuid="{c9fc4aea-b573-421c-9547-c1839cfe9725}" x="293.09" y="25"/>
-        <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="Yn+6.3" uuid="{87b46fab-5db1-43a4-8448-5f1941db128b}" x="293.09" y="65"/>
+        <dynamic_text Halignment="AlignLeft" Valignment="AlignTop" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" frame="false" keep_visual_rotation="true" rotation="270" rotation_point_center="false" text_from="CompositeText" text_width="-1" uuid="{1350111c-24a2-480b-9ca9-becad61c084e}" x="280.64" y="69.00" z="2">
+            <text/>
+            <composite_text>%{Yn+6.3}</composite_text>
+        </dynamic_text>
         <line antialias="false" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" uuid="{128cc667-6b6f-4453-ba96-61220bbb0834}" x1="300" x2="300" y1="0" y2="-10"/>
         <rect antialias="false" height="2.5" rx="0" ry="0" style="line-style:normal;line-weight:thin;filling:black;color:black" uuid="{73ce34f8-3bad-4e48-aa0a-b9788c3e1caf}" width="2.4" x="298.8" y="-2.5"/>
         <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="(A18)" uuid="{c8f72930-8ada-4986-9b0f-d4e39c24f0d2}" x="303.09" y="25"/>
-        <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="Yn+6.4" uuid="{846b2033-925b-4a0c-9ebf-7fe1b0240b65}" x="303.09" y="65"/>
+        <dynamic_text Halignment="AlignLeft" Valignment="AlignTop" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" frame="false" keep_visual_rotation="true" rotation="270" rotation_point_center="false" text_from="CompositeText" text_width="-1" uuid="{cc92c5da-b2ae-4e5b-96f3-1030bcaac619}" x="290.64" y="69.00" z="2">
+            <text/>
+            <composite_text>%{Yn+6.4}</composite_text>
+        </dynamic_text>
         <line antialias="false" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" uuid="{0c3d72ff-6711-4b98-b2c6-a6d550431a36}" x1="310" x2="310" y1="0" y2="-10"/>
         <rect antialias="false" height="2.5" rx="0" ry="0" style="line-style:normal;line-weight:thin;filling:black;color:black" uuid="{a39b2dce-b715-4460-aa55-88d6749a66a2}" width="2.4" x="308.8" y="-2.5"/>
         <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="(B18)" uuid="{a15f9f53-a69c-4934-849a-5fa4928c22da}" x="313.09" y="25"/>
-        <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="Yn+6.5" uuid="{64093bfc-50ed-4efb-ac82-ba38f108b318}" x="313.09" y="65"/>
+        <dynamic_text Halignment="AlignLeft" Valignment="AlignTop" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" frame="false" keep_visual_rotation="true" rotation="270" rotation_point_center="false" text_from="CompositeText" text_width="-1" uuid="{d5b799c5-dd77-4f24-83b3-77de9a6d2744}" x="300.64" y="69.00" z="2">
+            <text/>
+            <composite_text>%{Yn+6.5}</composite_text>
+        </dynamic_text>
         <line antialias="false" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" uuid="{d9cbf6c6-133a-46d6-bf9a-8770e8611a1e}" x1="320" x2="320" y1="0" y2="-10"/>
         <rect antialias="false" height="2.5" rx="0" ry="0" style="line-style:normal;line-weight:thin;filling:black;color:black" uuid="{ed74f72a-f619-42bf-9f14-cb8f2b06b824}" width="2.4" x="318.8" y="-2.5"/>
         <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="(A19)" uuid="{099e9d24-44b3-4cf7-a98a-f8ecb59233d8}" x="323.09" y="25"/>
-        <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="Yn+6.6" uuid="{577c767c-c5e6-493d-90de-423f01cd7551}" x="323.09" y="65"/>
+        <dynamic_text Halignment="AlignLeft" Valignment="AlignTop" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" frame="false" keep_visual_rotation="true" rotation="270" rotation_point_center="false" text_from="CompositeText" text_width="-1" uuid="{3799c5b1-d330-4ea5-82f2-19afc899da58}" x="310.64" y="69.00" z="2">
+            <text/>
+            <composite_text>%{Yn+6.6}</composite_text>
+        </dynamic_text>
         <line antialias="false" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" uuid="{0a2fb848-f87b-4505-90cd-d216f29e15f5}" x1="330" x2="330" y1="0" y2="-10"/>
         <rect antialias="false" height="2.5" rx="0" ry="0" style="line-style:normal;line-weight:thin;filling:black;color:black" uuid="{e68f3daf-5936-40fa-9253-ec4039fd16f6}" width="2.4" x="328.8" y="-2.5"/>
         <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="(B19)" uuid="{476a33cb-34c7-4b86-a551-a96945af9d46}" x="333.09" y="25"/>
-        <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="Yn+6.7" uuid="{146d68b0-4025-4cae-b434-d6af96846ec5}" x="333.09" y="65"/>
+        <dynamic_text Halignment="AlignLeft" Valignment="AlignTop" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" frame="false" keep_visual_rotation="true" rotation="270" rotation_point_center="false" text_from="CompositeText" text_width="-1" uuid="{21acb2dd-4363-4471-9df4-4c42855039ba}" x="320.64" y="69.00" z="2">
+            <text/>
+            <composite_text>%{Yn+6.7}</composite_text>
+        </dynamic_text>
         <line antialias="false" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" uuid="{cd331748-12c7-4ed8-bbb8-64fe5129d482}" x1="340" x2="340" y1="0" y2="-10"/>
         <rect antialias="false" height="2.5" rx="0" ry="0" style="line-style:normal;line-weight:thin;filling:black;color:black" uuid="{c3fd6735-c942-41de-9f99-b985890fda5b}" width="2.4" x="338.8" y="-2.5"/>
         <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="(A20)" uuid="{fb34cfca-1c1f-4c1f-aadd-4f6402bf8117}" x="343.09" y="25"/>
-        <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="Yn+7.0" uuid="{3a4d149a-8557-45e7-b6f6-ec5706d176f7}" x="343.09" y="65"/>
+        <dynamic_text Halignment="AlignLeft" Valignment="AlignTop" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" frame="false" keep_visual_rotation="true" rotation="270" rotation_point_center="false" text_from="CompositeText" text_width="-1" uuid="{95f381e0-55e6-4b62-8d1c-88ad39933337}" x="330.64" y="69.00" z="2">
+            <text/>
+            <composite_text>%{Yn+7.0}</composite_text>
+        </dynamic_text>
         <line antialias="false" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" uuid="{022f8527-f8e9-4b81-9d9e-13a5eb62078e}" x1="350" x2="350" y1="0" y2="-10"/>
         <rect antialias="false" height="2.5" rx="0" ry="0" style="line-style:normal;line-weight:thin;filling:black;color:black" uuid="{06761c35-af9c-465b-ac5b-889b0e7f970f}" width="2.4" x="348.8" y="-2.5"/>
         <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="(B20)" uuid="{72856f70-e28f-4871-9b7c-9349dbe973f1}" x="353.09" y="25"/>
-        <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="Yn+7.1" uuid="{008800fb-0b1b-415b-b1ed-f2ca6d8d623c}" x="353.09" y="65"/>
+        <dynamic_text Halignment="AlignLeft" Valignment="AlignTop" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" frame="false" keep_visual_rotation="true" rotation="270" rotation_point_center="false" text_from="CompositeText" text_width="-1" uuid="{d27fe9d4-4fb5-48f2-b9a9-5e2ae749e7aa}" x="340.64" y="69.00" z="2">
+            <text/>
+            <composite_text>%{Yn+7.1}</composite_text>
+        </dynamic_text>
         <line antialias="false" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" uuid="{a8509c17-ce7f-44d9-9883-64e83e7d0ac8}" x1="360" x2="360" y1="0" y2="-10"/>
         <rect antialias="false" height="2.5" rx="0" ry="0" style="line-style:normal;line-weight:thin;filling:black;color:black" uuid="{fff166c8-4d79-46be-9fab-fdbfc1521f9f}" width="2.4" x="358.8" y="-2.5"/>
         <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="(A21)" uuid="{51a4c1e9-1042-48ad-a65f-bfab5162d86f}" x="363.09" y="25"/>
-        <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="Yn+7.2" uuid="{c0632575-d6d4-4987-b37b-24ec0a3d8e32}" x="363.09" y="65"/>
+        <dynamic_text Halignment="AlignLeft" Valignment="AlignTop" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" frame="false" keep_visual_rotation="true" rotation="270" rotation_point_center="false" text_from="CompositeText" text_width="-1" uuid="{806335ff-7527-43f4-8c6f-c358d0208420}" x="350.64" y="69.00" z="2">
+            <text/>
+            <composite_text>%{Yn+7.2}</composite_text>
+        </dynamic_text>
         <line antialias="false" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" uuid="{e96c7e18-49e4-4eb6-bc2a-ef90238aec28}" x1="370" x2="370" y1="0" y2="-10"/>
         <rect antialias="false" height="2.5" rx="0" ry="0" style="line-style:normal;line-weight:thin;filling:black;color:black" uuid="{581f8081-d05a-455d-be86-f0102aedac72}" width="2.4" x="368.8" y="-2.5"/>
         <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="(B21)" uuid="{d0e2c259-471b-4040-a618-0780b9c807a7}" x="373.09" y="25"/>
-        <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="Yn+7.3" uuid="{761989cd-990e-4754-a34e-901787ebfc04}" x="373.09" y="65"/>
+        <dynamic_text Halignment="AlignLeft" Valignment="AlignTop" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" frame="false" keep_visual_rotation="true" rotation="270" rotation_point_center="false" text_from="CompositeText" text_width="-1" uuid="{e46fb0a5-eede-47d7-b44f-3d06363814bb}" x="360.64" y="69.00" z="2">
+            <text/>
+            <composite_text>%{Yn+7.3}</composite_text>
+        </dynamic_text>
         <line antialias="false" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" uuid="{53d58faa-2b4e-4068-a661-69a3df5edf44}" x1="380" x2="380" y1="0" y2="-10"/>
         <rect antialias="false" height="2.5" rx="0" ry="0" style="line-style:normal;line-weight:thin;filling:black;color:black" uuid="{6a98ce49-07ae-4fce-9e05-1417ad13e12b}" width="2.4" x="378.8" y="-2.5"/>
         <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="(A22)" uuid="{218eca9c-fd48-4e82-8df1-1f2b91734bc6}" x="383.09" y="25"/>
-        <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="Yn+7.4" uuid="{0d959e50-bd80-470c-8df0-ecc0c71955aa}" x="383.09" y="65"/>
+        <dynamic_text Halignment="AlignLeft" Valignment="AlignTop" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" frame="false" keep_visual_rotation="true" rotation="270" rotation_point_center="false" text_from="CompositeText" text_width="-1" uuid="{c2323806-5c30-4773-a313-2234a4b3f595}" x="370.64" y="69.00" z="2">
+            <text/>
+            <composite_text>%{Yn+7.4}</composite_text>
+        </dynamic_text>
         <line antialias="false" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" uuid="{844fdc12-a509-41d6-9945-340a8ddf705b}" x1="390" x2="390" y1="0" y2="-10"/>
         <rect antialias="false" height="2.5" rx="0" ry="0" style="line-style:normal;line-weight:thin;filling:black;color:black" uuid="{27d20f4e-af04-462e-806d-90807c2c12e7}" width="2.4" x="388.8" y="-2.5"/>
         <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="(B22)" uuid="{3a39bdf4-ef4d-4521-be3f-b0fa3767966f}" x="393.09" y="25"/>
-        <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="Yn+7.5" uuid="{6d86bf69-ba98-4e46-b625-9045876264e8}" x="393.09" y="65"/>
+        <dynamic_text Halignment="AlignLeft" Valignment="AlignTop" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" frame="false" keep_visual_rotation="true" rotation="270" rotation_point_center="false" text_from="CompositeText" text_width="-1" uuid="{95bbc79f-d1a1-4872-a786-819ec636f8e5}" x="380.64" y="69.00" z="2">
+            <text/>
+            <composite_text>%{Yn+7.5}</composite_text>
+        </dynamic_text>
         <line antialias="false" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" uuid="{d8135f5e-dda8-4583-b868-5085969de0c2}" x1="400" x2="400" y1="0" y2="-10"/>
         <rect antialias="false" height="2.5" rx="0" ry="0" style="line-style:normal;line-weight:thin;filling:black;color:black" uuid="{ceea4579-5c31-4ba3-9d7c-a9eca84136dd}" width="2.4" x="398.8" y="-2.5"/>
         <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="(A23)" uuid="{6243e993-c47f-4a21-a6ac-151d8d1c1a7d}" x="403.09" y="25"/>
-        <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="Yn+7.6" uuid="{a22bfd18-af36-46ad-b9b1-fa6dab81e937}" x="403.09" y="65"/>
+        <dynamic_text Halignment="AlignLeft" Valignment="AlignTop" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" frame="false" keep_visual_rotation="true" rotation="270" rotation_point_center="false" text_from="CompositeText" text_width="-1" uuid="{15fffdd7-7033-45c1-b948-a4016990e650}" x="390.64" y="69.00" z="2">
+            <text/>
+            <composite_text>%{Yn+7.6}</composite_text>
+        </dynamic_text>
         <line antialias="false" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" uuid="{87219426-0875-4196-813e-d2f250c1c7fa}" x1="410" x2="410" y1="0" y2="-10"/>
         <rect antialias="false" height="2.5" rx="0" ry="0" style="line-style:normal;line-weight:thin;filling:black;color:black" uuid="{72da7a16-21c3-4286-9a83-3daaca4a7297}" width="2.4" x="408.8" y="-2.5"/>
         <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="(B23)" uuid="{f300082b-f432-4f17-8cb4-b094a0a82b2f}" x="413.09" y="25"/>
-        <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="Yn+7.7" uuid="{bab6be88-73fa-4ca1-a918-5af70f588d32}" x="413.09" y="65"/>
+        <dynamic_text Halignment="AlignLeft" Valignment="AlignTop" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" frame="false" keep_visual_rotation="true" rotation="270" rotation_point_center="false" text_from="CompositeText" text_width="-1" uuid="{450db43e-40f3-4cef-a6de-96fc0e9b549c}" x="400.64" y="69.00" z="2">
+            <text/>
+            <composite_text>%{Yn+7.7}</composite_text>
+        </dynamic_text>
         <line antialias="false" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" uuid="{e4387d56-598a-4860-8489-70b0beb4da5d}" x1="420" x2="420" y1="0" y2="-10"/>
         <rect antialias="false" height="2.5" rx="0" ry="0" style="line-style:normal;line-weight:thin;filling:black;color:black" uuid="{6454039a-6751-442b-893d-38058b30d5a2}" width="2.4" x="418.8" y="-2.5"/>
         <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="(A24)" uuid="{3d4a3474-1e4f-4f00-8113-3b17244a32e1}" x="423.09" y="25"/>

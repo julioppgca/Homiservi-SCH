@@ -24,6 +24,7 @@
 #include "../qetgraphicsitem/element.h"
 #include "../qetxml.h"
 #include "../qetproject.h"
+#include "../ioaddress.h"
 #include "../ElementsCollection/qetlabelsfile.h"
 #include <QDir>
 #include <QDomDocument>
@@ -348,6 +349,7 @@ namespace autonum
 		str.replace("%{function}", dc.value("function").toString());
 		str.replace("%{tension_protocol}", dc.value("tension_protocol").toString());
 		str.replace("%{conductor_section}", dc.value("conductor_section").toString());
+		str = IoAddress::replace(str, dc);
 		str.replace("%{conductor_color}", dc.value("conductor_color").toString());
 
 		str.replace("%{void}", QString());

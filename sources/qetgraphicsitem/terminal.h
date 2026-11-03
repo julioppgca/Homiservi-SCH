@@ -87,6 +87,7 @@ class Terminal : public QGraphicsObject
 		void setMasterLabelIndex(int index);
 
 		QList<Conductor *> conductors() const;
+		void scheduleIoRefresh();
 		Qet::Orientation orientation() const;
 		QPointF dockConductor() const;
 		void updateConductor();

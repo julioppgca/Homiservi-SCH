@@ -157,6 +157,9 @@ namespace QETInformation
 	static QString ELMT_APPLICATION     = "application";
 		///Path or link of the datasheet of the component (DatasheetReader)
 	static QString ELMT_DATASHEET       = "datasheet";
+		///Base of the inputs (m) and outputs (n) of an I/O module (IoAddress)
+	static QString ELMT_IO_X_BASE       = "io_x_base";
+	static QString ELMT_IO_Y_BASE       = "io_y_base";
 	static QString ELMT_PLC_TC          = "plc_tc";
 	static QString ELMT_PLC_T1          = "plc_t1";
 	static QString ELMT_PLC_T2          = "plc_t2";

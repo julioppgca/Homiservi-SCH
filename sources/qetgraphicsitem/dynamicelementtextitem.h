@@ -130,6 +130,7 @@ class DynamicElementTextItem : public DiagramTextItem
 			//handles in sync with its own selection state. Public for that;
 			//see the .cpp for why it exists.
 		void refreshResizeHandlesVisibility();
+		void refreshIoAddresses();
 
 	protected:
 		void keyPressEvent(QKeyEvent *event) override;

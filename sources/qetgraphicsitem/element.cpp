@@ -31,6 +31,8 @@
 #include "../properties/terminaldata.h"
 #include "../properties/xrefproperties.h"
 #include "../qetinformation.h"
+#include "../ioaddress.h"
+#include "elementtextitemgroup.h"
 #include "../qetgraphicsitem/conductor.h"
 #include "../qetgraphicsitem/terminal.h"
 #include "../ui/elementpropertieswidget.h"
@@ -1784,6 +1786,15 @@ void Element::setElementInformations(DiagramContext dc)
 	}
 	emit elementInfoChange(old_info, m_data.m_informations);
 
+		//The elements taking their I/O base from this one follow it
+	for (const QString &key : {QETInformation::ELMT_IO_X_BASE, QETInformation::ELMT_IO_Y_BASE,
+				    QETInformation::ELMT_LABEL})
+		if (old_info.value(key) != m_data.m_informations.value(key) && diagram())
+		{
+			IoAddress::scheduleRefresh(diagram()->project());
+			break;
+		}
+
 	// Propagate label change to linked PLC slaves (label is changed via
 	// setElementInformations through the undo stack, not via setElementData)
 	if (m_data.m_type == ElementData::Master && m_data.m_master_type == ElementData::PLC)
@@ -2013,6 +2024,19 @@ void Element::hoverLeaveEvent(QGraphicsSceneHoverEvent *e)
 	Shift+click or a right-click's context menu did, since those are the
 	paths that leave the text itself selected.
 */
+bool Element::hasIoAddressTexts() const
+{
+	QList<DynamicElementTextItem *> texts = dynamicTextItems();
+	const QList<ElementTextItemGroup *> groups = textGroups();
+	for (ElementTextItemGroup *group : groups)
+		texts << group->texts();
+	for (DynamicElementTextItem *text : std::as_const(texts))
+		if (text->textFrom() == DynamicElementTextItem::CompositeText
+				&& IoAddress::contains(text->compositeText()))
+			return true;
+	return false;
+}
+
 QVariant Element::itemChange(GraphicsItemChange change, const QVariant &value)
 {
 	if (change == QGraphicsItem::ItemSelectedHasChanged)
@@ -2025,7 +2049,11 @@ QVariant Element::itemChange(GraphicsItemChange change, const QVariant &value)
 		//Whether the texts of a turned symbol stay horizontal is the
 		//project's setting, known once the element is on one of its folios
 	else if (change == QGraphicsItem::ItemSceneHasChanged)
+	{
 		updateSymbolPictures();
+		if (diagram() && hasIoAddressTexts())
+			IoAddress::scheduleRefresh(diagram()->project());
+	}
 	return QetGraphicsItem::itemChange(change, value);
 }
 
