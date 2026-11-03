@@ -1,0 +1,40 @@
+<definition height="60" hotspot_x="10" hotspot_y="44" link_type="simple" type="element" version="0.200.1" width="40">
+    <uuid uuid="{9d771b6c-eeb8-5bbd-a603-1866f71290c8}"/>
+    <names>
+        <name lang="en">Freio</name>
+        <name lang="fr">Freio</name>
+        <name lang="pt">Freio – JN2AS04MK2-R (αiS 8 a 200) (cabos por baixo)</name>
+        <name lang="pt_BR">Freio – JN2AS04MK2-R (αiS 8 a 200) (cabos por baixo)</name>
+    </names>
+    <elementInformations>
+        <elementInformation name="manufacturer" show="1">FANUC</elementInformation>
+        <elementInformation name="designation" show="1">Freio</elementInformation>
+        <elementInformation name="description" show="1">Freio – JN2AS04MK2-R (αiS 8 a 200) (cabos por baixo)</elementInformation>
+    </elementInformations>
+    <informations>Homiservi-SCH: gerado pelo gerador de conectores (estilo FANUC). Pinagem tirada dos manuais FANUC B-65262EN (servomotor αi, capítulos 7 a 9) e B-65272EN (spindle αi, 4.3).</informations>
+    <description>
+        <line antialias="false" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" uuid="{15ef93f8-72a3-49b4-81f5-d55fe6e14d6c}" x1="0" x2="0" y1="0" y2="10"/>
+        <dynamic_text Halignment="AlignLeft" Valignment="AlignTop" element_style="Rótulo" font="Liberation Sans,9,-1,0,50,0,0,0,0,0,Regular" frame="false" keep_visual_rotation="true" rotation="0" rotation_point_center="false" text_from="ElementInfo" text_width="-1" uuid="{c9d3745f-f6b9-4318-9a86-f57f5e54f044}" x="-40" y="-14" z="1">
+            <text/>
+            <info_name>label</info_name>
+        </dynamic_text>
+        <rect antialias="false" height="2.5" rx="0" ry="0" style="line-style:normal;line-weight:thin;filling:black;color:black" uuid="{7ee2003d-8cc1-4841-ba7a-b2503432409d}" width="2.4" x="-1.2" y="0"/>
+        <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="(1)" uuid="{992a1e11-ce0f-4694-b216-9296060a32de}" x="3.09" y="-3"/>
+        <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="BK" uuid="{fe145455-9f03-4501-8418-035d760316b3}" x="3.09" y="-26"/>
+        <line antialias="false" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" uuid="{d992ccbe-dfbf-4835-92ca-8f7b5ce64d29}" x1="10" x2="10" y1="0" y2="10"/>
+        <rect antialias="false" height="2.5" rx="0" ry="0" style="line-style:normal;line-weight:thin;filling:black;color:black" uuid="{551169c7-eb32-4236-8cc6-16b5187a1373}" width="2.4" x="8.8" y="0"/>
+        <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="(2)" uuid="{fd3b6cc8-8223-471b-9fb4-642151ac58bb}" x="13.09" y="-3"/>
+        <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="BK" uuid="{a44ee702-5c35-4400-bdee-628daeddefce}" x="13.09" y="-26"/>
+        <line antialias="false" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" uuid="{abb1a1de-8947-464f-a821-baf13f06f665}" x1="20" x2="20" y1="0" y2="10"/>
+        <rect antialias="false" height="2.5" rx="0" ry="0" style="line-style:normal;line-weight:thin;filling:black;color:black" uuid="{c87c5cd1-9bd0-431d-b8fa-9ed7d8efb941}" width="2.4" x="18.8" y="0"/>
+        <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="(4)" uuid="{334a300a-a572-44af-b999-4c6e8094ce25}" x="23.09" y="-3"/>
+        <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="GND" uuid="{b07aa995-f79e-4c1a-a1e4-328b1bc8f252}" x="23.09" y="-17"/>
+        <line antialias="false" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:thin;filling:none;color:black" uuid="{991bc0bf-379d-42e3-8eb6-b1c2a6545f30}" x1="-4" x2="24" y1="-41" y2="-41"/>
+        <line antialias="false" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:thin;filling:none;color:black" uuid="{be85e81d-841f-4e2e-8df4-f19c33e462ee}" x1="-4" x2="-4" y1="-41" y2="-39"/>
+        <line antialias="false" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:thin;filling:none;color:black" uuid="{030e5cbc-140f-44ca-8b07-0b5f93b54794}" x1="24" x2="24" y1="-41" y2="-39"/>
+        <text color="#000000" element_style="Texto da caixa" font="Liberation Sans,9,-1,0,50,0,0,0,0,0,Regular" rotation="0" text="Freio" uuid="{46e141e2-97f6-4f29-a01c-bc8c9d9285a5}" x="-4" y="-44"/>
+        <terminal name="1" orientation="s" type="Generic" uuid="{a8f0d731-6a10-4311-8fda-026f10a7af2f}" x="0" y="10"/>
+        <terminal name="2" orientation="s" type="Generic" uuid="{11daeaed-2343-483b-a0a0-6c450b4be005}" x="10" y="10"/>
+        <terminal name="4" orientation="s" type="Generic" uuid="{793d9b65-f439-4bb5-97e9-3fa9732d9274}" x="20" y="10"/>
+    </description>
+</definition>

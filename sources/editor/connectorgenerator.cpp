@@ -224,6 +224,12 @@ namespace {
 		return id == QLatin1String("honda20") || id == QLatin1String("fi40_15");
 	}
 
+		///The round motor connectors (JAE JN2, MS)
+	bool isRound(const QString &id)
+	{
+		return id == QLatin1String("jn2_10") || id == QLatin1String("jn2_4") || id == QLatin1String("ms18_10");
+	}
+
 	bool isHighDensity(const QString &id)
 	{
 		return id.endsWith(QLatin1String("hd")) || id == QLatin1String("dd50");
@@ -345,9 +351,23 @@ namespace {
 			{"honda20", tr("JYA4 – position coder S (αiSP-B)"), {"JYA4"},
 			 {{"1", "PZ"}, {"2", "*PZ"}, {"5", "PA"}, {"6", "*PA"}, {"7", "PB"}, {"8", "*PB"},
 			  {"9", "5V"}, {"10", "SS"}, {"12", "0V"}, {"14", "0V"}, {"16", "0V"}, {"18", "5V"}, {"20", "5V"}}},
+				//The motors, read from B-65262EN (7, 8.1.2, 9.2.1) and
+				//B-65272EN (4.3)
 			{"tyco12", tr("Sensor αiM – conector do motor do spindle"), {"αiM"},
-			 {{"A1", "+5V"}, {"A2", "VA"}, {"B2", "RA"}, {"A3", "VB"}, {"B3", "RB"}, {"A5", "SS"},
+			 {{"A1", "+5V"}, {"A2", "VA"}, {"B2", "*VA"}, {"A3", "VB"}, {"B3", "*VB"}, {"A5", "SS"},
 			  {"B5", "0V"}, {"A6", "THR1"}, {"B6", "THR2"}}},
+			{"tyco12", tr("Sensor αiMZ – conector do motor do spindle"), {"αiMZ"},
+			 {{"A1", "+5V"}, {"A2", "VA"}, {"B2", "*VA"}, {"A3", "VB"}, {"B3", "*VB"}, {"A4", "VZ"},
+			  {"B4", "*VZ"}, {"A5", "SS"}, {"B5", "0V"}, {"A6", "THR1"}, {"B6", "THR2"}}},
+			{"jn2_10", tr("Pulsecoder αi / βiS – conector do motor"), {"Pulsecoder"},
+			 {{"3", "FG"}, {"4", "+6V"}, {"5", "*RD"}, {"6", "RD"}, {"7", "0V"}, {"8", "+5V"},
+			  {"9", "+5V"}, {"10", "0V"}}},
+			{"jn2_4", tr("Freio – JN2AS04MK2-R (αiS 8 a 200)"), {"Freio"},
+			 {{"1", "BK"}, {"2", "BK"}, {"4", "GND"}}},
+			{"ms18_10", tr("Potência do servomotor – MS3102A18-10P"), {"Motor"},
+			 {{"A", "U"}, {"B", "V"}, {"C", "W"}, {"D", "GND"}}},
+			{"tyco1x6", tr("Potência e freio – 1473060-2 (αiS 2 a 4)"), {"Motor"},
+			 {{"1", "U"}, {"2", "V"}, {"3", "W"}, {"4", "GND"}, {"5", "BK"}, {"6", "BK"}}},
 				//The I/O units and the safety operator's panel, read from the
 				//tables of B-64693EN (8.2.4.1, 8.8.4.1, 8.9.3, 8.12.3)
 			{"mr50", tr("CB150 – módulo de I/O (24 DI / 16 DO)"), {"CB150"},
@@ -560,6 +580,10 @@ QList<ConnectorGenerator::Variant> ConnectorGenerator::variants()
 		{QStringLiteral("tyco4"), Fanuc, tr("Tyco 2×2 (A1–B2)"), {none}},
 		{QStringLiteral("tyco3"), Fanuc, tr("Tyco 3 pinos (1–3)"), {none}},
 		{QStringLiteral("tyco2"), Fanuc, tr("Tyco 2 pinos (A1, A2)"), {none}},
+		{QStringLiteral("tyco1x6"), Fanuc, tr("Tyco 1473060-2 (6 pinos, motor)"), {none}},
+		{QStringLiteral("jn2_10"), Fanuc, tr("JAE JN2 10 pinos (pulsecoder)"), {none}},
+		{QStringLiteral("jn2_4"), Fanuc, tr("JAE JN2 4 pinos (freio)"), {none}},
+		{QStringLiteral("ms18_10"), Fanuc, tr("MS3102A18-10P (4 pinos, potência)"), {none}},
 		{QStringLiteral("generic"), Generic, tr("Genérico"), {none}},
 	};
 	for (Variant &v : list)
@@ -642,6 +666,24 @@ QList<ConnectorGenerator::Pin> ConnectorGenerator::pins(const Settings &s)
 			list << Pin {QString::number(i + 1), QPointF(i, 0)};
 	} else if (id == QLatin1String("tyco2")) {
 		list << Pin {QStringLiteral("A1"), QPointF(0, 0)} << Pin {QStringLiteral("A2"), QPointF(1, 0)};
+	} else if (id == QLatin1String("tyco1x6")) {
+			//Seen from the motor: 6 5 4 3 2 1 (B-65262EN 7.1.5)
+		for (int i = 0; i < 6; ++i)
+			list << Pin {QString::number(i + 1), QPointF(5 - i, 0)};
+	} else if (id == QLatin1String("jn2_10")) {
+			//1 to 3 over 4 to 7 over 8 to 10, seen from the motor
+			//(B-65262EN 8.1.2)
+		for (int i = 0; i < 10; ++i)
+			list << Pin {QString::number(i + 1), i < 3 ? QPointF(i + 0.5, 0) : i < 7 ? QPointF(i - 3, 1)
+										  : QPointF(i - 7 + 0.5, 2)};
+	} else if (id == QLatin1String("jn2_4")) {
+			//A cross: 1 at the top, 2 left, 3 right, 4 at the bottom
+		list << Pin {"1", QPointF(1, 0)} << Pin {"2", QPointF(0, 1)} << Pin {"3", QPointF(2, 1)}
+		     << Pin {"4", QPointF(1, 2)};
+	} else if (id == QLatin1String("ms18_10")) {
+			//D A over C B, the key on top (B-65262EN 7.2.5)
+		list << Pin {"A", QPointF(1, 0)} << Pin {"B", QPointF(1, 1)} << Pin {"C", QPointF(0, 1)}
+		     << Pin {"D", QPointF(0, 0)};
 	} else if (id == QLatin1String("generic")) {
 		const int rows = qMax(1, s.rows), columns = qMax(1, s.columns);
 		for (int i = 0; i < rows * columns; ++i) {
@@ -894,8 +936,8 @@ QDomDocument ConnectorGenerator::build(const Settings &s)
 		const bool dsub = !dsubRows(id).isEmpty();
 		const Variant *v = variant(id);
 		const Family family = v ? v->family : Generic;
-		const bool contacts = family == Modular || family == Usb || (family == Fanuc && !dsub);
-		const qreal step = dsub && isHighDensity(id) ? pitch * 0.82 : pitch;
+		const bool contacts = family == Modular || family == Usb || (family == Fanuc && !dsub && !isRound(id));
+		const qreal step = dsub && isHighDensity(id) ? pitch * 0.82 : isRound(id) ? pitch * 1.4 : pitch;
 			//Flat contacts in two rows (USB B and C) need room between them;
 			//the rows of the PCR are 1.7 mm apart for a pitch of 1.27 mm
 		const qreal row_step = isPcr(id) ? 1.34 * step
@@ -970,6 +1012,13 @@ QDomDocument ConnectorGenerator::build(const Settings &s)
 					     {x0 + width - step * 0.8, y0 + step * 2.6}, {x0 + step * 0.8, y0 + step * 2.6},
 					     {x0, y0 + step * 1.8}}));
 			bottom = y0 + step * 2.6;
+		} else if (isRound(id)) {
+				//The round shell and its key on top
+			const QPointF c(ox + span_x / 2, oy + span_y / 2);
+			const qreal r = qMax(span_x, span_y) / 2 + step * 0.9;
+			w.circle(c, r);
+			w.rect(QRectF(c.x() - step * 0.3, c.y() - r - step * 0.25, step * 0.6, step * 0.5), 0, thin_style);
+			bottom = c.y() + r;
 		} else if (isPcr(id)) {
 				//The shell of the 20-pin interface (Fig. A (v), (w)): a
 				//trapeze with rounded corners, 16.25 mm over 13.35 mm and
@@ -1035,6 +1084,8 @@ QDomDocument ConnectorGenerator::build(const Settings &s)
 				w.text(pin.id, c.x(), c.y() - half - 1, small, 0);
 			else if (y > max_y / 2 + 0.01)
 				w.text(pin.id, c.x(), c.y() + half + 1 + cap, small, 0);
+			else if (isRound(id) && &pin != &pin_list.at(middle_first))
+				w.text(pin.id, c.x() + (mirrored ? -1 : 1) * (radius + 0.6), c.y() + cap / 2, small, mirrored ? 1 : -1);
 			else if (&pin == &pin_list.at(middle_first) || &pin == &pin_list.at(middle_last)) {
 				const bool left_end = (&pin == &pin_list.at(middle_first)) != (mirrored && !flipped);
 				w.text(pin.id, c.x() + (left_end ? -1 : 1) * (radius + 0.6), c.y() + cap / 2, small, left_end ? 1 : -1);
