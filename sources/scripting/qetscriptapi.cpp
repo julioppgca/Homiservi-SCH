@@ -2448,6 +2448,62 @@ bool QetScriptApi::setShapeClosed(int folioIndex, int shapeIndex, bool closed)
 }
 
 /**
+	@brief QetScriptApi::shapeCable
+	The cable data of a polyline: enabled, name, code, formation, length,
+	cores, shielded, shield_ground (0 none, 1 start, 2 end, 3 both) --
+	enabled is false for a plain polyline.
+*/
+QVariantMap QetScriptApi::shapeCable(int folioIndex, int shapeIndex) const
+{
+	const QList<QetShapeItem *> list = sortedShapes(folioIndex);
+	if (shapeIndex < 0 || shapeIndex >= list.count()) return {};
+	return list.at(shapeIndex)->cableMap();
+}
+
+/**
+	@brief QetScriptApi::setShapeCable
+	Makes an open polyline a cable, or changes its data.  data takes the
+	keys shapeCable() returns; enabled defaults to true, so {name: "W1"}
+	is enough to make a cable, and {enabled: false} makes it a polyline
+	again. Its wires are the conductors whose "cable" property is its name.
+*/
+bool QetScriptApi::setShapeCable(int folioIndex, int shapeIndex, const QVariantMap &data)
+{
+	if (!m_project) return false;
+	if (m_project->isReadOnly()) {
+		log(QStringLiteral("qet.setShapeCable: project is read-only"));
+		return false;
+	}
+	const QList<QetShapeItem *> list = sortedShapes(folioIndex);
+	if (shapeIndex < 0 || shapeIndex >= list.count()) {
+		log(QStringLiteral("qet.setShapeCable: folio %1 has %2 shape(s), no index %3")
+			.arg(folioIndex).arg(list.count()).arg(shapeIndex));
+		return false;
+	}
+	QetShapeItem *shape = list.at(shapeIndex);
+	if (shape->shapeType() != QetShapeItem::Polygon || shape->isClosed()) {
+		log(QStringLiteral("qet.setShapeCable: only an open polyline can be a cable"));
+		return false;
+	}
+	QVariantMap map = shape->cableMap();
+	for (auto it = data.cbegin(); it != data.cend(); ++it)
+		map.insert(it.key(), it.value());
+	if (!data.contains(QStringLiteral("enabled")))
+		map.insert(QStringLiteral("enabled"), true);
+	const CableData cable = CableData::fromMap(map);
+	if (cable.enabled && cable.name.isEmpty()) {
+		log(QStringLiteral("qet.setShapeCable: a cable needs a name"));
+		return false;
+	}
+	if (cable == shape->cable()) return true;
+
+	auto *cmd = new QPropertyUndoCommand(shape, "cableData", shape->cableMap(), cable.toMap());
+	cmd->setText(QObject::tr("Modificar o cabo %1").arg(cable.name));
+	m_project->undoStack()->push(cmd);
+	return true;
+}
+
+/**
 	@brief QetScriptApi::tables
 	The tables and views the project database holds, as "name (type)".
 

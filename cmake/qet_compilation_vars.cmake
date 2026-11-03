@@ -656,6 +656,8 @@ set(QET_SRC_FILES
   ${QET_DIR}/sources/qetgraphicsitem/qetgraphicsitem.cpp
   ${QET_DIR}/sources/qetgraphicsitem/qetgraphicsitem.h
   ${QET_DIR}/sources/qetgraphicsitem/qetshapeitem.cpp
+  ${QET_DIR}/sources/qetgraphicsitem/cabledata.cpp
+  ${QET_DIR}/sources/qetgraphicsitem/cabledata.h
   ${QET_DIR}/sources/qetgraphicsitem/qetshapeitem.h
   ${QET_DIR}/sources/qetgraphicsitem/shapetransform.cpp
   ${QET_DIR}/sources/qetgraphicsitem/shapetransform.h
@@ -924,6 +926,8 @@ set(QET_SRC_FILES
   ${QET_DIR}/sources/ui/reportpropertiewidget.cpp
   ${QET_DIR}/sources/ui/reportpropertiewidget.h
   ${QET_DIR}/sources/ui/shapegraphicsitempropertieswidget.cpp
+  ${QET_DIR}/sources/ui/cabledialog.cpp
+  ${QET_DIR}/sources/ui/cabledialog.h
   ${QET_DIR}/sources/ui/shapegraphicsitempropertieswidget.h
   ${QET_DIR}/sources/ui/thirdpartybinaryinstalldialog.cpp
   ${QET_DIR}/sources/ui/thirdpartybinaryinstalldialog.h

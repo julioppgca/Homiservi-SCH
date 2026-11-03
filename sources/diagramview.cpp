@@ -34,6 +34,8 @@
 #include "qetgraphicsitem/conductor.h"
 #include "qetgraphicsitem/conductortextitem.h"
 #include "qetgraphicsitem/independenttextitem.h"
+#include "qetgraphicsitem/qetshapeitem.h"
+#include "ui/cabledialog.h"
 #include "qeticons.h"
 #include "qetpalette.h"
 #include "titleblock/integrationmovetemplateshandler.h"
@@ -119,6 +121,14 @@ DiagramView::DiagramView(Diagram *diagram, QWidget *parent) :
 		//Setup the action to generate cabinet placement thumbnails (discussion #602)
 	m_generate_cabinet_thumbnail = new QAction(tr("Générer une vignette d'armoire", "context menu action"), this);
 	connect(m_generate_cabinet_thumbnail, &QAction::triggered, this, &DiagramView::generateCabinetThumbnails);
+
+		//Put the selected wires into the selected cable, or take them out
+	m_join_cable = new QAction(tr("Juntar ao cabo", "context menu action"), this);
+	m_join_cable->setStatusTip(tr("Faz os fios selecionados entrarem no cabo selecionado"));
+	connect(m_join_cable, &QAction::triggered, this, &DiagramView::joinCable);
+	m_leave_cable = new QAction(tr("Separar do cabo", "context menu action"), this);
+	m_leave_cable->setStatusTip(tr("Tira os fios selecionados do cabo em que estão"));
+	connect(m_leave_cable, &QAction::triggered, this, &DiagramView::leaveCable);
 
 		//Filled each time the context menu opens, see updateFolioReportMenu()
 	m_folio_report_menu = new QMenu(tr("Renvoi de folio"), this);
@@ -1906,6 +1916,23 @@ QList<QAction *> DiagramView::contextMenuActions() const
 					return element && hasCabinetInfo(element->elementInformations());
 				}));
 			list << m_generate_cabinet_thumbnail;
+			{
+				int cables = 0;
+				bool wires = false, wires_in_cable = false;
+				for (QGraphicsItem *qgi : selected_items)
+				{
+					if (const QetShapeItem *shape = qgraphicsitem_cast<QetShapeItem *>(qgi))
+						cables += shape->isCable() ? 1 : 0;
+					else if (const Conductor *c = qgraphicsitem_cast<Conductor *>(qgi))
+					{
+						wires = true;
+						wires_in_cable |= !c->properties().m_cable.isEmpty();
+					}
+				}
+				m_join_cable->setEnabled(wires && cables == 1);
+				m_leave_cable->setEnabled(wires_in_cable);
+				list << m_join_cable << m_leave_cable;
+			}
 			list << qde->m_conductor_reset;
 			list << m_separators.at(1);
 			list << qde->m_selection_actions_group.actions();
@@ -2107,6 +2134,56 @@ void DiagramView::updateFolioReportMenu()
  * @brief DiagramView::createTemplateFromSelection
  * Triggered from the context menu to create a new template (macro) from the current selection.
  */
+/**
+	@brief DiagramView::joinCable
+	The selected conductors run into the one cable selected with them
+*/
+void DiagramView::joinCable()
+{
+	QetShapeItem *cable = nullptr;
+	QList<Conductor *> wires;
+	const QList<QGraphicsItem *> selection = m_diagram->selectedItems();
+	for (QGraphicsItem *qgi : selection)
+	{
+		if (QetShapeItem *shape = qgraphicsitem_cast<QetShapeItem *>(qgi))
+		{
+			if (shape->isCable())
+			{
+				if (cable)
+					return;
+				cable = shape;
+			}
+		}
+		else if (Conductor *c = qgraphicsitem_cast<Conductor *>(qgi))
+			wires << c;
+	}
+	if (!cable || wires.isEmpty())
+		return;
+	QUndoCommand *undo = CableDialog::setCableCommand(wires, cable->cable().name);
+	if (undo->childCount())
+		m_diagram->undoStack().push(undo);
+	else
+		delete undo;
+}
+
+/**
+	@brief DiagramView::leaveCable
+	The selected conductors are drawn whole again, out of their cable
+*/
+void DiagramView::leaveCable()
+{
+	QList<Conductor *> wires;
+	const QList<QGraphicsItem *> selection = m_diagram->selectedItems();
+	for (QGraphicsItem *qgi : selection)
+		if (Conductor *c = qgraphicsitem_cast<Conductor *>(qgi))
+			wires << c;
+	QUndoCommand *undo = CableDialog::setCableCommand(wires, QString());
+	if (undo->childCount())
+		m_diagram->undoStack().push(undo);
+	else
+		delete undo;
+}
+
 void DiagramView::createTemplateFromSelection()
 {
 	QList<QGraphicsItem *> selected_elements = m_diagram->selectedItems();

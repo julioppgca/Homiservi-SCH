@@ -491,6 +491,10 @@ class QetScriptApi : public QObject
 		Q_INVOKABLE bool setShapePathNodes(int folioIndex, int shapeIndex, const QVariantList &nodes);
 		Q_INVOKABLE bool setShapeClosed(int folioIndex, int shapeIndex, bool closed);
 
+		// -- cables: an open polyline the wires of a multicore cable run into --
+		Q_INVOKABLE QVariantMap shapeCable(int folioIndex, int shapeIndex) const;
+		Q_INVOKABLE bool setShapeCable(int folioIndex, int shapeIndex, const QVariantMap &data);
+
 		// -- query the project database --
 		Q_INVOKABLE QStringList tables() const;
 		Q_INVOKABLE QVariantList query(const QString &sql);

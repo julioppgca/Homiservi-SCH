@@ -21,8 +21,10 @@
 #include "../QetGraphicsItemModeler/qetgraphicshandleritem.h"
 #include "qetgraphicsitem.h"
 #include "shapetransform.h"
+#include "cabledata.h"
 
 #include <QPen>
+#include <QPointer>
 #include <QUuid>
 #include <optional>
 #include <utility>
@@ -31,6 +33,7 @@ class QDomElement;
 class QDomDocument;
 class QetGraphicsHandlerItem;
 class QAction;
+class Conductor;
 
 /**
 	@brief The QetShapeItem class
@@ -65,6 +68,7 @@ class QetShapeItem : public QetGraphicsItem
 
 	Q_PROPERTY(qreal startAngle READ startAngle WRITE setStartAngle NOTIFY arcChanged)
 	Q_PROPERTY(qreal endAngle READ endAngle WRITE setEndAngle NOTIFY arcChanged)
+	Q_PROPERTY(QVariantMap cableData READ cableMap WRITE setCableMap NOTIFY cableChanged)
 
 	signals:
 		void penChanged();
@@ -74,6 +78,7 @@ class QetShapeItem : public QetGraphicsItem
 		void YRadiusChanged();
 		void transformChanged();
 		void arcChanged();
+		void cableChanged();
 		void geometryChanged();
 		void uuidChanged();   // P1/P2, polygon points, or path nodes changed -- lets the properties panel stay in sync while a handle is dragged, not just when it's typed into
 
@@ -215,6 +220,19 @@ class QetShapeItem : public QetGraphicsItem
 		const QVector<PathNode> &pathNodes() const {return m_nodes;}
 		void setPathNodes(const QVector<PathNode> &nodes);
 
+			//Cable: an open polyline the wires of a multicore cable run
+			//into (see CableData). Its wires are the conductors of the
+			//same diagram whose "cable" property is its name.
+		bool isCable() const {return m_cable.enabled && m_shapeType == Polygon;}
+		CableData cable() const {return m_cable;}
+		void setCable(const CableData &cable);
+		QVariantMap cableMap() const {return m_cable.toMap();}
+		void setCableMap(const QVariantMap &map) {setCable(CableData::fromMap(map));}
+		QPolygonF cableSceneLine() const;
+		QList<Conductor *> cableMembers() const;
+		static QetShapeItem *findCable(const QGraphicsScene *scene, const QString &name);
+		static QString nextCableName(const QGraphicsScene *scene);
+
 			//Methods available for polygon shape
 		int  pointsCount  () const;
 		void setNextPoint (QPointF P);
@@ -247,6 +265,11 @@ class QetShapeItem : public QetGraphicsItem
 				QGraphicsSceneContextMenuEvent *event) override;
 
 	private:
+		void paintCable(QPainter *painter);
+		QPainterPath cableShape() const;
+		QRectF cableLabelRect() const;
+		QList<QLineF> cableShieldMarks() const;   // per grounded end: p1 the middle of the shield ring, p2 one unit along the cable
+		void updateCableMembers(const QString &name, QGraphicsScene *scene) const;
 		void toggleHandleMode();
 		HandleMode nextHandleMode() const;   // what a click would switch to from here -- shared by toggleHandleMode() and the tooltip
 		void updateModeHint();               // keeps the tooltip in sync with nextHandleMode()
@@ -346,6 +369,8 @@ class QetShapeItem : public QetGraphicsItem
 		bool             m_pivotIsCustom = false;   // false: pivot auto-follows the bounding-rect center on every geometry edit
 		bool             m_deferHandleReposition = false;   // true while setPivot() is applying its two related updates together
 
+		CableData        m_cable;
+		QPointer<QGraphicsScene> m_cable_scene;   // the scene the cable was last in, for its wires to be redrawn once it leaves
 		QVector<PathNode> m_nodes;
 		QVector<PathNode> m_old_nodes;              // saved at handle press, for undo
 		int              m_curveDragSegment = -1;   // >=0 while dragging the curve itself (not a handle) between two nodes

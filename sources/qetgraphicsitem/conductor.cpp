@@ -35,6 +35,8 @@
 #include "../QetGraphicsItemModeler/qetgraphicshandleritem.h"
 #include "../utils/qetutils.h"
 #include "../wirehops.h"
+#include "cabledata.h"
+#include "qetshapeitem.h"
 
 #include <QMultiHash>
 #include <QtDebug>
@@ -240,6 +242,7 @@ void Conductor::segmentsToPath()
 	path.lineTo(segment -> secondPoint());
 
 	setPath(path);
+	updateCableStub();
 
 		//If conductor is selected and he's not being modified
 		//we update the position of the handlers
@@ -638,7 +641,7 @@ void Conductor::paint(QPainter *painter, const QStyleOptionGraphicsItem *options
 	painter -> setPen(final_conductor_pen);
 
 		//Draw the conductor, with a hop at each crossing if the project asks for them
-	const QPainterPath painted_path = paintedPath();
+	const QPainterPath painted_path = m_in_cable ? m_cable_stub : paintedPath();
 	painter -> drawPath(painted_path);
 		//Draw the second color
 	if(m_properties.m_bicolor)
@@ -654,7 +657,7 @@ void Conductor::paint(QPainter *painter, const QStyleOptionGraphicsItem *options
 		painter->restore();
 	}
 
-	if (m_properties.type == ConductorProperties::Single) {
+	if (m_properties.type == ConductorProperties::Single && !m_in_cable) {
 		painter -> setBrush(final_conductor_color);
 		m_properties.singleLineProperties.draw(
 			painter,
@@ -1054,7 +1057,7 @@ QPainterPath Conductor::shape() const
 	pps.setWidth(m_mouse_over? 5 : 1);
 	pps.setJoinStyle(conductor_pen.joinStyle());
 
-	QPainterPath shape_(pps.createStroke(path()));
+	QPainterPath shape_(pps.createStroke(m_in_cable ? m_cable_stub : path()));
 
 	return shape_;
 }
@@ -1068,7 +1071,7 @@ QPainterPath Conductor::nearShape() const
 	QPainterPathStroker pps;
 	pps.setWidth(1300);
 	pps.setJoinStyle(conductor_pen.joinStyle());
-	return pps.createStroke(path());
+	return pps.createStroke(m_in_cable ? m_cable_stub : path());
 }
 
 /**
@@ -1652,7 +1655,15 @@ void Conductor::calculateTextItemPosition()
 	{
 			//Position and rotation of text is calculated.
 		Qt::Orientations rotation;
-		QPointF text_pos = posForText(rotation);
+		QPointF text_pos;
+		if (m_in_cable)
+		{
+				//On the piece out of terminal 1, the rest is in the cable
+			text_pos = m_cable_text_pos;
+			rotation = m_cable_text_vertical ? Qt::Vertical : Qt::Horizontal;
+		}
+		else
+			text_pos = posForText(rotation);
 
 		if (!m_text_item -> wasRotatedByUser())
 		{
@@ -1984,6 +1995,7 @@ void Conductor::setProperties(const ConductorProperties &property)
 	}
 
 	updateTextVisibility();
+	updateCableStub();
 	calculateTextItemPosition();
 	update();
 
@@ -2633,4 +2645,64 @@ void Conductor::setFreezeLabel(bool freeze)
 		QString f = m_properties.m_formula;
 		setUpConnectionForFormula(f,f);
 	}
+}
+
+namespace
+{
+	QPointF outward(Qet::Orientation orientation)
+	{
+		switch (orientation) {
+			case Qet::North: return QPointF(0, -1);
+			case Qet::East:  return QPointF(1, 0);
+			case Qet::South: return QPointF(0, 1);
+			default:         return QPointF(-1, 0);
+		}
+	}
+}
+
+/**
+	@brief Conductor::updateCableStub
+	A conductor whose "cable" property names a cable of its folio is drawn
+	as two pieces only: out of each terminal and into the cable at 45
+	degrees, turned towards the other end. The rest of its path runs
+	hidden in the cable. Without such a cable it is drawn whole again.
+*/
+void Conductor::updateCableStub()
+{
+	QPainterPath stub;
+	bool in_cable = false;
+	QPointF text_pos;
+	bool vertical = false;
+
+	QetShapeItem *cable = m_properties.m_cable.isEmpty() || !terminal1 || !terminal2
+			? nullptr : QetShapeItem::findCable(scene(), m_properties.m_cable);
+	if (cable)
+	{
+		const QPolygonF line = cable->cableSceneLine();
+		if (line.size() >= 2)
+		{
+			in_cable = true;
+			const QPointF p1 = terminal1->dockConductor(), p2 = terminal2->dockConductor();
+			const qreal along1 = CableGeometry::project(line, p1).along;
+			const qreal along2 = CableGeometry::project(line, p2).along;
+			QPainterPath scene_stub = CableGeometry::stub(
+						line, p1, outward(terminal1->orientation()), along2, &text_pos, &vertical);
+			scene_stub.addPath(CableGeometry::stub(
+						line, p2, outward(terminal2->orientation()), along1));
+			stub = mapFromScene(scene_stub);
+			text_pos = mapFromScene(text_pos);
+		}
+	}
+
+	if (in_cable == m_in_cable && stub == m_cable_stub && text_pos == m_cable_text_pos)
+		return;
+	prepareGeometryChange();
+	m_in_cable = in_cable;
+	m_cable_stub = stub;
+	m_cable_text_pos = text_pos;
+	m_cable_text_vertical = vertical;
+	calculateTextItemPosition();
+	update();
+	if (cable)
+		cable->update();
 }

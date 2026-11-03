@@ -60,6 +60,8 @@ class DiagramView : public PaletteGraphicsView
 		QAction			 *m_multi_paste = nullptr;
 		QAction          *m_create_template = nullptr;
 		QAction          *m_generate_cabinet_thumbnail = nullptr;
+		QAction          *m_join_cable = nullptr;
+		QAction          *m_leave_cable = nullptr;
 		QMenu            *m_folio_report_menu = nullptr;
 		QPoint            m_paste_here_pos;
 		QPoint            m_press_pos;
@@ -204,5 +206,7 @@ class DiagramView : public PaletteGraphicsView
 		void applyReadOnly();
 		void createTemplateFromSelection();
 		void generateCabinetThumbnails();
+		void joinCable();
+		void leaveCable();
 };
 #endif
