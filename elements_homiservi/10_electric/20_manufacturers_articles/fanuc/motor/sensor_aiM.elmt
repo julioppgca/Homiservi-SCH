@@ -1,0 +1,70 @@
+<definition height="70" hotspot_x="10" hotspot_y="16" link_type="simple" type="element" version="0.200.1" width="100">
+    <uuid uuid="{c530bd53-61f5-5fc2-b101-129d30e8a6b3}"/>
+    <names>
+        <name lang="en">αiM</name>
+        <name lang="fr">αiM</name>
+        <name lang="pt">αiM – sensor do motor do spindle (cabos por cima)</name>
+        <name lang="pt_BR">αiM – sensor do motor do spindle (cabos por cima)</name>
+    </names>
+    <elementInformations>
+        <elementInformation name="manufacturer" show="1">FANUC</elementInformation>
+        <elementInformation name="designation" show="1">αiM</elementInformation>
+        <elementInformation name="description" show="1">αiM – sensor do motor do spindle (cabos por cima)</elementInformation>
+    </elementInformations>
+    <informations>Homiservi-SCH: gerado pelo gerador de conectores (estilo FANUC). Pinagem tirada do manual FANUC B-65412EN (αi-B, Descriptions), capítulos 9 e 13.</informations>
+    <description>
+        <line antialias="false" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" uuid="{11f48415-f6a3-4051-9cdf-9e120aa28525}" x1="0" x2="0" y1="0" y2="-10"/>
+        <dynamic_text Halignment="AlignLeft" Valignment="AlignTop" element_style="Rótulo" font="Liberation Sans,9,-1,0,50,0,0,0,0,0,Regular" frame="false" keep_visual_rotation="true" rotation="0" rotation_point_center="false" text_from="ElementInfo" text_width="-1" uuid="{154a2fb3-d380-42d3-a516-7ffd68d43b69}" x="-40" y="2" z="1">
+            <text/>
+            <info_name>label</info_name>
+        </dynamic_text>
+        <rect antialias="false" height="2.5" rx="0" ry="0" style="line-style:normal;line-weight:thin;filling:black;color:black" uuid="{9fdb8806-87e8-4138-a921-a6597005c9f9}" width="2.4" x="-1.2" y="-2.5"/>
+        <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="(A1)" uuid="{6f9f081b-e466-4830-ba70-fad3bfab0a61}" x="3.09" y="20"/>
+        <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="+5V" uuid="{b0a9e4df-6e9d-4eec-9524-57dd9246ac15}" x="3.09" y="48"/>
+        <line antialias="false" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" uuid="{b6e0f74d-42c3-472a-9c3f-e0b9004c70cf}" x1="10" x2="10" y1="0" y2="-10"/>
+        <rect antialias="false" height="2.5" rx="0" ry="0" style="line-style:normal;line-weight:thin;filling:black;color:black" uuid="{795330c3-49fc-413c-b95c-fa5a029b8642}" width="2.4" x="8.8" y="-2.5"/>
+        <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="(A2)" uuid="{36bb2395-6e63-4e48-bc61-38504bfb86e4}" x="13.09" y="20"/>
+        <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="VA" uuid="{332014dc-c14a-44a6-ad13-d1ca499daea2}" x="13.09" y="48"/>
+        <line antialias="false" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" uuid="{ca0cbce5-07d7-4fe8-891c-1ae742e0e7ae}" x1="20" x2="20" y1="0" y2="-10"/>
+        <rect antialias="false" height="2.5" rx="0" ry="0" style="line-style:normal;line-weight:thin;filling:black;color:black" uuid="{40f5efb7-553f-4472-9285-e27363cfd848}" width="2.4" x="18.8" y="-2.5"/>
+        <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="(B2)" uuid="{c3b0e285-029b-4dc3-948f-1924c03ad6e0}" x="23.09" y="20"/>
+        <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="RA" uuid="{d5e24bce-e623-48bd-847e-c3815fed196a}" x="23.09" y="48"/>
+        <line antialias="false" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" uuid="{8a5b97a6-e3df-463f-9a65-1e5a532fc178}" x1="30" x2="30" y1="0" y2="-10"/>
+        <rect antialias="false" height="2.5" rx="0" ry="0" style="line-style:normal;line-weight:thin;filling:black;color:black" uuid="{90596af8-db5a-4445-b47d-24cc3fd61826}" width="2.4" x="28.8" y="-2.5"/>
+        <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="(A3)" uuid="{9683f085-00ec-4ed6-a2c6-83e220171551}" x="33.09" y="20"/>
+        <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="VB" uuid="{a0c2ac9e-b4f6-45e0-81f5-e753088602cb}" x="33.09" y="48"/>
+        <line antialias="false" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" uuid="{781f2f15-a6e5-4602-9342-d3d41beb3d87}" x1="40" x2="40" y1="0" y2="-10"/>
+        <rect antialias="false" height="2.5" rx="0" ry="0" style="line-style:normal;line-weight:thin;filling:black;color:black" uuid="{39f3b6a0-9201-4007-a59d-70d766a99845}" width="2.4" x="38.8" y="-2.5"/>
+        <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="(B3)" uuid="{c9e23bc4-0db3-46ba-bdee-a27b604f2f2d}" x="43.09" y="20"/>
+        <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="RB" uuid="{73de5254-c1ce-4d5c-bc37-e488330d1203}" x="43.09" y="48"/>
+        <line antialias="false" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" uuid="{d0bad0d4-c10c-4419-aea4-65cc37e3b850}" x1="50" x2="50" y1="0" y2="-10"/>
+        <rect antialias="false" height="2.5" rx="0" ry="0" style="line-style:normal;line-weight:thin;filling:black;color:black" uuid="{79340bc3-039d-42e2-8250-2bc11da74b02}" width="2.4" x="48.8" y="-2.5"/>
+        <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="(A5)" uuid="{e79f9b55-3372-4f70-ad41-99d0075a879c}" x="53.09" y="20"/>
+        <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="SS" uuid="{8e4128e7-4794-480b-bf42-db203d89706b}" x="53.09" y="48"/>
+        <line antialias="false" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" uuid="{eacb3272-13a7-497c-8a96-eae3cd407a8e}" x1="60" x2="60" y1="0" y2="-10"/>
+        <rect antialias="false" height="2.5" rx="0" ry="0" style="line-style:normal;line-weight:thin;filling:black;color:black" uuid="{b7df0eed-ce80-41b8-94e7-810410c8e348}" width="2.4" x="58.8" y="-2.5"/>
+        <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="(B5)" uuid="{6a656069-ae8b-41cf-a914-d6a8d01c025a}" x="63.09" y="20"/>
+        <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="0V" uuid="{13055190-ecac-4fd1-b0d1-2d1f54557d45}" x="63.09" y="48"/>
+        <line antialias="false" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" uuid="{af0b3a2f-f5ed-41c4-b585-bd4ea25a5cf4}" x1="70" x2="70" y1="0" y2="-10"/>
+        <rect antialias="false" height="2.5" rx="0" ry="0" style="line-style:normal;line-weight:thin;filling:black;color:black" uuid="{3e187744-a1b8-44a9-81e3-6107bc8f7a3d}" width="2.4" x="68.8" y="-2.5"/>
+        <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="(A6)" uuid="{be76a0d0-f121-4fae-9635-f7ffb79a9edf}" x="73.09" y="20"/>
+        <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="THR1" uuid="{a13bafe8-0893-42ec-8a66-fd6326ce31fb}" x="73.09" y="48"/>
+        <line antialias="false" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" uuid="{464d3288-740e-4a62-8389-21b2ba51b280}" x1="80" x2="80" y1="0" y2="-10"/>
+        <rect antialias="false" height="2.5" rx="0" ry="0" style="line-style:normal;line-weight:thin;filling:black;color:black" uuid="{9c3a044d-0b75-46f0-bc5b-1a28b5b96b6e}" width="2.4" x="78.8" y="-2.5"/>
+        <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="(B6)" uuid="{33a8c54e-0833-4e4e-ae08-2b2c849e13db}" x="83.09" y="20"/>
+        <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="THR2" uuid="{591c5e3c-ee21-4d4b-ab5e-a2d9f7912e94}" x="83.09" y="48"/>
+        <line antialias="false" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:thin;filling:none;color:black" uuid="{de7f84f5-0fdc-4290-8ff1-0f36c025ec93}" x1="-4" x2="84" y1="51" y2="51"/>
+        <line antialias="false" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:thin;filling:none;color:black" uuid="{bffad9e1-8a3c-4c8c-a4ef-93fc7982d59b}" x1="-4" x2="-4" y1="51" y2="49"/>
+        <line antialias="false" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:thin;filling:none;color:black" uuid="{74db063d-ea4b-4046-959a-608fa11cf8b5}" x1="84" x2="84" y1="51" y2="49"/>
+        <text color="#000000" element_style="Texto da caixa" font="Liberation Sans,9,-1,0,50,0,0,0,0,0,Regular" rotation="0" text="αiM" uuid="{93530adb-caa3-4559-9936-03d4caaedee4}" x="30" y="62.25"/>
+        <terminal name="A1" orientation="n" type="Generic" uuid="{a092f813-cf55-4ceb-b170-e429d3c269b4}" x="0" y="-10"/>
+        <terminal name="A2" orientation="n" type="Generic" uuid="{32909f62-46b0-4160-b8b7-512745205537}" x="10" y="-10"/>
+        <terminal name="B2" orientation="n" type="Generic" uuid="{54a8d8af-d39f-40e0-98c7-458a6a7e7848}" x="20" y="-10"/>
+        <terminal name="A3" orientation="n" type="Generic" uuid="{08d66974-9d5b-46a7-b3c1-62b208c0decb}" x="30" y="-10"/>
+        <terminal name="B3" orientation="n" type="Generic" uuid="{e9f4682c-a09a-4ef6-a09e-091db9813761}" x="40" y="-10"/>
+        <terminal name="A5" orientation="n" type="Generic" uuid="{690d2793-db9d-4bcc-ac03-c19678fa8d82}" x="50" y="-10"/>
+        <terminal name="B5" orientation="n" type="Generic" uuid="{7352e0b8-5aa0-47a4-9f76-8a4e22804462}" x="60" y="-10"/>
+        <terminal name="A6" orientation="n" type="Generic" uuid="{1d8ca407-1046-4b54-a6e2-84cfc13cb424}" x="70" y="-10"/>
+        <terminal name="B6" orientation="n" type="Generic" uuid="{360a4a95-e850-4d8f-965d-653786bd45db}" x="80" y="-10"/>
+    </description>
+</definition>

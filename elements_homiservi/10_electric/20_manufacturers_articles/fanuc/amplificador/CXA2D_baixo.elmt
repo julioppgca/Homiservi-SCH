@@ -1,0 +1,45 @@
+<definition height="60" hotspot_x="10" hotspot_y="45" link_type="simple" type="element" version="0.200.1" width="50">
+    <uuid uuid="{3524a850-ff11-5fc5-be30-d3729c804514}"/>
+    <names>
+        <name lang="en">CXA2D</name>
+        <name lang="fr">CXA2D</name>
+        <name lang="pt">CXA2D – entrada 24 V da αiPS-B (cabos por baixo)</name>
+        <name lang="pt_BR">CXA2D – entrada 24 V da αiPS-B (cabos por baixo)</name>
+    </names>
+    <elementInformations>
+        <elementInformation name="manufacturer" show="1">FANUC</elementInformation>
+        <elementInformation name="designation" show="1">CXA2D</elementInformation>
+        <elementInformation name="description" show="1">CXA2D – entrada 24 V da αiPS-B (cabos por baixo)</elementInformation>
+    </elementInformations>
+    <informations>Homiservi-SCH: gerado pelo gerador de conectores (estilo FANUC). Pinagem tirada do manual FANUC B-65412EN (αi-B, Descriptions), capítulos 9 e 13.</informations>
+    <description>
+        <line antialias="false" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" uuid="{88dfeaa9-8313-461b-acfc-8de0e86a29f5}" x1="0" x2="0" y1="0" y2="10"/>
+        <dynamic_text Halignment="AlignLeft" Valignment="AlignTop" element_style="Rótulo" font="Liberation Sans,9,-1,0,50,0,0,0,0,0,Regular" frame="false" keep_visual_rotation="true" rotation="0" rotation_point_center="false" text_from="ElementInfo" text_width="-1" uuid="{43af3ed7-1da7-4e93-87cc-3a81e73f3f4c}" x="-40" y="-14" z="1">
+            <text/>
+            <info_name>label</info_name>
+        </dynamic_text>
+        <rect antialias="false" height="2.5" rx="0" ry="0" style="line-style:normal;line-weight:thin;filling:black;color:black" uuid="{7d26b79a-9f49-4990-90a1-25c4cd2e11d1}" width="2.4" x="-1.2" y="0"/>
+        <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="(A1)" uuid="{3263db38-bce2-4391-9b1e-006ec5bf892e}" x="3.09" y="-3"/>
+        <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="24V" uuid="{40f5f90b-1c52-4ca7-83e6-e2b871e2f08e}" x="3.09" y="-23"/>
+        <line antialias="false" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" uuid="{195d0e6c-0d38-4a9b-a92b-9f36432b1ed3}" x1="10" x2="10" y1="0" y2="10"/>
+        <rect antialias="false" height="2.5" rx="0" ry="0" style="line-style:normal;line-weight:thin;filling:black;color:black" uuid="{8052ea67-e6d1-4034-8b8c-474e4f766001}" width="2.4" x="8.8" y="0"/>
+        <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="(B1)" uuid="{b24256da-e280-4052-bf9f-04df8cce9cb5}" x="13.09" y="-3"/>
+        <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="24V" uuid="{cf6ad874-15cf-47df-bb85-1c007c4f9205}" x="13.09" y="-23"/>
+        <line antialias="false" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" uuid="{75379a0b-2896-4842-afd0-1e3217ea94d6}" x1="20" x2="20" y1="0" y2="10"/>
+        <rect antialias="false" height="2.5" rx="0" ry="0" style="line-style:normal;line-weight:thin;filling:black;color:black" uuid="{996f8e63-f092-4b9e-931b-f0999a4bf95e}" width="2.4" x="18.8" y="0"/>
+        <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="(A2)" uuid="{c3afee97-5246-4c45-be41-1a7a83049de4}" x="23.09" y="-3"/>
+        <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="0V" uuid="{a9d7944b-fa9e-49e2-a191-fcb4c572e65d}" x="23.09" y="-28"/>
+        <line antialias="false" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" uuid="{abcd0cfe-ac8f-421d-9185-a7433518e05c}" x1="30" x2="30" y1="0" y2="10"/>
+        <rect antialias="false" height="2.5" rx="0" ry="0" style="line-style:normal;line-weight:thin;filling:black;color:black" uuid="{43024968-20de-4e82-aa4f-7af206472aa8}" width="2.4" x="28.8" y="0"/>
+        <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="(B2)" uuid="{e4a5dcf8-ac12-4260-a076-816fbd6d4200}" x="33.09" y="-3"/>
+        <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="0V" uuid="{a694d159-cf4e-43af-b8d7-810a6d61f1d2}" x="33.09" y="-28"/>
+        <line antialias="false" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:thin;filling:none;color:black" uuid="{071f17db-e447-4baf-b11a-a96da4005125}" x1="-4" x2="34" y1="-42" y2="-42"/>
+        <line antialias="false" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:thin;filling:none;color:black" uuid="{9ca50497-1b6a-4825-ac99-0e75ef708994}" x1="-4" x2="-4" y1="-42" y2="-40"/>
+        <line antialias="false" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:thin;filling:none;color:black" uuid="{cfbb5d74-6ef3-44e9-857e-2bf5b89a6ca2}" x1="34" x2="34" y1="-42" y2="-40"/>
+        <text color="#000000" element_style="Texto da caixa" font="Liberation Sans,9,-1,0,50,0,0,0,0,0,Regular" rotation="0" text="CXA2D" uuid="{3bd687ec-1a4f-4a4e-bb51-a09eb64ac2ba}" x="-5.5" y="-45"/>
+        <terminal name="A1" orientation="s" type="Generic" uuid="{d55340ca-f133-4c03-accc-3bc166091c6b}" x="0" y="10"/>
+        <terminal name="B1" orientation="s" type="Generic" uuid="{2a597091-50b6-4ade-b51e-ba58d8848152}" x="10" y="10"/>
+        <terminal name="A2" orientation="s" type="Generic" uuid="{17602d05-7ffa-4e41-b0c8-93e21ec50be1}" x="20" y="10"/>
+        <terminal name="B2" orientation="s" type="Generic" uuid="{9cec7595-3503-4d60-bd10-87ca1063bf50}" x="30" y="10"/>
+    </description>
+</definition>

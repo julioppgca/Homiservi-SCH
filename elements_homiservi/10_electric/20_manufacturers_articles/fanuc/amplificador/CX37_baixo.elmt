@@ -1,0 +1,45 @@
+<definition height="60" hotspot_x="10" hotspot_y="45" link_type="simple" type="element" version="0.200.1" width="50">
+    <uuid uuid="{a734a607-9a29-5772-8eb5-34186fe123cb}"/>
+    <names>
+        <name lang="en">CX37</name>
+        <name lang="fr">CX37</name>
+        <name lang="pt">CX37 – contato de falta de energia (cabos por baixo)</name>
+        <name lang="pt_BR">CX37 – contato de falta de energia (cabos por baixo)</name>
+    </names>
+    <elementInformations>
+        <elementInformation name="manufacturer" show="1">FANUC</elementInformation>
+        <elementInformation name="designation" show="1">CX37</elementInformation>
+        <elementInformation name="description" show="1">CX37 – contato de falta de energia (cabos por baixo)</elementInformation>
+    </elementInformations>
+    <informations>Homiservi-SCH: gerado pelo gerador de conectores (estilo FANUC). Pinagem tirada do manual FANUC B-65412EN (αi-B, Descriptions), capítulos 9 e 13.</informations>
+    <description>
+        <line antialias="false" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" uuid="{bc4eed45-9ab3-471b-b532-af47c202d79b}" x1="0" x2="0" y1="0" y2="10"/>
+        <dynamic_text Halignment="AlignLeft" Valignment="AlignTop" element_style="Rótulo" font="Liberation Sans,9,-1,0,50,0,0,0,0,0,Regular" frame="false" keep_visual_rotation="true" rotation="0" rotation_point_center="false" text_from="ElementInfo" text_width="-1" uuid="{45c570bd-50fb-4af0-958b-3fe48a385a7e}" x="-40" y="-14" z="1">
+            <text/>
+            <info_name>label</info_name>
+        </dynamic_text>
+        <rect antialias="false" height="2.5" rx="0" ry="0" style="line-style:normal;line-weight:thin;filling:black;color:black" uuid="{98cda66a-2357-40c6-93e9-1cb30cca03e4}" width="2.4" x="-1.2" y="0"/>
+        <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="(A1)" uuid="{013db539-f03c-4db7-a282-a73a0f7144fd}" x="3.09" y="-3"/>
+        <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="PF1" uuid="{30d7b9c7-dca3-4c2b-87af-efd18a48575d}" x="3.09" y="-23"/>
+        <line antialias="false" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" uuid="{e4253c73-0444-4d1c-a63e-dfd760c39740}" x1="10" x2="10" y1="0" y2="10"/>
+        <rect antialias="false" height="2.5" rx="0" ry="0" style="line-style:normal;line-weight:thin;filling:black;color:black" uuid="{b9e638fb-b98b-45e0-835c-ec651a0a82e7}" width="2.4" x="8.8" y="0"/>
+        <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="(B1)" uuid="{f1bcbdd1-3d12-4b21-abcf-5412cf2e6f9c}" x="13.09" y="-3"/>
+        <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="PF2" uuid="{4a60dc47-60a9-4e1a-8087-e569b5da0729}" x="13.09" y="-23"/>
+        <line antialias="false" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" uuid="{8548049f-f6fb-44d5-bbd8-b632250e329d}" x1="20" x2="20" y1="0" y2="10"/>
+        <rect antialias="false" height="2.5" rx="0" ry="0" style="line-style:normal;line-weight:thin;filling:black;color:black" uuid="{9775cc8c-8af2-4ce9-a3a4-d52af950ac01}" width="2.4" x="18.8" y="0"/>
+        <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="(A3)" uuid="{dc1b2bd6-9b0f-4d3b-a2ce-4847e1ceb018}" x="23.09" y="-3"/>
+        <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="PF1" uuid="{82ff209d-601d-4f65-9198-12bac311d7b4}" x="23.09" y="-23"/>
+        <line antialias="false" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" uuid="{07485c81-1b72-45ef-b97c-843a22a339d6}" x1="30" x2="30" y1="0" y2="10"/>
+        <rect antialias="false" height="2.5" rx="0" ry="0" style="line-style:normal;line-weight:thin;filling:black;color:black" uuid="{b7bb4db3-e089-4b46-80c4-a67dbcd59ed0}" width="2.4" x="28.8" y="0"/>
+        <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="(B3)" uuid="{aa939ac3-33fe-41f7-841f-e7578e3bfc04}" x="33.09" y="-3"/>
+        <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="PF2" uuid="{b0f5d904-9182-4a63-bc0c-bd83d2c4b9f6}" x="33.09" y="-23"/>
+        <line antialias="false" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:thin;filling:none;color:black" uuid="{a4672bb4-c5f1-4470-b227-71366bf4857d}" x1="-4" x2="34" y1="-43" y2="-43"/>
+        <line antialias="false" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:thin;filling:none;color:black" uuid="{de5e1b95-6ced-45ee-9ecf-1b6dc37c470c}" x1="-4" x2="-4" y1="-43" y2="-41"/>
+        <line antialias="false" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:thin;filling:none;color:black" uuid="{5c561da5-af2d-448c-9cde-73d3f6f171a4}" x1="34" x2="34" y1="-43" y2="-41"/>
+        <text color="#000000" element_style="Texto da caixa" font="Liberation Sans,9,-1,0,50,0,0,0,0,0,Regular" rotation="0" text="CX37" uuid="{321e40cb-e666-4db0-a08c-6ad8b62461e7}" x="-0.5" y="-46"/>
+        <terminal name="A1" orientation="s" type="Generic" uuid="{200ae1a9-097e-4b03-9b35-8876a6de2f15}" x="0" y="10"/>
+        <terminal name="B1" orientation="s" type="Generic" uuid="{e25cf1ed-518f-41fa-93a7-fa28c8ecced2}" x="10" y="10"/>
+        <terminal name="A3" orientation="s" type="Generic" uuid="{d8fab5d9-963f-42eb-bb49-f142cd662856}" x="20" y="10"/>
+        <terminal name="B3" orientation="s" type="Generic" uuid="{5d158864-d13c-4ef3-8039-09645eb9b6d8}" x="30" y="10"/>
+    </description>
+</definition>

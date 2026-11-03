@@ -329,9 +329,25 @@ namespace {
 			{"tyco4", tr("CZ2L / CZ2M / CZ2N – potência do motor"), {"CZ2L", "CZ2M", "CZ2N", "CZ2"},
 			 {{"B1", "U"}, {"A1", "V"}, {"B2", "W"}, {"A2", "GND"}}},
 			{"tyco3", tr("CX1A / CX1B – 200 V"), {"CX1A", "CX1B"}, {{"1", "200R"}, {"2", "200S"}, {"3", "GND"}}},
-			{"tyco3", tr("CX4 – parada de emergência"), {"CX4"}, {{"2", "ESP"}, {"3", "24V"}}},
+			{"tyco3", tr("CX4 – parada de emergência"), {"CX4"}, {{"1", "GND"}, {"2", "ESP"}, {"3", "24V"}}},
 			{"tyco3", tr("CX3 – contato do MCC"), {"CX3"}, {{"1", "MCCOFF3"}, {"3", "MCCOFF4"}}},
 			{"tyco3", tr("CP1, CP1A, CP2, CA64 – 24 V"), {"CP1", "CP1A", "CP2", "CA64"}, {{"1", "24V"}, {"2", "0V"}}},
+				//The αi-B amplifiers, read from B-65412EN (9.3.1, 9.3.3, 13.3)
+			{"tyco4", tr("CXA2D – entrada 24 V da αiPS-B"), {"CXA2D"},
+			 {{"A1", "24V"}, {"B1", "24V"}, {"A2", "0V"}, {"B2", "0V"}}},
+			{"tyco3", tr("CX48 – detecção da tensão de entrada"), {"CX48"}, {{"1", "L1"}, {"2", "L2"}, {"3", "L3"}}},
+			{"tyco6", tr("CX37 – contato de falta de energia"), {"CX37"},
+			 {{"A1", "PF1"}, {"B1", "PF2"}, {"A3", "PF1"}, {"B3", "PF2"}}},
+			{"honda20", tr("JYA3 – position coder αi (αiSP-B)"), {"JYA3"},
+			 {{"1", "PZ"}, {"2", "*PZ"}, {"5", "PA"}, {"6", "*PA"}, {"7", "PB"}, {"8", "*PB"},
+			  {"9", "5V"}, {"11", "24V"}, {"12", "0V"}, {"13", "SCCOM"}, {"14", "0V"}, {"15", "EXTSC"},
+			  {"16", "0V"}, {"18", "5V"}, {"20", "5V"}}},
+			{"honda20", tr("JYA4 – position coder S (αiSP-B)"), {"JYA4"},
+			 {{"1", "PZ"}, {"2", "*PZ"}, {"5", "PA"}, {"6", "*PA"}, {"7", "PB"}, {"8", "*PB"},
+			  {"9", "5V"}, {"10", "SS"}, {"12", "0V"}, {"14", "0V"}, {"16", "0V"}, {"18", "5V"}, {"20", "5V"}}},
+			{"tyco12", tr("Sensor αiM – conector do motor do spindle"), {"αiM"},
+			 {{"A1", "+5V"}, {"A2", "VA"}, {"B2", "RA"}, {"A3", "VB"}, {"B3", "RB"}, {"A5", "SS"},
+			  {"B5", "0V"}, {"A6", "THR1"}, {"B6", "THR2"}}},
 				//The I/O units and the safety operator's panel, read from the
 				//tables of B-64693EN (8.2.4.1, 8.8.4.1, 8.9.3, 8.12.3)
 			{"mr50", tr("CB150 – módulo de I/O (24 DI / 16 DO)"), {"CB150"},
@@ -537,8 +553,10 @@ QList<ConnectorGenerator::Variant> ConnectorGenerator::variants()
 		{QStringLiteral("hif3ba20"), Fanuc, tr("Hirose HIF3BA-20 (A1–B10)"), {none}},
 		{QStringLiteral("hif3ba50"), Fanuc, tr("Hirose HIF3BA-50 (A1–B25)"), {none}},
 		{QStringLiteral("tyco20"), Fanuc, tr("Tyco D-3000 2×10 (A1–B10)"), {none}},
+		{QStringLiteral("tyco12"), Fanuc, tr("Tyco D-3000 2×6 (A1–B6)"), {none}},
 		{QStringLiteral("tyco10"), Fanuc, tr("Tyco D-3000 2×5 (A1–B5)"), {none}},
 		{QStringLiteral("tyco8"), Fanuc, tr("Tyco 2×4 (A1–B4)"), {none}},
+		{QStringLiteral("tyco6"), Fanuc, tr("Tyco D-2100 2×3 (A1–B3)"), {none}},
 		{QStringLiteral("tyco4"), Fanuc, tr("Tyco 2×2 (A1–B2)"), {none}},
 		{QStringLiteral("tyco3"), Fanuc, tr("Tyco 3 pinos (1–3)"), {none}},
 		{QStringLiteral("tyco2"), Fanuc, tr("Tyco 2 pinos (A1, A2)"), {none}},
@@ -605,12 +623,14 @@ QList<ConnectorGenerator::Pin> ConnectorGenerator::pins(const Settings &s)
 			if (id == QLatin1String("honda20") || i < 10 || i % 2 == 1)
 				list << Pin {QString::number(i + 1), i < 10 ? QPointF(i, 0) : QPointF(i - 10, 1)};
 	} else if (id.startsWith(QLatin1String("hif3ba")) || id == QLatin1String("tyco20")
-		   || id == QLatin1String("tyco10") || id == QLatin1String("tyco8") || id == QLatin1String("tyco4")) {
+		   || id == QLatin1String("tyco12") || id == QLatin1String("tyco10") || id == QLatin1String("tyco8")
+		   || id == QLatin1String("tyco6") || id == QLatin1String("tyco4")) {
 			//Row A over row B, in the order A1, B1, A2, B2...; the cable
 			//connector shows A01 on the left (Hirose, Fig. A (al))
 		const int columns = id == QLatin1String("hif3ba10") || id == QLatin1String("tyco10") ? 5
 				  : id == QLatin1String("hif3ba20") || id == QLatin1String("tyco20") ? 10
-				  : id == QLatin1String("hif3ba50") ? 25 : id == QLatin1String("tyco8") ? 4 : 2;
+				  : id == QLatin1String("hif3ba50") ? 25 : id == QLatin1String("tyco12") ? 6
+				  : id == QLatin1String("tyco8") ? 4 : id == QLatin1String("tyco6") ? 3 : 2;
 		const bool hirose = id.startsWith(QLatin1String("hif3ba"));
 		for (int i = 0; i < columns; ++i) {
 			const qreal x = hirose ? columns - 1 - i : i;
