@@ -2155,239 +2155,254 @@ Travado pela opção “Exibir um texto de potencial por página” desta págin
 <context>
     <name>ConnectorGenerator</name>
     <message>
-        <location filename="../sources/editor/connectorgenerator.cpp" line="388"/>
+        <location filename="../sources/editor/connectorgenerator.cpp" line="502"/>
         <source>D-sub (DB, HD)</source>
         <translation>D-sub (DB, HD)</translation>
     </message>
     <message>
-        <location filename="../sources/editor/connectorgenerator.cpp" line="389"/>
+        <location filename="../sources/editor/connectorgenerator.cpp" line="503"/>
         <source>Modular (RJ45, RJ11, RJ12)</source>
         <translation>Modular (RJ45, RJ11, RJ12)</translation>
     </message>
     <message>
-        <location filename="../sources/editor/connectorgenerator.cpp" line="390"/>
+        <location filename="../sources/editor/connectorgenerator.cpp" line="504"/>
         <source>USB</source>
         <translation>USB</translation>
     </message>
     <message>
-        <location filename="../sources/editor/connectorgenerator.cpp" line="391"/>
+        <location filename="../sources/editor/connectorgenerator.cpp" line="505"/>
         <source>FANUC (Honda, Hirose, Tyco)</source>
         <translation>FANUC (Honda, Hirose, Tyco)</translation>
     </message>
     <message>
-        <location filename="../sources/editor/connectorgenerator.cpp" line="392"/>
+        <location filename="../sources/editor/connectorgenerator.cpp" line="506"/>
         <source>Genérico (fileiras × colunas)</source>
         <translation>Genérico (fileiras × colunas)</translation>
     </message>
     <message>
-        <location filename="../sources/editor/connectorgenerator.cpp" line="400"/>
+        <location filename="../sources/editor/connectorgenerator.cpp" line="514"/>
         <source>Nenhum (preencher)</source>
         <translation>Nenhum (preencher)</translation>
     </message>
     <message>
-        <location filename="../sources/editor/connectorgenerator.cpp" line="402"/>
+        <location filename="../sources/editor/connectorgenerator.cpp" line="516"/>
         <source>RS-232 (DTE, como no PC)</source>
         <translation>RS-232 (DTE, como no PC)</translation>
     </message>
     <message>
-        <location filename="../sources/editor/connectorgenerator.cpp" line="404"/>
+        <location filename="../sources/editor/connectorgenerator.cpp" line="518"/>
         <source>RS-232 (DTE)</source>
         <translation>RS-232 (DTE)</translation>
     </message>
     <message>
-        <location filename="../sources/editor/connectorgenerator.cpp" line="407"/>
+        <location filename="../sources/editor/connectorgenerator.cpp" line="521"/>
         <source>DE-15 HD (VGA)</source>
         <translation>DE-15 HD (VGA)</translation>
     </message>
     <message>
-        <location filename="../sources/editor/connectorgenerator.cpp" line="407"/>
+        <location filename="../sources/editor/connectorgenerator.cpp" line="521"/>
         <source>VGA</source>
         <translation>VGA</translation>
     </message>
     <message>
-        <location filename="../sources/editor/connectorgenerator.cpp" line="410"/>
+        <location filename="../sources/editor/connectorgenerator.cpp" line="524"/>
         <source>RJ45 (8P8C)</source>
         <translation>RJ45 (8P8C)</translation>
     </message>
     <message>
-        <location filename="../sources/editor/connectorgenerator.cpp" line="410"/>
+        <location filename="../sources/editor/connectorgenerator.cpp" line="524"/>
         <source>Ethernet 10/100</source>
         <translation>Ethernet 10/100</translation>
     </message>
     <message>
-        <location filename="../sources/editor/connectorgenerator.cpp" line="410"/>
+        <location filename="../sources/editor/connectorgenerator.cpp" line="524"/>
         <source>Ethernet Gigabit</source>
         <translation>Ethernet Gigabit</translation>
     </message>
     <message>
-        <location filename="../sources/editor/connectorgenerator.cpp" line="411"/>
+        <location filename="../sources/editor/connectorgenerator.cpp" line="525"/>
         <source>RJ12 (6P6C)</source>
         <translation>RJ12 (6P6C)</translation>
     </message>
     <message>
-        <location filename="../sources/editor/connectorgenerator.cpp" line="412"/>
+        <location filename="../sources/editor/connectorgenerator.cpp" line="526"/>
         <source>RJ11 (6P4C)</source>
         <translation>RJ11 (6P4C)</translation>
     </message>
     <message>
-        <location filename="../sources/editor/connectorgenerator.cpp" line="413"/>
+        <location filename="../sources/editor/connectorgenerator.cpp" line="527"/>
         <source>USB A</source>
         <translation>USB A</translation>
     </message>
     <message>
-        <location filename="../sources/editor/connectorgenerator.cpp" line="413"/>
-        <location filename="../sources/editor/connectorgenerator.cpp" line="414"/>
-        <location filename="../sources/editor/connectorgenerator.cpp" line="415"/>
-        <location filename="../sources/editor/connectorgenerator.cpp" line="416"/>
+        <location filename="../sources/editor/connectorgenerator.cpp" line="527"/>
+        <location filename="../sources/editor/connectorgenerator.cpp" line="528"/>
+        <location filename="../sources/editor/connectorgenerator.cpp" line="529"/>
+        <location filename="../sources/editor/connectorgenerator.cpp" line="530"/>
         <source>USB 2.0</source>
         <translation>USB 2.0</translation>
     </message>
     <message>
-        <location filename="../sources/editor/connectorgenerator.cpp" line="414"/>
+        <location filename="../sources/editor/connectorgenerator.cpp" line="528"/>
         <source>USB B</source>
         <translation>USB B</translation>
     </message>
     <message>
-        <location filename="../sources/editor/connectorgenerator.cpp" line="415"/>
+        <location filename="../sources/editor/connectorgenerator.cpp" line="529"/>
         <source>USB mini-B</source>
         <translation>USB mini-B</translation>
     </message>
     <message>
-        <location filename="../sources/editor/connectorgenerator.cpp" line="416"/>
+        <location filename="../sources/editor/connectorgenerator.cpp" line="530"/>
         <source>USB micro-B</source>
         <translation>USB micro-B</translation>
     </message>
     <message>
-        <location filename="../sources/editor/connectorgenerator.cpp" line="417"/>
+        <location filename="../sources/editor/connectorgenerator.cpp" line="531"/>
         <source>USB-C (24 pinos)</source>
         <translation>USB-C (24 pinos)</translation>
     </message>
     <message>
-        <location filename="../sources/editor/connectorgenerator.cpp" line="417"/>
+        <location filename="../sources/editor/connectorgenerator.cpp" line="531"/>
         <source>USB-C</source>
         <translation>USB-C</translation>
     </message>
     <message>
-        <location filename="../sources/editor/connectorgenerator.cpp" line="418"/>
+        <location filename="../sources/editor/connectorgenerator.cpp" line="532"/>
         <source>Honda PCR-E20 / Hirose FI40 (20 pinos)</source>
         <translation>Honda PCR-E20 / Hirose FI40 (20 pinos)</translation>
     </message>
     <message>
-        <location filename="../sources/editor/connectorgenerator.cpp" line="419"/>
+        <location filename="../sources/editor/connectorgenerator.cpp" line="533"/>
         <source>Hirose FI40B-2015S (15 pinos, pulsecoder)</source>
         <translation>Hirose FI40B-2015S (15 pinos, pulsecoder)</translation>
     </message>
     <message>
-        <location filename="../sources/editor/connectorgenerator.cpp" line="420"/>
+        <location filename="../sources/editor/connectorgenerator.cpp" line="534"/>
         <source>Honda MR-20 (20 pinos)</source>
         <translation>Honda MR-20 (20 pinos)</translation>
     </message>
     <message>
-        <location filename="../sources/editor/connectorgenerator.cpp" line="421"/>
+        <location filename="../sources/editor/connectorgenerator.cpp" line="535"/>
         <source>Honda MR-50 (50 pinos)</source>
         <translation>Honda MR-50 (50 pinos)</translation>
+    </message>
+    <message>
+        <location filename="../sources/editor/connectorgenerator.cpp" line="536"/>
+        <source>Hirose HIF3BA-10 (A1–B5)</source>
+        <translation>Hirose HIF3BA-10 (A1–B5)</translation>
     </message>
     <message>
         <source>Honda PCR-E20 (20 pinos)</source>
         <translation type="vanished">Honda PCR-E20 (20 pinos)</translation>
     </message>
     <message>
-        <location filename="../sources/editor/connectorgenerator.cpp" line="422"/>
+        <location filename="../sources/editor/connectorgenerator.cpp" line="537"/>
         <source>Hirose HIF3BA-20 (A1–B10)</source>
         <translation>Hirose HIF3BA-20 (A1–B10)</translation>
     </message>
     <message>
-        <location filename="../sources/editor/connectorgenerator.cpp" line="423"/>
+        <location filename="../sources/editor/connectorgenerator.cpp" line="538"/>
         <source>Hirose HIF3BA-50 (A1–B25)</source>
         <translation>Hirose HIF3BA-50 (A1–B25)</translation>
     </message>
     <message>
-        <location filename="../sources/editor/connectorgenerator.cpp" line="424"/>
+        <location filename="../sources/editor/connectorgenerator.cpp" line="539"/>
+        <source>Tyco D-3000 2×10 (A1–B10)</source>
+        <translation>Tyco D-3000 2×10 (A1–B10)</translation>
+    </message>
+    <message>
+        <location filename="../sources/editor/connectorgenerator.cpp" line="540"/>
+        <source>Tyco D-3000 2×5 (A1–B5)</source>
+        <translation>Tyco D-3000 2×5 (A1–B5)</translation>
+    </message>
+    <message>
+        <location filename="../sources/editor/connectorgenerator.cpp" line="541"/>
         <source>Tyco 2×4 (A1–B4)</source>
         <translation>Tyco 2×4 (A1–B4)</translation>
     </message>
     <message>
-        <location filename="../sources/editor/connectorgenerator.cpp" line="425"/>
+        <location filename="../sources/editor/connectorgenerator.cpp" line="542"/>
         <source>Tyco 2×2 (A1–B2)</source>
         <translation>Tyco 2×2 (A1–B2)</translation>
     </message>
     <message>
-        <location filename="../sources/editor/connectorgenerator.cpp" line="426"/>
+        <location filename="../sources/editor/connectorgenerator.cpp" line="543"/>
         <source>Tyco 3 pinos (1–3)</source>
         <translation>Tyco 3 pinos (1–3)</translation>
     </message>
     <message>
-        <location filename="../sources/editor/connectorgenerator.cpp" line="427"/>
+        <location filename="../sources/editor/connectorgenerator.cpp" line="544"/>
         <source>Tyco 2 pinos (A1, A2)</source>
         <translation>Tyco 2 pinos (A1, A2)</translation>
     </message>
     <message>
-        <location filename="../sources/editor/connectorgenerator.cpp" line="428"/>
+        <location filename="../sources/editor/connectorgenerator.cpp" line="545"/>
         <source>Genérico</source>
         <translation>Genérico</translation>
     </message>
     <message>
-        <location filename="../sources/editor/connectorgenerator.cpp" line="571"/>
+        <location filename="../sources/editor/connectorgenerator.cpp" line="689"/>
         <source>branco-laranja</source>
         <translation>branco-laranja</translation>
     </message>
     <message>
-        <location filename="../sources/editor/connectorgenerator.cpp" line="571"/>
+        <location filename="../sources/editor/connectorgenerator.cpp" line="689"/>
         <source>laranja</source>
         <translation>laranja</translation>
     </message>
     <message>
-        <location filename="../sources/editor/connectorgenerator.cpp" line="571"/>
+        <location filename="../sources/editor/connectorgenerator.cpp" line="689"/>
         <source>branco-verde</source>
         <translation>branco-verde</translation>
     </message>
     <message>
-        <location filename="../sources/editor/connectorgenerator.cpp" line="571"/>
+        <location filename="../sources/editor/connectorgenerator.cpp" line="689"/>
         <source>azul</source>
         <translation>azul</translation>
     </message>
     <message>
-        <location filename="../sources/editor/connectorgenerator.cpp" line="572"/>
+        <location filename="../sources/editor/connectorgenerator.cpp" line="690"/>
         <source>branco-azul</source>
         <translation>branco-azul</translation>
     </message>
     <message>
-        <location filename="../sources/editor/connectorgenerator.cpp" line="572"/>
+        <location filename="../sources/editor/connectorgenerator.cpp" line="690"/>
         <source>verde</source>
         <translation>verde</translation>
     </message>
     <message>
-        <location filename="../sources/editor/connectorgenerator.cpp" line="572"/>
+        <location filename="../sources/editor/connectorgenerator.cpp" line="690"/>
         <source>branco-marrom</source>
         <translation>branco-marrom</translation>
     </message>
     <message>
-        <location filename="../sources/editor/connectorgenerator.cpp" line="572"/>
+        <location filename="../sources/editor/connectorgenerator.cpp" line="690"/>
         <source>marrom</source>
         <translation>marrom</translation>
     </message>
     <message>
-        <location filename="../sources/editor/connectorgenerator.cpp" line="589"/>
+        <location filename="../sources/editor/connectorgenerator.cpp" line="707"/>
         <source>Conector %1 pinos</source>
         <translation>Conector %1 pinos</translation>
     </message>
     <message>
-        <location filename="../sources/editor/connectorgenerator.cpp" line="590"/>
+        <location filename="../sources/editor/connectorgenerator.cpp" line="708"/>
         <source> macho</source>
         <translation> macho</translation>
     </message>
     <message>
-        <location filename="../sources/editor/connectorgenerator.cpp" line="590"/>
+        <location filename="../sources/editor/connectorgenerator.cpp" line="708"/>
         <source> fêmea</source>
         <translation> fêmea</translation>
     </message>
     <message>
-        <location filename="../sources/editor/connectorgenerator.cpp" line="906"/>
+        <location filename="../sources/editor/connectorgenerator.cpp" line="1024"/>
         <source>vista da solda</source>
         <translation>vista da solda</translation>
     </message>
     <message>
-        <location filename="../sources/editor/connectorgenerator.cpp" line="906"/>
+        <location filename="../sources/editor/connectorgenerator.cpp" line="1024"/>
         <source>vista do encaixe</source>
         <translation>vista do encaixe</translation>
     </message>
