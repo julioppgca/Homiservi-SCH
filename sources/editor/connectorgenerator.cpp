@@ -207,8 +207,21 @@ namespace {
 			{QStringLiteral("db25"), {13, 12}},  {QStringLiteral("dc37"), {19, 18}},
 			{QStringLiteral("dd50"), {17, 16, 17}},
 			{QStringLiteral("de15hd"), {5, 5, 5}}, {QStringLiteral("da26hd"), {9, 9, 8}},
-			{QStringLiteral("db44hd"), {15, 15, 14}}};
+			{QStringLiteral("db44hd"), {15, 15, 14}},
+				//Honda MR, numbered from the bottom row (FANUC manuals, Fig. A (aj))
+			{QStringLiteral("mr20"), {7, 6, 7}}, {QStringLiteral("mr50"), {18, 14, 18}}};
 		return rows.value(id);
+	}
+
+	bool isHondaMr(const QString &id)
+	{
+		return id == QLatin1String("mr20") || id == QLatin1String("mr50");
+	}
+
+		///The 20-pin interface (Honda PCR, Hirose FI40): two rows at 1.27 mm
+	bool isPcr(const QString &id)
+	{
+		return id == QLatin1String("honda20") || id == QLatin1String("fi40_15");
 	}
 
 	bool isHighDensity(const QString &id)
@@ -223,9 +236,18 @@ namespace {
 		const QList<int> rows = dsubRows(id);
 		const int widest = *std::max_element(rows.cbegin(), rows.cend());
 		int n = 1;
-		for (int r = 0; r < rows.size(); ++r) {
+			//The Honda MR count from the bottom row: 1 to 7 under 8 to 13
+			//under 14 to 20 on the plug
+		const bool from_bottom = isHondaMr(id);
+		for (int k = 0; k < rows.size(); ++k) {
+			const int r = from_bottom ? rows.size() - 1 - k : k;
 				//Rows are staggered by half a pitch
-			const qreal start = rows.size() == 3 ? (r == 1 ? 0.5 : 0) : (widest - rows.at(r)) / 2.0;
+			qreal start = rows.size() == 3 ? (r == 1 ? 0.5 : 0) : (widest - rows.at(r)) / 2.0;
+			if (from_bottom && r == 1) {
+				start = (widest - rows.at(r)) / 2.0;
+				if (start == std::floor(start))
+					start -= 0.5;
+			}
 			for (int i = 0; i < rows.at(r); ++i)
 				list << ConnectorGenerator::Pin {QString::number(n++), QPointF(start + i, r)};
 		}
@@ -276,7 +298,7 @@ namespace {
 			 {{"1", "SIN1"}, {"2", "*SIN1"}, {"3", "SOUT1"}, {"4", "*SOUT1"},
 			  {"11", "0V"}, {"12", "0V"}, {"13", "0V"}, {"14", "0V"}}},
 			{"honda20", tr("JA41, JA7A / JA7B – spindle serial"), {"JA41", "JA7A", "JA7B"}, serial},
-			{"honda20", tr("JF1 / JF2 / JF3 – encoder do servo"), {"JF1", "JF2", "JF3"},
+			{"honda20,fi40_15", tr("JF1 / JF2 / JF3 – encoder do servo"), {"JF1", "JF2", "JF3"},
 			 {{"5", "RD"}, {"6", "*RD"}, {"9", "5V"}, {"20", "5V"}, {"12", "0V"}, {"14", "0V"},
 			  {"7", "6V"}, {"16", "FG"}}},
 			{"honda20", tr("JYA2 – sensor do motor do spindle"), {"JYA2"},
@@ -319,7 +341,7 @@ namespace {
 		static const QList<FanucPreset> list = fanucPresets();
 		int index = 0;
 		for (const FanucPreset &preset : list)
-			if (s.variant == QLatin1String(preset.variant) && ++index == s.preset)
+			if (QString::fromLatin1(preset.variant).split(',').contains(s.variant) && ++index == s.preset)
 				return &preset;
 		return nullptr;
 	}
@@ -393,7 +415,10 @@ QList<ConnectorGenerator::Variant> ConnectorGenerator::variants()
 		{QStringLiteral("usb_mini"), Usb, tr("USB mini-B"), {none, tr("USB 2.0")}},
 		{QStringLiteral("usb_micro"), Usb, tr("USB micro-B"), {none, tr("USB 2.0")}},
 		{QStringLiteral("usb_c"), Usb, tr("USB-C (24 pinos)"), {none, tr("USB-C")}},
-		{QStringLiteral("honda20"), Fanuc, tr("Honda PCR-E20 (20 pinos)"), {none}},
+		{QStringLiteral("honda20"), Fanuc, tr("Honda PCR-E20 / Hirose FI40 (20 pinos)"), {none}},
+		{QStringLiteral("fi40_15"), Fanuc, tr("Hirose FI40B-2015S (15 pinos, pulsecoder)"), {none}},
+		{QStringLiteral("mr20"), Fanuc, tr("Honda MR-20 (20 pinos)"), {none}},
+		{QStringLiteral("mr50"), Fanuc, tr("Honda MR-50 (50 pinos)"), {none}},
 		{QStringLiteral("hif3ba20"), Fanuc, tr("Hirose HIF3BA-20 (A1–B10)"), {none}},
 		{QStringLiteral("hif3ba50"), Fanuc, tr("Hirose HIF3BA-50 (A1–B25)"), {none}},
 		{QStringLiteral("tyco8"), Fanuc, tr("Tyco 2×4 (A1–B4)"), {none}},
@@ -404,7 +429,7 @@ QList<ConnectorGenerator::Variant> ConnectorGenerator::variants()
 	};
 	for (Variant &v : list)
 		for (const FanucPreset &preset : fanucPresets())
-			if (v.id == QLatin1String(preset.variant))
+			if (QString::fromLatin1(preset.variant).split(',').contains(v.id))
 				v.presets << preset.name;
 	return list;
 }
@@ -455,18 +480,25 @@ QList<ConnectorGenerator::Pin> ConnectorGenerator::pins(const Settings &s)
 			list << Pin {QStringLiteral("A%1").arg(i + 1), QPointF(11 - i, 0)};
 		for (int i = 0; i < 12; ++i)
 			list << Pin {QStringLiteral("B%1").arg(i + 1), QPointF(i, 1)};
-	} else if (id == QLatin1String("honda20")) {
-			//Two staggered rows: 1 to 10 over 11 to 20
+	} else if (isPcr(id)) {
+			//Two rows, 1 to 10 over 11 to 20 (the cable connector shows
+			//10...1 over 20...11, FANUC manuals Fig. A (v), (w)); the
+			//FI40B-2015S has no 11, 13, 15, 17 and 19
 		for (int i = 0; i < 20; ++i)
-			list << Pin {QString::number(i + 1), i < 10 ? QPointF(i, 0) : QPointF(i - 10 + 0.5, 1)};
+			if (id == QLatin1String("honda20") || i < 10 || i % 2 == 1)
+				list << Pin {QString::number(i + 1), i < 10 ? QPointF(i, 0) : QPointF(i - 10, 1)};
 	} else if (id.startsWith(QLatin1String("hif3ba")) || id == QLatin1String("tyco8")
 		   || id == QLatin1String("tyco4")) {
-			//Row A over row B, in the order A1, B1, A2, B2...
+			//Row A over row B, in the order A1, B1, A2, B2...; the cable
+			//connector shows A01 on the left (Hirose, Fig. A (al))
 		const int columns = id == QLatin1String("hif3ba20") ? 10 : id == QLatin1String("hif3ba50") ? 25
 				  : id == QLatin1String("tyco8") ? 4 : 2;
-		for (int i = 0; i < columns; ++i)
-			list << Pin {QStringLiteral("A%1").arg(i + 1), QPointF(i, 0)}
-			     << Pin {QStringLiteral("B%1").arg(i + 1), QPointF(i, 1)};
+		const bool hirose = id.startsWith(QLatin1String("hif3ba"));
+		for (int i = 0; i < columns; ++i) {
+			const qreal x = hirose ? columns - 1 - i : i;
+			list << Pin {QStringLiteral("A%1").arg(i + 1), QPointF(x, 0)}
+			     << Pin {QStringLiteral("B%1").arg(i + 1), QPointF(x, 1)};
+		}
 	} else if (id == QLatin1String("tyco3")) {
 		for (int i = 0; i < 3; ++i)
 			list << Pin {QString::number(i + 1), QPointF(i, 0)};
@@ -724,13 +756,23 @@ QDomDocument ConnectorGenerator::build(const Settings &s)
 		const bool dsub = !dsubRows(id).isEmpty();
 		const Variant *v = variant(id);
 		const Family family = v ? v->family : Generic;
-		const bool contacts = family == Modular || family == Usb;
+		const bool contacts = family == Modular || family == Usb || (family == Fanuc && !dsub);
 		const qreal step = dsub && isHighDensity(id) ? pitch * 0.82 : pitch;
-			//Flat contacts in two rows (USB B and C) need room between them
-		const qreal row_step = contacts && max_y > 0 ? 2 * step : step;
+			//Flat contacts in two rows (USB B and C) need room between them;
+			//the rows of the PCR are 1.7 mm apart for a pitch of 1.27 mm
+		const qreal row_step = isPcr(id) ? 1.34 * step
+				     : (family == Modular || family == Usb) && max_y > 0 ? 2 * step : step;
+			//Half the width and height of a flat contact
+		const qreal contact_w = isPcr(id) ? 0.25 : family == Fanuc ? 0.3 : 0.18;
+		const qreal contact_h = isPcr(id) ? 0.16 : family == Fanuc ? 0.3 : 0.4;
+			//FANUC draws the Honda MR jack upside down (Fig. A (aj)): its
+			//face is turned over, not mirrored
+		const bool flipped = mirrored && isHondaMr(id);
 		const qreal span_x = max_x * step, span_y = max_y * row_step;
 		const qreal ox = view_x + (dsub ? (dsubRows(id).size() == 3 ? 4.5 : 3.5) * step : 2 * step), oy = view_y;
 		auto place = [&](const QPointF &p) {
+			if (flipped)
+				return QPointF(ox + p.x() * step, oy + (max_y - p.y()) * row_step);
 			return QPointF(ox + (mirrored ? max_x - p.x() : p.x()) * step, oy + p.y() * row_step);
 		};
 			//The lowest point drawn, for the caption under it
@@ -745,8 +787,12 @@ QDomDocument ConnectorGenerator::build(const Settings &s)
 			const qreal side = margin + (dsubRows(id).size() == 3 ? step : 0);
 			const qreal left_top = ox - side, right_top = ox + span_x + side;
 			const qreal slant = (low - top) * 0.18;
-			w.polygon(QPolygonF({{left_top, top}, {right_top, top}, {right_top - slant, low},
-					     {left_top + slant, low}}));
+			if (flipped)
+				w.polygon(QPolygonF({{left_top + slant, top}, {right_top - slant, top}, {right_top, low},
+						     {left_top, low}}));
+			else
+				w.polygon(QPolygonF({{left_top, top}, {right_top, top}, {right_top - slant, low},
+						     {left_top + slant, low}}));
 				//The flange and its two screws
 			const qreal flange = 2.6 * step;
 			w.rect(QRectF(left_top - flange, top - step * 0.7, right_top - left_top + 2 * flange,
@@ -786,6 +832,39 @@ QDomDocument ConnectorGenerator::build(const Settings &s)
 					     {x0 + width - step * 0.8, y0 + step * 2.6}, {x0 + step * 0.8, y0 + step * 2.6},
 					     {x0, y0 + step * 1.8}}));
 			bottom = y0 + step * 2.6;
+		} else if (isPcr(id)) {
+				//The shell of the 20-pin interface (Fig. A (v), (w)): a
+				//trapeze with rounded corners, 16.25 mm over 13.35 mm and
+				//5.5 mm high, in a flange of 19.2 by 9.2 mm
+			const QPointF c(ox + span_x / 2, oy + span_y / 2);
+			const qreal top = c.y() - 2.15 * step, low = c.y() + 2.15 * step;
+			const qreal wide = 6.4 * step, narrow = 5.25 * step, r = 0.6 * step;
+			w.polygon(QPolygonF({{c.x() - wide + r, top}, {c.x() + wide - r, top}, {c.x() + wide, top + r},
+					     {c.x() + narrow + r * 0.3, low - r}, {c.x() + narrow - r, low},
+					     {c.x() - narrow + r, low}, {c.x() - narrow - r * 0.3, low - r},
+					     {c.x() - wide, top + r}}));
+			w.rect(QRectF(c.x() - 7.55 * step, c.y() - 3.6 * step, 15.1 * step, 7.2 * step), 0, thin_style);
+			bottom = c.y() + 3.6 * step;
+		} else if (id.startsWith(QLatin1String("hif3ba"))) {
+				//The body, its polarity key at the top and the mark of A01
+				//(Fig. A (al))
+			const QRectF body(ox - step * 0.8, oy - step * 1.4, span_x + step * 1.6, span_y + step * 2.8);
+			w.rect(body);
+			w.rect(QRectF(body.center().x() - step, body.top() - step * 0.5, 2 * step, step * 0.5), 0, thin_style);
+			for (const Pin &pin : pin_list) {
+				if (pin.id != QLatin1String("A1"))
+					continue;
+				const QPointF a = place(pin.position);
+				w.polygon(QPolygonF({{a.x() - step * 0.4, body.top() - step * 1.2}, {a.x() + step * 0.4, body.top() - step * 1.2},
+						     {a.x(), body.top() - step * 0.4}}), filled_style);
+			}
+			bottom = body.bottom();
+		} else if (family == Fanuc) {
+				//Tyco housings: the body and its latch on top
+			const QRectF body(ox - step * 1.2, oy - step * 1.2, span_x + step * 2.4, span_y + step * 2.4);
+			w.rect(body, 1);
+			w.rect(QRectF(body.center().x() - step * 0.8, body.top() - step * 0.6, step * 1.6, step * 0.6), 0, thin_style);
+			bottom = body.bottom();
 		} else {
 			w.rect(QRectF(ox - step * 0.9, oy - step * 0.9, span_x + step * 1.8, span_y + step * 1.8), 2);
 			bottom = oy + span_y + step * 0.9;
@@ -795,7 +874,7 @@ QDomDocument ConnectorGenerator::build(const Settings &s)
 			//on the top half, under them on the bottom half; on the
 			//middle row, too tight, only its ends are, outside
 		const qreal radius = qMin(step * 0.28, 2.6);
-		const qreal half = contacts ? step * 0.4 : radius;
+		const qreal half = contacts ? step * contact_h : radius;
 		const TextStyles::Style small {QString(), QETApp::diagramTextsFont(4), Qt::black};
 		const qreal cap = QFontMetricsF(small.font).capHeight();
 		int middle_first = -1, middle_last = -1;
@@ -809,17 +888,17 @@ QDomDocument ConnectorGenerator::build(const Settings &s)
 		for (const Pin &pin : pin_list) {
 			const QPointF c = place(pin.position);
 			if (contacts)
-				w.rect(QRectF(c.x() - step * 0.18, c.y() - half, step * 0.36, 2 * half), 0,
+				w.rect(QRectF(c.x() - step * contact_w, c.y() - half, 2 * step * contact_w, 2 * half), 0,
 				       s.male ? filled_style : thin_style);
 			else
 				w.circle(c, radius, s.male ? filled_style : thin_style);
-			const qreal y = pin.position.y();
+			const qreal y = flipped ? max_y - pin.position.y() : pin.position.y();
 			if (max_y == 0 || y < max_y / 2 - 0.01)
 				w.text(pin.id, c.x(), c.y() - half - 1, small, 0);
 			else if (y > max_y / 2 + 0.01)
 				w.text(pin.id, c.x(), c.y() + half + 1 + cap, small, 0);
 			else if (&pin == &pin_list.at(middle_first) || &pin == &pin_list.at(middle_last)) {
-				const bool left_end = (&pin == &pin_list.at(middle_first)) != mirrored;
+				const bool left_end = (&pin == &pin_list.at(middle_first)) != (mirrored && !flipped);
 				w.text(pin.id, c.x() + (left_end ? -1 : 1) * (radius + 0.6), c.y() + cap / 2, small, left_end ? 1 : -1);
 			}
 		}
