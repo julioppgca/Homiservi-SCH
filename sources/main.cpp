@@ -182,6 +182,9 @@ int main(int argc, char **argv)
 	QCoreApplication::setOrganizationName("QElectroTech");
 	QCoreApplication::setOrganizationDomain("qelectrotech.org");
 	QCoreApplication::setApplicationName("QElectroTech");
+	//Homiservi-SCH: the Wayland app id, which links the windows to
+	//homiservi-sch.desktop and its icon (misc/homiservi-sch.desktop).
+	QGuiApplication::setDesktopFileName(QStringLiteral("homiservi-sch"));
 
 	// QET_SETTINGS_DIR keeps the settings in an INI file in that folder,
 	// <folder>/QElectroTech/QElectroTech.ini, instead of the registry on

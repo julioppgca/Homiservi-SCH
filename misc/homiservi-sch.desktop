@@ -1,0 +1,16 @@
+[Desktop Entry]
+Version=1.0
+Name=Homiservi-SCH
+GenericName=Electrical diagram editor
+GenericName[pt_BR]=Editor de esquemas elétricos
+Comment=Edit electrical diagrams. Based on QElectroTech.
+Comment[pt_BR]=Edite esquemas elétricos. Baseado no QElectroTech.
+TryExec=homiservi-sch
+Exec=homiservi-sch %F
+Icon=homiservi-sch
+StartupWMClass=homiservi-sch
+Terminal=false
+Type=Application
+MimeType=application/x-qet-project;application/x-qet-element;application/x-qet-titleblock;
+Categories=Graphics;Engineering;
+Keywords=Graphics;Science;Electricity;Engineering;QElectroTech;

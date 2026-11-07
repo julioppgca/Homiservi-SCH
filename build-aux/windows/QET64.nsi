@@ -329,7 +329,7 @@ Section ""
     StrCpy $final_titleblock_ico   "$INSTDIR\ico\application-x-qet-titleblock.ico"
 
     ; File associations - .qet
-    WriteRegStr   HKEY_CLASSES_ROOT "Applications\qelectrotech.exe\shell\open\command" "" \
+    WriteRegStr   HKEY_CLASSES_ROOT "Applications\homiservi-sch.exe\shell\open\command" "" \
         '"$final_qet_exe" "%1"'
     WriteRegStr   HKEY_CLASSES_ROOT ".qet"                                              "" "qet_diagram_file"
     WriteRegStr   HKEY_CLASSES_ROOT "qet_diagram_file"                                  "" "Diagram QET"
@@ -484,7 +484,7 @@ Section "Uninstall"
     DeleteRegKey /ifempty HKCU "Software\${SOFT_NAME}"
 
     ; Remove file associations registry keys
-    DeleteRegKey HKEY_CLASSES_ROOT "Applications\qelectrotech.exe"
+    DeleteRegKey HKEY_CLASSES_ROOT "Applications\homiservi-sch.exe"
     DeleteRegKey HKEY_CLASSES_ROOT ".qet"
     DeleteRegKey HKEY_CLASSES_ROOT "qet_diagram_file"
     DeleteRegKey HKEY_CLASSES_ROOT ".elmt"
