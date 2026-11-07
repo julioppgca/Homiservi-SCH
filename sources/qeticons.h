@@ -30,6 +30,12 @@ namespace QET {
 		// namespace
 		extern QIcon Add;
 		extern QIcon AddFolio;
+		extern QIcon AlignBottom;
+		extern QIcon AlignHCenter;
+		extern QIcon AlignLeft;
+		extern QIcon AlignRight;
+		extern QIcon AlignTop;
+		extern QIcon AlignVCenter;
 		extern QIcon Allowed;
 		extern QIcon ApplicationExit;
 		extern QIcon ArrowLeft;
@@ -44,6 +50,7 @@ namespace QET {
 		extern QIcon ConductorEdit;
 		extern QIcon ConductorSettings;
 		extern QIcon Configure;
+		extern QIcon ConfigureShortcuts;
 		extern QIcon ConfigureToolbars;
 		extern QIcon IC_CopyFile;
 		extern QIcon DefaultConductor;
@@ -72,6 +79,7 @@ namespace QET {
 		extern QIcon EditCopy;
 		extern QIcon EditCut;
 		extern QIcon EditDelete;
+		extern QIcon EditOpacity;
 		extern QIcon EditPaste;
 		extern QIcon EditRedo;
 		extern QIcon EditRename;
@@ -92,6 +100,7 @@ namespace QET {
 		extern QIcon ElementDelete;
 		extern QIcon ElementEdit;
 		extern QIcon ElementNew;
+		extern QIcon EllipseToBezier;		
 		extern QIcon EndLineCircle;
 		extern QIcon EndLineDiamond;
 		extern QIcon EndLineNone;
@@ -121,6 +130,8 @@ namespace QET {
 		extern QIcon Hide;
 		extern QIcon Home;
 		extern QIcon HotSpot;
+		extern QIcon ImageFlipHorizontal;
+		extern QIcon ImageFlipVertical;
 		extern QIcon InsertImage;
 		extern QIcon Lower;
 		extern QIcon IC_MoveFile;
@@ -136,6 +147,8 @@ namespace QET {
 		extern QIcon ObjectUnlocked;
 		extern QIcon Orientations;
 		extern QIcon PartArc;
+		extern QIcon PartBezier;
+		extern QIcon DrawFillet;
 		extern QIcon PartCircle;
 		extern QIcon PartEllipse;
 		extern QIcon PartLine;
@@ -158,17 +171,18 @@ namespace QET {
 		extern QIcon ProjectNew;
 		extern QIcon ProjectProperties;
 		extern QIcon Projects;
-		extern QIcon QETIcon;
 		extern QIcon QETLogo;
-		extern QIcon QETOxygenLogo;
 		extern QIcon QtLogo;
 		extern QIcon Raise;
+		extern QIcon RectToBezier;
+		extern QIcon RectToPolyline;
 		extern QIcon Remove;
 		extern QIcon Restore;
 		extern QIcon RunDxf;
 		extern QIcon SendBackward;
 		extern QIcon Settings;
 		extern QIcon SinglePage;
+		extern QIcon SnapToGrid;
 		extern QIcon South;
 		extern QIcon Start;
 		extern QIcon TableOfContent;
@@ -176,6 +190,7 @@ namespace QET {
 		extern QIcon TitleBlock;
 		extern QIcon TitleBlockBottom;
 		extern QIcon TitleBlockRight;
+		extern QIcon TransformCrop;
 		extern QIcon TransformRotate;
 		extern QIcon UserInformations;
 		extern QIcon ViewFitWidth;
@@ -191,6 +206,7 @@ namespace QET {
 		extern QIcon ZoomOriginal;
 		extern QIcon ZoomOut;
 		extern QIcon adding_image;
+		extern QIcon adding_pdf;
 		extern QIcon resize_image;
 		extern QIcon sa;
 		extern QIcon br;

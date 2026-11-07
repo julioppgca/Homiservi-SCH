@@ -37,6 +37,33 @@
 ElementPictureFactory* ElementPictureFactory::m_factory = nullptr;
 
 /**
+	@brief ElementPictureFactory::cacheKey
+	@param location
+	@return the key under which the drawing of the element at location is
+	cached.
+
+	An element definition normally carries its own uuid, and that is used
+	directly. Definitions saved before uuids were written do not have one --
+	a good share of the shipped example projects are still in that state --
+	and they all presented the same null uuid as a key. The drawing of such
+	an element was therefore either rebuilt for every instance placed, or
+	stored under a key it shared with every other element lacking a uuid.
+	Derive a stable key from the location for those instead:
+	ElementsLocation::toString() qualifies an embedded path with the id of
+	the project that owns it, and project ids come from an ever-increasing
+	counter and are never reused, so the derived key cannot collide with an
+	element of another project.
+*/
+QUuid ElementPictureFactory::cacheKey(const ElementsLocation &location)
+{
+	const QUuid uuid = location.uuid();
+	if (!uuid.isNull()) {
+		return uuid;
+	}
+	return QUuid::createUuidV5(QUuid(), location.toString().toUtf8());
+}
+
+/**
 	@brief ElementPictureFactory::getPictures
 	Set the picture of the element at location.
 	Note, picture can be null
@@ -50,12 +77,7 @@ void ElementPictureFactory::getPictures(const ElementsLocation &location, QPictu
 		return;
 	}
 
-	QUuid uuid = location.uuid();
-	if(Q_UNLIKELY(uuid.isNull()))
-	{
-		build(location, &picture, &low_picture);
-		return;
-	}
+	const QUuid uuid = cacheKey(location);
 
 	if(m_pictures_H.contains(uuid))
 	{
@@ -73,6 +95,80 @@ void ElementPictureFactory::getPictures(const ElementsLocation &location, QPictu
 }
 
 /**
+	@brief ElementPictureFactory::getReadablePictures
+	Same as getPictures(), for an element that mirrors or turns its symbol
+	on a folio (Element::symbolTextsTransform()). The drawing is the same;
+	only the texts differ: each one is drawn so that, once the element has
+	applied @p texts_transform, its box lands where the element puts it but
+	its letters read as they do in the symbol itself.
+	@param location
+	@param texts_transform : the mirrors, then the turn, of the element
+	@param picture
+	@param low_picture
+*/
+void ElementPictureFactory::getReadablePictures(const ElementsLocation &location,
+												const QTransform &texts_transform,
+												QPicture &picture,
+												QPicture &low_picture)
+{
+	if(!location.exist() || texts_transform.isIdentity()) {
+		return;
+	}
+
+	const QPair<QUuid, int> key(cacheKey(location), readableKey(texts_transform));
+
+	if(!m_readable_pictures_H.contains(key)
+	   && !build(location, nullptr, nullptr, texts_transform)) {
+		return;
+	}
+	picture = m_readable_pictures_H.value(key);
+	low_picture = m_readable_low_pictures_H.value(key);
+}
+
+/**
+	@brief ElementPictureFactory::readableKey
+	@param texts_transform : mirrors and quarter turns only
+	@return a number for @p texts_transform, the same for the same one
+*/
+int ElementPictureFactory::readableKey(const QTransform &texts_transform)
+{
+	auto digit = [](qreal value) {return qRound(value) + 1;}; // -1, 0 or 1
+	return ((digit(texts_transform.m11()) * 3 + digit(texts_transform.m12())) * 3
+			+ digit(texts_transform.m21())) * 3 + digit(texts_transform.m22());
+}
+
+/**
+	@brief ElementPictureFactory::dropCache
+	Forget the cached drawing of the element at @p location, so the next
+	getPictures()/pixmap()/getPrimitives() call rebuilds it from the
+	definition's current content instead of returning what was cached the
+	first time this location was drawn.
+
+	A placed Element keeps its own copy of the picture in m_picture /
+	m_low_zoom_picture (set once, in buildFromXml()), so dropping the shared
+	cache here does not by itself change what is on screen -- callers doing
+	a manual refresh (bugtracker #802) still need each Element to re-fetch
+	its picture afterwards.
+	@param location
+*/
+void ElementPictureFactory::dropCache(const ElementsLocation &location)
+{
+	const QUuid uuid = cacheKey(location);
+	m_pictures_H.remove(uuid);
+	m_low_pictures_H.remove(uuid);
+	const auto keys = m_readable_pictures_H.keys();
+	for (const auto &key : keys) {
+		if (key.first == uuid) {
+			m_readable_pictures_H.remove(key);
+			m_readable_low_pictures_H.remove(key);
+		}
+	}
+	m_pixmap_H.remove(uuid);
+		//The text items belong to the cache; nothing else holds them.
+	qDeleteAll(m_primitives_H.take(uuid).m_texts);
+}
+
+/**
 	@brief ElementPictureFactory::pixmap
 	@param location
 	@return the pixmap of the element at location
@@ -80,7 +176,7 @@ void ElementPictureFactory::getPictures(const ElementsLocation &location, QPictu
 */
 QPixmap ElementPictureFactory::pixmap(const ElementsLocation &location)
 {
-	QUuid uuid = location.uuid();
+	const QUuid uuid = cacheKey(location);
 
 	if (m_pixmap_H.contains(uuid)) {
 		return m_pixmap_H.value(uuid);
@@ -90,26 +186,48 @@ QPixmap ElementPictureFactory::pixmap(const ElementsLocation &location)
 	{
 		auto doc = location.pugiXml();
 			//size
-		int w = doc.document_element().attribute("width").as_int();
-		int h = doc.document_element().attribute("height").as_int();
+			//Bounded first, so the rounding below cannot overflow on a
+			//crafted file.
+		int w = qBound(0, doc.document_element().attribute("width").as_int(), 1000000);
+		int h = qBound(0, doc.document_element().attribute("height").as_int(), 1000000);
 		while (w % 10) ++ w;
 		while (h % 10) ++ h;
 			//hotspot
 		int hsx = qMin(doc.document_element().attribute("hotspot_x").as_int(), w);
 		int hsy = qMin(doc.document_element().attribute("hotspot_y").as_int(), h);
 
+			//The size comes straight from the file. A symbol whose parts
+			//span hundreds of thousands of pixels would ask for a pixmap of
+			//hundreds of gigabytes; draw it scaled down to fit instead. The
+			//largest symbols in the shipped collection are about 3200 px,
+			//so this only changes files nobody would draw on purpose.
+		const int max_side = 4096;
+		qreal scale = 1.0;
+		if (w > max_side || h > max_side) {
+			scale = qreal(max_side) / qMax(w, h);
+			w = qMax(1, qRound(w * scale));
+			h = qMax(1, qRound(h * scale));
+		}
+
 		QPixmap pix(w, h);
-		pix.fill(QColor(255, 255, 255, 0));
+			//Element definitions almost always draw with a hardcoded black
+			//stroke color, on the assumption of the white diagram sheet they
+			//are normally placed on. The pixmap is kept as drawn, on a
+			//transparent background: the places that show it (the
+			//collection tree through ElementPreviewDelegate, the drag icon)
+			//adapt it to the palette with QET::Palette::forPalette(), so a
+			//dark palette gets light ink instead of black on black
+			//(bugtracker #335).
+		pix.fill(Qt::transparent);
 
 		QPainter painter(&pix);
 		painter.setRenderHint(QPainter::Antialiasing, true);
 		painter.setRenderHint(QPainter::SmoothPixmapTransform, true);
+		painter.scale(scale, scale);
 		painter.translate(hsx, hsy);
 		painter.drawPicture(0, 0, m_pictures_H.value(uuid));
 
-		if (!uuid.isNull()) {
-			m_pixmap_H.insert(uuid, pix);
-		}
+		m_pixmap_H.insert(uuid, pix);
 		return pix;
 	}
 
@@ -125,10 +243,11 @@ QPixmap ElementPictureFactory::pixmap(const ElementsLocation &location)
 ElementPictureFactory::primitives ElementPictureFactory::getPrimitives(
 		const ElementsLocation &location)
 {
-	if(!m_primitives_H.contains(location.uuid()))
+	const QUuid uuid = cacheKey(location);
+	if(!m_primitives_H.contains(uuid))
 		build(location);
 
-	return m_primitives_H.value(location.uuid());
+	return m_primitives_H.value(uuid);
 }
 
 ElementPictureFactory::~ElementPictureFactory()
@@ -148,11 +267,16 @@ ElementPictureFactory::~ElementPictureFactory()
 	this function draw on it and don't store it.
 	if null, this function create a QPicture for normal and low zoom,
 	draw on it and store it in m_pictures_H and m_low_pictures_H
+	(m_readable_pictures_H and m_readable_low_pictures_H if
+	@p texts_transform is not the identity)
+	@param texts_transform : what an element does to the texts of its
+	symbol, which the drawing undoes, see getReadablePictures()
 	@return
 */
 bool ElementPictureFactory::build(const ElementsLocation &location,
 				  QPicture *picture,
-				  QPicture *low_picture)
+				  QPicture *low_picture,
+				  const QTransform &texts_transform)
 {
 	QDomElement dom = location.xml();
 
@@ -181,6 +305,9 @@ bool ElementPictureFactory::build(const ElementsLocation &location,
 	QPainter painter;
 	QPicture pic;
 	primitives primitives_;
+		//The low-zoom pass fills a second set of primitives that is only
+		//drawn, never kept: its text items are deleted at the end.
+	primitives low_primitives;
 	if (picture) {
 		painter.begin(picture);
 	}
@@ -208,6 +335,8 @@ bool ElementPictureFactory::build(const ElementsLocation &location,
 	tmp.setWidthF(1.0); //Vaudoo line to take into account the setCosmetic - don't remove
 	tmp.setCosmetic(true);
 	low_painter.setPen(tmp);
+
+	m_build_texts_undo = texts_transform.inverted();
 
 	//scroll of the Children of the Definition: Parts of the Drawing
 	// Extract PLC master data for rendering plc_table parts
@@ -252,8 +381,7 @@ bool ElementPictureFactory::build(const ElementsLocation &location,
 					// complex font/text operations.
 				} else {
 					parseElement(qde, painter, primitives_);
-					primitives fake_prim;
-					parseElement(qde, low_painter, fake_prim);
+					parseElement(qde, low_painter, low_primitives);
 				}
 			}
 		}
@@ -262,8 +390,23 @@ bool ElementPictureFactory::build(const ElementsLocation &location,
 		//End of the drawing
 	painter.end();
 	low_painter.end();
+	m_build_texts_undo = QTransform();
+	qDeleteAll(low_primitives.m_texts);
 
-	const auto uuid_ = location.uuid();
+	const auto uuid_ = cacheKey(location);
+	if (!texts_transform.isIdentity()) {
+			//The primitives are those of the plain drawing, already kept
+			//by the build of that one
+		qDeleteAll(primitives_.m_texts);
+		const QPair<QUuid, int> key(uuid_, readableKey(texts_transform));
+		if (!picture) {
+			m_readable_pictures_H.insert(key, pic);
+		}
+		if (!low_picture) {
+			m_readable_low_pictures_H.insert(key, low_pic);
+		}
+		return true;
+	}
 	if (!picture) {
 		m_pictures_H.insert(uuid_, pic);
 		m_primitives_H.insert(uuid_, primitives_);
@@ -544,8 +687,6 @@ void ElementPictureFactory::parseText(const QDomElement &dom, QPainter &painter,
 	text_document.setPlainText(dom.attribute("text"));
 
 	painter.setTransform(QTransform(), false);
-	painter.translate(dom.attribute("x").toDouble(), dom.attribute("y").toDouble());
-	painter.rotate(dom.attribute("rotation", "0").toDouble());
 
 	/*
 		Moves the QPainter's coordinate system to render in the right place;
@@ -579,7 +720,24 @@ void ElementPictureFactory::parseText(const QDomElement &dom, QPainter &painter,
 		}
 	}
 
-	painter.translate(qpainter_offset);
+	QTransform text_transform;
+	text_transform.translate(dom.attribute("x").toDouble(), dom.attribute("y").toDouble());
+	text_transform.rotate(dom.attribute("rotation", "0").toDouble());
+	text_transform.translate(qpainter_offset.x(), qpainter_offset.y());
+
+	if (!m_build_texts_undo.isIdentity())
+	{
+			//The element mirrors or turns its symbol when it is drawn.
+			//Undo that on the text first, about the centre of its box: the
+			//letters read as in the symbol itself, and the box still ends
+			//up where the element puts it.
+		const QRectF box(QPointF(0, 0), text_document.size());
+		const QPointF centre = text_transform.mapRect(box).center();
+		painter.setTransform(QTransform::fromTranslate(-centre.x(), -centre.y())
+							 * m_build_texts_undo
+							 * QTransform::fromTranslate(centre.x(), centre.y()));
+	}
+	painter.setTransform(text_transform, true);
 
 		// force the palette used to render the QTextDocument
 	QAbstractTextDocumentLayout::PaintContext ctx;
@@ -612,16 +770,13 @@ void ElementPictureFactory::setPainterStyle(const QDomElement &dom, QPainter &pa
 	pen.setCapStyle(Qt::SquareCap);
 
 		//Get the couples style/value
-#if QT_VERSION < QT_VERSION_CHECK(5, 14, 0)	// ### Qt 6: remove
-	const QStringList styles = dom.attribute("style").split(";", QString::SkipEmptyParts);
-#else
-#if TODO_LIST
-#pragma message("@TODO remove code for QT 5.14 or later")
-#endif
 	const QStringList styles = dom.attribute("style").split(";", Qt::SkipEmptyParts);
-#endif
 
-	QRegularExpression rx("^(?<name>[a-z-]+):(?<value>[a-zA-Z-]+)$");
+		//Built once : this runs for every primitive of every element
+		//instance a project places, and recompiling the pattern each time
+		//was the single largest cost of opening a project.
+	static const QRegularExpression rx(
+				QStringLiteral("^(?<name>[a-z-]+):(?<value>[a-zA-Z-]+)$"));
 	if (!rx.isValid())
 	{
 		qWarning() <<QObject::tr("this is an error in the code")

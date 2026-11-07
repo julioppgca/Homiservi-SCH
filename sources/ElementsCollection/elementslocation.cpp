@@ -653,9 +653,16 @@ QDomElement ElementsLocation::xml() const
 	if (!m_project)
 	{
 		QFile file (m_file_system_path);
+		if (!file.open(QIODevice::ReadOnly | QIODevice::Text))
+			return QDomElement();
+
 		QDomDocument docu;
 		if (docu.setContent(&file))
+		{
+			file.close();
 			return docu.documentElement();
+		}
+		file.close();
 	}
 	else
 	{
@@ -702,12 +709,20 @@ pugi::xml_document ElementsLocation::pugiXml() const
 #endif
 	if (!m_project)
 	{
+			//Read through QFile, not pugi's load_file(): on Windows load_file()
+			//fails once the full path reaches MAX_PATH (260 characters), while
+			//QFile handles long paths.
+		QFile file(m_file_system_path);
+		if (!file.open(QIODevice::ReadOnly)) {
+			return docu;
+		}
+		const QByteArray data = file.readAll();
 #ifndef Q_OS_LINUX
-		if (docu.load_file(m_file_system_path.toStdWString().c_str())) {
+		if (docu.load_buffer(data.constData(), data.size())) {
 			docu.save(m_string_stream);
 		}
 #else
-		docu.load_file(m_file_system_path.toStdWString().c_str());
+		docu.load_buffer(data.constData(), data.size());
 #endif
 	}
 	else
@@ -778,30 +793,6 @@ bool ElementsLocation::setXml(const QDomDocument &xml_document) const
 		//Element doesn't exist, we create the element
 		else
 		{
-#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)	// ### Qt 6: remove
-			QString path_ = collectionPath(false);
-			QRegExp rx ("^(.*)/(.*\\.elmt)$");
-
-			if (rx.exactMatch(path_)) {
-				return project()
-						->embeddedElementCollection()
-						->addElementDefinition(
-							rx.cap(1),
-							rx.cap(2),
-							xml_document
-							.documentElement());
-			}
-			else {
-				qDebug() << "ElementsLocation::setXml :"
-						" rx don't match";
-			}
-#else
-#if TODO_LIST
-#pragma message("@TODO remove code for QT 6 or later")
-#		pragma message("@TODO ad Core5Compat to Cmake")
-#endif
-			qDebug() << "Help code for QT 6 or later";
-
 			QString			   path_ = collectionPath(false);
 			QRegularExpression rx("^(.*)/(.*\\.elmt)$");
 			QRegularExpressionMatch match = rx.match(path_);
@@ -820,7 +811,6 @@ bool ElementsLocation::setXml(const QDomDocument &xml_document) const
 				qDebug() << "ElementsLocation::setXml :"
 							" rx don't match";
 			}
-#endif
 		}
 	}
 

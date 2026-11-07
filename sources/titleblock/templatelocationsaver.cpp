@@ -88,7 +88,7 @@ void TitleBlockTemplateLocationSaver::init()
 		// the save-as dialog is stuck re-asking for a name (see saveAs() in
 		// qettemplateeditor.cpp for the full failure chain this prevents).
 	new_name_ -> setValidator(new QRegularExpressionValidator(QRegularExpression("[^/\\\\]*"), new_name_));
-	connect(templates_, SIGNAL(currentIndexChanged(int)), this, SLOT(updateNewName()));
+	connect(templates_, qOverload<int>(&QComboBox::currentIndexChanged), this, &TitleBlockTemplateLocationSaver::updateNewName);
 	form_layout_ -> addRow(tr("ou nouveau nom", "used in save as form"), new_name_);
 	updateTemplates();
 }

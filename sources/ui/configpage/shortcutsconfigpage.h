@@ -22,9 +22,13 @@
 
 #include <QKeySequence>
 
+class QAction;
+class QComboBox;
 class QKeySequenceEdit;
+class QLabel;
 class QLineEdit;
-class QTableWidget;
+class QTreeWidget;
+class QTreeWidgetItem;
 
 /**
 	@brief The ShortcutsConfigPage class
@@ -45,23 +49,45 @@ class ShortcutsConfigPage : public ConfigPage
 		QString title() const override;
 		QIcon icon() const override;
 
+		static QString menuPath(const QAction *action);
+		QString listAsText() const;
+
 	private slots:
 		void filterRows(const QString &filter_text);
+		void quickFilterChanged(int index);
 		void checkConflicts();
 		void resetAllRows();
+		void copyList();
 
 	private:
+		enum QuickFilter {
+			ShowAll = 0,
+			BoundOnly,
+			UnboundOnly,
+			ConflictsOnly
+		};
+
 		struct Row {
 			QString id;
+			QString category;
+			QString description;
+			QString menu_path;
 			QKeySequence default_sequence;
 			QKeySequenceEdit *edit;
+			QTreeWidgetItem *item;
+			bool conflicted;
 		};
 
 		void populateTable();
+		void applyFilter();
 		void resetRow(int row_index);
 
 		QLineEdit *m_filter_edit;
-		QTableWidget *m_table;
+		QComboBox *m_quick_filter;
+		QComboBox *m_category_filter;
+		QKeySequenceEdit *m_key_search;
+		QLabel *m_count_label;
+		QTreeWidget *m_tree;
 		QList<Row> m_rows;
 };
 

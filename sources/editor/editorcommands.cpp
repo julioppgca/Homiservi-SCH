@@ -16,6 +16,8 @@
 	along with QElectroTech.  If not, see <http://www.gnu.org/licenses/>.
 */
 #include "editorcommands.h"
+#include "../diagram.h"
+#include "symbolscale.h"
 
 /**
 	@brief ElementEditionCommand::ElementEditionCommand
@@ -276,14 +278,7 @@ void ChangeZValueCommand::applyRaise(const QList<QGraphicsItem *> &items_list) {
 	for (int i = my_items_list.count() - 2 ; i >= 0 ; -- i) {
 		if (my_items_list[i] -> isSelected()) {
 			if (!my_items_list[i +1] -> isSelected()) {
-#if QT_VERSION < QT_VERSION_CHECK(5, 13, 0)	// ### Qt 6: remove
-				my_items_list.swap(i, i + 1);
-#else
-#if TODO_LIST
-#pragma message("@TODO remove code for QT 5.13 or later")
-#endif
 				my_items_list.swapItemsAt(i, i + 1);
-#endif
 			}
 		}
 	}
@@ -301,14 +296,7 @@ void ChangeZValueCommand::applyLower(const QList<QGraphicsItem *> &items_list) {
 	for (int i = 1 ; i < my_items_list.count() ; ++ i) {
 		if (my_items_list[i] -> isSelected()) {
 			if (!my_items_list[i - 1] -> isSelected()) {
-#if QT_VERSION < QT_VERSION_CHECK(5, 13, 0)	// ### Qt 6: remove
-				my_items_list.swap(i, i - 1);
-#else
-#if TODO_LIST
-#pragma message("@TODO remove code for QT 5.13 or later")
-#endif
 				my_items_list.swapItemsAt(i, i - 1);
-#endif
 			}
 		}
 	}
@@ -680,10 +668,32 @@ void RotateFineElementsCommand::redo()
 }
 
 
+/**
+	@brief selectionCenter
+	@param items
+	@return the center of the united scene bounding rect of items,
+	snapped to the nearest half of the diagram grid. Mirroring across a
+	half-grid line keeps points that were on the grid on the grid.
+*/
+static QPointF selectionCenter(const QList<QGraphicsItem *> &items)
+{
+	QRectF bounding;
+	for (auto *item : items) {
+		bounding = bounding.united(item->sceneBoundingRect());
+	}
+	QPointF center = bounding.center();
+	const qreal half_x = Diagram::xGrid / 2.0;
+	const qreal half_y = Diagram::yGrid / 2.0;
+	center.setX(qRound(center.x() / half_x) * half_x);
+	center.setY(qRound(center.y() / half_y) * half_y);
+	return center;
+}
+
 MirrorElementsCommand::MirrorElementsCommand(ElementScene *scene, QUndoCommand *parent) :
 ElementEditionCommand(QObject::tr("Miroir de sélection", "undo caption"), scene, nullptr, parent)
 {
 	m_items = scene->selectedItems();
+	m_axis_x = selectionCenter(m_items).x();
 }
 
 /**
@@ -694,28 +704,28 @@ void MirrorElementsCommand::redo()
 	foreach (auto *item, m_items) {
 		if (item->type() == PartText::Type) {
 			PartText* staticText = qgraphicsitem_cast<PartText*>(item);
-			staticText->mirror();
+			staticText->mirror(m_axis_x);
 		} else if (item->type() == PartDynamicTextField::Type)  {
 			PartDynamicTextField* dyntext = qgraphicsitem_cast<PartDynamicTextField*>(item);
-			dyntext->mirror();
+			dyntext->mirror(m_axis_x);
 		} else if (item->type() == PartArc::Type) {
 			PartArc* arc = qgraphicsitem_cast<PartArc*>(item);
-			arc->mirror();
+			arc->mirror(m_axis_x);
 		} else if (item->type() == PartEllipse::Type) {
 			PartEllipse* ellipse = qgraphicsitem_cast<PartEllipse*>(item);
-			ellipse->mirror();
+			ellipse->mirror(m_axis_x);
 		} else if (item->type() == PartLine::Type) {
 			PartLine* line = qgraphicsitem_cast<PartLine*>(item);
-			line->mirror();
+			line->mirror(m_axis_x);
 		} else if (item->type() == PartPolygon::Type) {
 			PartPolygon* poly = qgraphicsitem_cast<PartPolygon*>(item);
-			poly->mirror();
+			poly->mirror(m_axis_x);
 		} else if (item->type() == PartRectangle::Type) {
 			PartRectangle* rect = qgraphicsitem_cast<PartRectangle*>(item);
-			rect->mirror();
+			rect->mirror(m_axis_x);
 		} else if (item->type() == PartTerminal::Type) {
 			PartTerminal* term = qgraphicsitem_cast<PartTerminal*>(item);
-			term->mirror();
+			term->mirror(m_axis_x);
 		}
 	}
 }
@@ -732,6 +742,7 @@ FlipElementsCommand::FlipElementsCommand(ElementScene *scene, QUndoCommand *pare
 ElementEditionCommand(QObject::tr("Retourner la sélection", "undo caption"), scene, nullptr, parent)
 {
 	m_items = scene->selectedItems();
+	m_axis_y = selectionCenter(m_items).y();
 }
 
 /**
@@ -742,28 +753,28 @@ void FlipElementsCommand::redo()
 	foreach (auto *item, m_items) {
 		if (item->type() == PartText::Type) {
 			PartText* staticText = qgraphicsitem_cast<PartText*>(item);
-			staticText->flip();
+			staticText->flip(m_axis_y);
 		} else if (item->type() == PartDynamicTextField::Type) {
 			PartDynamicTextField* dyntext = qgraphicsitem_cast<PartDynamicTextField*>(item);
-			dyntext->flip();
+			dyntext->flip(m_axis_y);
 		} else if (item->type() == PartArc::Type) {
 			PartArc* arc = qgraphicsitem_cast<PartArc*>(item);
-			arc->flip();
+			arc->flip(m_axis_y);
 		} else if (item->type() == PartEllipse::Type) {
 			PartEllipse* ellipse = qgraphicsitem_cast<PartEllipse*>(item);
-			ellipse->flip();
+			ellipse->flip(m_axis_y);
 		} else if (item->type() == PartLine::Type) {
 			PartLine* line = qgraphicsitem_cast<PartLine*>(item);
-			line->flip();
+			line->flip(m_axis_y);
 		} else if (item->type() == PartPolygon::Type) {
 			PartPolygon* poly = qgraphicsitem_cast<PartPolygon*>(item);
-			poly->flip();
+			poly->flip(m_axis_y);
 		} else if (item->type() == PartRectangle::Type) {
 			PartRectangle* rect = qgraphicsitem_cast<PartRectangle*>(item);
-			rect->flip();
+			rect->flip(m_axis_y);
 		} else if (item->type() == PartTerminal::Type) {
 			PartTerminal* term = qgraphicsitem_cast<PartTerminal*>(item);
-			term->flip();
+			term->flip(m_axis_y);
 		}
 	}
 }
@@ -774,4 +785,98 @@ void FlipElementsCommand::redo()
 void FlipElementsCommand::undo()
 {
 	redo();
+}
+
+/**
+	@brief ScaleElementCommand::ScaleElementCommand
+	@param scene : the element to scale
+	@param factor : scale factor, applied about the hotspot
+	@param scale_text : also scale font sizes
+	@param parent : parent undo command
+*/
+ScaleElementCommand::ScaleElementCommand(ElementScene *scene,
+										 qreal factor,
+										 bool scale_text,
+										 QUndoCommand *parent) :
+	ElementEditionCommand(QObject::tr("mise à l'échelle de l'élément", "undo caption"),
+						  scene, nullptr, parent),
+	m_factor(factor)
+{
+	const auto scaledFont = [factor, scale_text](QFont font) {
+		if (scale_text) {
+			if (font.pointSizeF() > 0) {
+				font.setPointSize(SymbolScale::scaledFontSize(font.pointSizeF(), factor));
+			} else if (font.pixelSize() > 0) {
+				font.setPixelSize(SymbolScale::scaledFontSize(font.pixelSize(), factor));
+			}
+		}
+		return font;
+	};
+
+	const auto parts = scene->primitives();
+	for (CustomElementPart *part : parts)
+	{
+		QGraphicsItem *item = part->toItem();
+			//Font before position: changing the font can move a text
+			//to keep its alignment.
+		if (auto text = qgraphicsitem_cast<PartText *>(item)) {
+			addChange(text, "font", scaledFont(text->font()));
+			addChange(text, "pos", text->pos() * factor);
+		}
+		else if (auto field = qgraphicsitem_cast<PartDynamicTextField *>(item)) {
+			addChange(field, "font", scaledFont(field->font()));
+			if (field->textWidth() > 0) {
+				addChange(field, "textWidth", field->textWidth() * factor);
+			}
+			addChange(field, "pos", field->pos() * factor);
+		}
+		else if (auto terminal = qgraphicsitem_cast<PartTerminal *>(item)) {
+			addChange(terminal, "label_font", scaledFont(terminal->labelFont()));
+			addChange(terminal, "label_pos", terminal->labelPos() * factor);
+			addChange(terminal, "pos", terminal->pos() * factor);
+		}
+		else {
+			m_geometry_parts << part;
+			if (auto line = qgraphicsitem_cast<PartLine *>(item)) {
+				addChange(line, "length1", line->firstEndLength() * factor);
+				addChange(line, "length2", line->secondEndLength() * factor);
+			}
+		}
+	}
+}
+
+void ScaleElementCommand::addChange(QObject *object, const char *name, const QVariant &after)
+{
+	m_changes << PropertyChange{object, name, object->property(name), after};
+}
+
+/**
+	@brief ScaleElementCommand::scaleGeometry
+	Scale the drawn parts about the hotspot, from \a from times their
+	original size to \a to times it.
+*/
+void ScaleElementCommand::scaleGeometry(qreal from, qreal to)
+{
+	const QRectF before(0, 0, from, from);
+	const QRectF after(0, 0, to, to);
+	for (CustomElementPart *part : std::as_const(m_geometry_parts)) {
+		part->startUserTransformation(before);
+		part->handleUserTransformation(before, after);
+	}
+}
+
+void ScaleElementCommand::undo()
+{
+	scaleGeometry(m_factor, 1);
+	for (const PropertyChange &change : std::as_const(m_changes)) {
+		change.object->setProperty(change.name.constData(), change.before);
+	}
+}
+
+void ScaleElementCommand::redo()
+{
+	scaleGeometry(1, m_factor);
+	for (const PropertyChange &change : std::as_const(m_changes)) {
+		change.object->setProperty(change.name.constData(), change.after);
+	}
 }

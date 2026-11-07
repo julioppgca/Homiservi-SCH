@@ -18,6 +18,7 @@
 #ifndef TITLEBLOCK_TEMPLATE_RENDERER_H
 #define TITLEBLOCK_TEMPLATE_RENDERER_H
 #include <QPicture>
+#include <QTransform>
 #include "diagramcontext.h"
 
 class TitleBlockTemplate;
@@ -40,19 +41,11 @@ class TitleBlockTemplateRenderer : public QObject
 		
 		int height() const;
 		void render(QPainter *, int);
-		void renderDxf(QRectF &, int, QString &, int);
-		void invalidateRenderedTemplate();
-		void setUseCache(bool);
-		bool useCache() const;
-	
-	private:
-		void renderToQPicture(int);
+		void renderDxf(QRectF &, int, QString &, int,
+			       const QTransform & = QTransform());
 	
 	private:
 		const TitleBlockTemplate *m_titleblock_template;
-		bool m_use_cache;
-		QPicture m_rendered_template;
 		DiagramContext m_context;
-		int m_last_known_titleblock_width;
 };
 #endif

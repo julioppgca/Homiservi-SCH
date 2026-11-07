@@ -499,6 +499,7 @@ void ConductorProperties::applyForEqualAttributes(QList<ConductorProperties> lis
 		horiz_rotate_text    = cp.horiz_rotate_text;
 		m_vertical_alignment = cp.m_vertical_alignment;
 		m_horizontal_alignment = cp.m_horizontal_alignment;
+		style                = cp.style;
 
 		return;
 	}
@@ -553,6 +554,18 @@ void ConductorProperties::applyForEqualAttributes(QList<ConductorProperties> lis
 	}
 	if (equal)
 		m_dash_size = i_value;
+	equal = true;
+
+		//style
+	Qt::PenStyle pen_style;
+	pen_style = clist.first().style;
+	for(ConductorProperties cp : clist)
+	{
+		if (cp.style != pen_style)
+			equal = false;
+	}
+	if (equal)
+		style = pen_style;
 	equal = true;
 
 		//text
@@ -745,6 +758,58 @@ void ConductorProperties::applyForEqualAttributes(QList<ConductorProperties> lis
 }
 
 /**
+	@brief ConductorProperties::applyChanges
+	Copy into this every attribute that differs between before and after,
+	and leave every other attribute as it is. The Selection properties
+	panel applies an edit this way, so a conductor keeps everything the
+	user did not change: its own text, function, cable... and any value
+	the panel cannot show exactly.
+	@param before : the properties as they were shown to the user
+	@param after : the properties after the user's edit
+*/
+void ConductorProperties::applyChanges(const ConductorProperties &before,
+				       const ConductorProperties &after)
+{
+	const auto take = [](auto &mine, const auto &was, const auto &now) {
+		if (was != now)
+			mine = now;
+	};
+
+	take(type,                   before.type,                   after.type);
+	take(color,                  before.color,                  after.color);
+	take(m_bicolor,              before.m_bicolor,              after.m_bicolor);
+	take(m_color_2,              before.m_color_2,              after.m_color_2);
+	take(m_dash_size,            before.m_dash_size,            after.m_dash_size);
+	take(style,                  before.style,                  after.style);
+	take(text,                   before.text,                   after.text);
+	take(text_color,             before.text_color,             after.text_color);
+	take(m_formula,              before.m_formula,              after.m_formula);
+	take(m_cable,                before.m_cable,                after.m_cable);
+	take(m_bus,                  before.m_bus,                  after.m_bus);
+	take(m_function,             before.m_function,             after.m_function);
+	take(m_tension_protocol,     before.m_tension_protocol,     after.m_tension_protocol);
+	take(m_wire_color,           before.m_wire_color,           after.m_wire_color);
+	take(m_wire_section,         before.m_wire_section,         after.m_wire_section);
+	take(m_show_text,            before.m_show_text,            after.m_show_text);
+	take(text_size,              before.text_size,              after.text_size);
+	take(cond_size,              before.cond_size,              after.cond_size);
+	take(verti_rotate_text,      before.verti_rotate_text,      after.verti_rotate_text);
+	take(horiz_rotate_text,      before.horiz_rotate_text,      after.horiz_rotate_text);
+	take(m_one_text_per_folio,   before.m_one_text_per_folio,   after.m_one_text_per_folio);
+	take(m_horizontal_alignment, before.m_horizontal_alignment, after.m_horizontal_alignment);
+	take(m_vertical_alignment,   before.m_vertical_alignment,   after.m_vertical_alignment);
+
+		//Single-line symbols, one by one
+	SingleLineProperties slp_before = before.singleLineProperties;
+	SingleLineProperties slp_after  = after.singleLineProperties;
+	take(singleLineProperties.hasGround,  slp_before.hasGround,  slp_after.hasGround);
+	take(singleLineProperties.hasNeutral, slp_before.hasNeutral, slp_after.hasNeutral);
+	take(singleLineProperties.is_pen,     slp_before.is_pen,     slp_after.is_pen);
+	if (slp_before.phasesCount() != slp_after.phasesCount())
+		singleLineProperties.setPhasesCount(slp_after.phasesCount());
+}
+
+/**
 	@brief ConductorProperties::defaultProperties
 	@return the default properties stored in the setting file
 */
@@ -811,14 +876,7 @@ void ConductorProperties::readStyle(const QString &style_string) {
 	if (style_string.isEmpty()) return;
 
 	// recupere la liste des couples style / valeur
-#if QT_VERSION < QT_VERSION_CHECK(5, 14, 0)	// ### Qt 6: remove
-	QStringList styles = style_string.split(";", QString::SkipEmptyParts);
-#else
-#if TODO_LIST
-#pragma message("@TODO remove code QString::SkipEmptyParts for QT 5.14 or later")
-#endif
 	QStringList styles = style_string.split(";", Qt::SkipEmptyParts);
-#endif
 
 	QRegularExpression Rx("^(?<name>[a-z-]+): (?<value>[a-z-]+)$");
 	if (!Rx.isValid())

@@ -55,6 +55,7 @@ class FileElementCollectionItem : public ElementCollectionItem
 
 		void setUpData() override;
 		void setUpIcon() override;
+		void clearData() override;
 
 	private:
 		void setPathName(const QString& path_name,
@@ -69,6 +70,7 @@ class FileElementCollectionItem : public ElementCollectionItem
 			/// rather than acted on in localName(), because setUpData() resets
 			/// the tooltip afterwards and would otherwise discard it.
 		bool m_qet_directory_unreadable = false;
+		bool m_icon_initialized = false;
 };
 
 #endif // FILEELEMENTCOLLECTIONITEM2_H

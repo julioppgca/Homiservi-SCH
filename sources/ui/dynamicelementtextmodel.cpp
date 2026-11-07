@@ -36,6 +36,7 @@
 #include <QHash>
 #include <QModelIndex>
 #include <QStandardItem>
+#include <QTimer>
 #include <QUndoCommand>
 
 static int src_txt_row   = 0;
@@ -250,8 +251,10 @@ QList<QStandardItem *> DynamicElementTextModel::itemsForText(
 	QStandardItem *color = new QStandardItem(tr("Couleur"));
 	color->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled);
 
+	// Shown as a swatch next to the value, not as the text color: black
+	// text (the default) is unreadable on a dark palette.
 	QStandardItem *colora = new QStandardItem;
-	colora->setData(deti->color(), Qt::ForegroundRole);
+	colora->setData(deti->color(), Qt::DecorationRole);
 	colora->setData(deti->color(), Qt::EditRole);
 	colora->setData(DynamicElementTextModel::color, Qt::UserRole+1);
 	colora->setFlags(Qt::ItemIsSelectable
@@ -300,7 +303,7 @@ QList<QStandardItem *> DynamicElementTextModel::itemsForText(
 		x_pos->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled);
 		
 		QStandardItem *x_pos_a = new QStandardItem;
-		x_pos_a->setData(deti->pos().x(), Qt::EditRole);
+		x_pos_a->setData(deti->anchorPos().x(), Qt::EditRole);
 		x_pos_a->setData(DynamicElementTextModel::pos, Qt::UserRole+1);
 		x_pos_a->setFlags(Qt::ItemIsSelectable
 				  | Qt::ItemIsEnabled
@@ -315,7 +318,7 @@ QList<QStandardItem *> DynamicElementTextModel::itemsForText(
 		y_pos->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled);
 		
 		QStandardItem *y_pos_a = new QStandardItem;
-		y_pos_a->setData(deti->pos().y(), Qt::EditRole);
+		y_pos_a->setData(deti->anchorPos().y(), Qt::EditRole);
 		y_pos_a->setData(DynamicElementTextModel::pos, Qt::UserRole+1);
 		y_pos_a->setFlags(Qt::ItemIsSelectable
 				  | Qt::ItemIsEnabled
@@ -597,9 +600,9 @@ QUndoCommand *DynamicElementTextModel::undoForEditedText(
 	{
 		QPointF p(text_qsi->child(x_txt_row,1)->data(Qt::EditRole).toDouble(),
 				  text_qsi->child(y_txt_row,1)->data(Qt::EditRole).toDouble());
-		if(p != deti->pos())
+		if(p != deti->anchorPos())
 		{
-			QPropertyUndoCommand *quc = new QPropertyUndoCommand(deti, "pos", QVariant(deti->pos()), QVariant(p), undo);
+			QPropertyUndoCommand *quc = new QPropertyUndoCommand(deti, "anchorPos", QVariant(deti->anchorPos()), QVariant(p), undo);
 			quc->setAnimated(true, false);
 			quc->setText(tr("Déplacer un texte d'élément"));
 		}
@@ -633,7 +636,7 @@ QUndoCommand *DynamicElementTextModel::undoForEditedText(
 		Qt::Alignment alignment = text_qsi->child(align_txt_row, 1)->data(Qt::UserRole+2).value<Qt::Alignment>();
 		if (alignment != deti->alignment())
 		{
-			QPropertyUndoCommand *quc = new QPropertyUndoCommand(deti, "alignment", QVariant(deti->alignment()), QVariant(alignment), undo);
+			QPropertyUndoCommand *quc = new QPropertyUndoCommand(deti, "alignmentAtAnchor", QVariant(deti->alignment()), QVariant(alignment), undo);
 			quc->setText(tr("Modifier l'alignement d'un texte d'élément"));
 		}
 	}
@@ -1499,15 +1502,15 @@ void DynamicElementTextModel::updateDataFromText(DynamicElementTextItem *deti,
 		case color:
 		{
 			qsi->child(color_txt_row,1)->setData(deti->color(), Qt::EditRole);
-			qsi->child(color_txt_row,1)->setData(deti->color(), Qt::ForegroundRole);
+			qsi->child(color_txt_row,1)->setData(deti->color(), Qt::DecorationRole);
 			break;
 		}
 		case pos:
 		{
 			if(qsi->child(x_txt_row,1))
-				qsi->child(x_txt_row,1)->setData(deti->pos().x(), Qt::EditRole);
+				qsi->child(x_txt_row,1)->setData(deti->anchorPos().x(), Qt::EditRole);
 			if(qsi->child(y_txt_row,1))
-				qsi->child(y_txt_row,1)->setData(deti->pos().y(), Qt::EditRole);
+				qsi->child(y_txt_row,1)->setData(deti->anchorPos().y(), Qt::EditRole);
 			break;
 		}
 		case frame:
@@ -1527,6 +1530,14 @@ void DynamicElementTextModel::updateDataFromText(DynamicElementTextItem *deti,
 			break;
 		}
 	default:break;
+	}
+
+		//Rotating or resizing the text moves its anchor point (Position X/Y)
+	if ((type == rotation || type == textWidth)
+		&& qsi->child(x_txt_row,1) && qsi->child(y_txt_row,1))
+	{
+		qsi->child(x_txt_row,1)->setData(deti->anchorPos().x(), Qt::EditRole);
+		qsi->child(y_txt_row,1)->setData(deti->anchorPos().y(), Qt::EditRole);
 	}
 	
 	m_block_dataChanged = false;
@@ -1594,6 +1605,15 @@ void DynamicElementTextModel::updateDataFromGroup(
 DynamicTextItemDelegate::DynamicTextItemDelegate(QObject *parent) :
 	QStyledItemDelegate(parent)
 {}
+
+void DynamicTextItemDelegate::commitAndCloseDeferred(QWidget *editor) const
+{
+	auto *self = const_cast<DynamicTextItemDelegate *>(this);
+	QTimer::singleShot(0, self, [self, editor]() {
+		emit self->commitData(editor);
+		emit self->closeEditor(editor);
+	});
+}
 
 QWidget *DynamicTextItemDelegate::createEditor(
 		QWidget *parent,
@@ -1682,13 +1702,44 @@ QWidget *DynamicTextItemDelegate::createEditor(
 				w->setProperty("ok", ok);
 			}
 			w->setObjectName("font_dialog");
+			commitAndCloseDeferred(w);
 			return w;
 		}
 		case DynamicElementTextModel::color:
 		{
-			QColorDialog *cd = new QColorDialog(index.data(Qt::EditRole).value<QColor>(), parent);
-			cd->setObjectName("color_dialog");
-			return cd;
+				/* Like the font case above: run the dialog synchronously via
+				 * its static convenience function and stash the result on a
+				 * plain placeholder widget, rather than handing back the
+				 * QColorDialog itself as the item view's "editor".
+				 *
+				 * The item view's own Enter/Escape handling (the base
+				 * QStyledItemDelegate::eventFilter(), since "color_dialog"
+				 * isn't one of the objectNames special-cased in this
+				 * delegate's own eventFilter() above) treats whatever
+				 * createEditor() returned as a small inline editor it
+				 * commits and destroys directly on a key press. A QColorDialog
+				 * is not that: on Windows it can hand off to the native
+				 * color picker, whose own accept/close path then races the
+				 * view's -- pressing Enter fired both, one tearing down an
+				 * object the other was still using (case #323 on the bug
+				 * tracker: "QObject::installEventFilter(): Cannot filter
+				 * events for objects in a different thread" immediately
+				 * followed by a segfault; clicking the dialog's own OK
+				 * button with the mouse didn't reach the view's key
+				 * handling, so it didn't crash). Resolving the dialog
+				 * before returning removes the second, competing teardown
+				 * path entirely. */
+			QColor color = QColorDialog::getColor(index.data(Qt::EditRole).value<QColor>(), parent,
+											 QString(), QColorDialog::DontUseNativeDialog);
+			QWidget *w = new QWidget(parent);
+			if (color.isValid())
+			{
+				w->setProperty("color", color);
+				w->setProperty("ok", true);
+			}
+			w->setObjectName("color_dialog");
+			commitAndCloseDeferred(w);
+			return w;
 		}
 		case DynamicElementTextModel::pos:
 		{
@@ -1788,15 +1839,15 @@ void DynamicTextItemDelegate::setModelData(
 			{
 				if(QStandardItem *qsi = qsim->itemFromIndex(index))
 				{
-					QColorDialog *cd = static_cast<QColorDialog *> (editor);
-					if (cd->result() == QDialog::Accepted)
+					if (editor->property("ok").toBool() == true)
 					{
-						qsi->setData(cd->selectedColor(), Qt::EditRole);
-						qsi->setData(cd->selectedColor(), Qt::ForegroundRole);
+						QColor color = editor->property("color").value<QColor>();
+						qsi->setData(color, Qt::EditRole);
+						qsi->setData(color, Qt::DecorationRole);
 					}
 					return;
 				}
-				
+
 			}
 		}
 		else if (editor->objectName() == "info_text")

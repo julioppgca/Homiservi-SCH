@@ -17,6 +17,8 @@
 */
 #include "elementview.h"
 
+#include "elementviewgrid.h"
+
 #include "../qetapp.h"
 #include "UndoCommand/pastepartscommand.h"
 #include "ui/qetelementeditor.h"
@@ -37,8 +39,8 @@ ElementView::ElementView(ElementScene *scene, QWidget *parent) :
 	setResizeAnchor(QGraphicsView::AnchorUnderMouse);
 	setTransformationAnchor(QGraphicsView::AnchorUnderMouse);
 	zoomReset();
-	connect(m_scene, SIGNAL(pasteAreaDefined(const QRectF &)), this, SLOT(pasteAreaDefined(const QRectF &)));
-	connect(m_scene, SIGNAL(needZoomFit()), this, SLOT(zoomFit()));
+	connect(m_scene, &ElementScene::pasteAreaDefined, this, &ElementView::pasteAreaDefined);
+	connect(m_scene, &ElementScene::needZoomFit, this, &ElementView::zoomFit);	
 }
 
 /// Destructeur
@@ -101,12 +103,41 @@ void ElementView::setSelectionMode()
 }
 
 /**
+	Applique un facteur d'echelle a la vue en bornant l'echelle resultante
+	entre m_min_zoom et m_max_zoom. Sans cette borne, un zoom repete (molette)
+	finit par faire deborder la transformation de la vue et fait planter
+	l'editeur (issue #798).
+	@param factor facteur d'echelle a appliquer
+*/
+void ElementView::scaleClamped(qreal factor)
+{
+	const qreal current = transform().m11();
+	const qreal target = current * factor;
+	if (target < m_min_zoom || target > m_max_zoom) {
+		return;
+	}
+	scale(factor, factor);
+}
+
+/**
+	@brief ElementView::zoom
+	Zoom by an arbitrary factor, for a continuous input such as a 3D mouse.
+	Same clamping as the wheel zoom.
+	@param zoom_factor : > 1 zooms in, < 1 zooms out
+*/
+void ElementView::zoom(qreal zoom_factor)
+{
+	adjustSceneRect();
+	scaleClamped(zoom_factor);
+}
+
+/**
 	Agrandit le schema (+33% = inverse des -25 % de zoomMoins())
 */
 void ElementView::zoomIn()
 {
 	adjustSceneRect();
-	scale(4.0/3.0, 4.0/3.0);
+	scaleClamped(4.0/3.0);
 }
 
 /**
@@ -115,7 +146,7 @@ void ElementView::zoomIn()
 void ElementView::zoomOut()
 {
 	adjustSceneRect();
-	scale(0.75, 0.75);
+	scaleClamped(0.75);
 }
 
 /**
@@ -123,7 +154,7 @@ void ElementView::zoomOut()
 */
 void ElementView::zoomInSlowly()
 {
-	scale(1.02, 1.02);
+	scaleClamped(1.02);
 }
 
 /**
@@ -131,7 +162,7 @@ void ElementView::zoomInSlowly()
 */
 void ElementView::zoomOutSlowly()
 {
-	scale(0.98, 0.98);
+	scaleClamped(0.98);
 }
 
 /**
@@ -372,14 +403,7 @@ ElementContent ElementView::pasteWithOffset(const QDomDocument &xml_document) {
 */
 void ElementView::mousePressEvent(QMouseEvent* e)
 {
-#if QT_VERSION < QT_VERSION_CHECK(5, 15, 1) // ### Qt 6: remove
-	if (e->button() == Qt::MidButton)
-#else
-#if TODO_LIST
-#pragma message("@TODO remove code for QT 6 or later")
-#endif
 	if (e->button() == Qt::MiddleButton)
-#endif
 	{
 		setCursor( (Qt::ClosedHandCursor));
 		reference_view_ = e->pos();
@@ -394,14 +418,7 @@ void ElementView::mousePressEvent(QMouseEvent* e)
 */
 void ElementView::mouseMoveEvent(QMouseEvent* e)
 {
-#if QT_VERSION < QT_VERSION_CHECK(5, 15, 1) // ### Qt 6: remove
-	if (e->buttons() == Qt::MidButton)
-#else
-#if TODO_LIST
-#pragma message("@TODO remove code for QT 6 or later")
-#endif
 	if (e->buttons() == Qt::MiddleButton)
-#endif
 	{
 		QScrollBar *h = horizontalScrollBar();
 		QScrollBar *v = verticalScrollBar();
@@ -420,14 +437,7 @@ void ElementView::mouseMoveEvent(QMouseEvent* e)
 */
 void ElementView::mouseReleaseEvent(QMouseEvent* e)
 {
-#if QT_VERSION < QT_VERSION_CHECK(5, 15, 1) // ### Qt 6: remove
-	if (e->button() == Qt::MidButton)
-#else
-#if TODO_LIST
-#pragma message("@TODO remove code for QT 6 or later")
-#endif
 	if (e->button() == Qt::MiddleButton)
-#endif
 	{
 		setCursor(Qt::ArrowCursor);
 		adjustSceneRect();
@@ -527,29 +537,12 @@ void ElementView::drawBackground(QPainter *p, const QRectF &r) {
 
 	// choisit la granularite de la grille en fonction du zoom en cours
 	// selects the grid granularity according to the current zoom level
-	int drawn_x_grid = 1;//scene_ -> xGrid();
-	int drawn_y_grid = 1;//scene_ -> yGrid();
-	bool draw_grid = true;
-	bool draw_cross = false;
+	const ElementViewGrid grid = ElementViewGrid::forZoom(zoom_factor);
+	const int grid_step = grid.step;
+	const bool draw_grid = grid.draw_grid;
+	const bool draw_cross = grid.draw_cross;
 
-	if (zoom_factor < 1.0) { //< no grid
-		draw_grid = false;
-	} else if (zoom_factor < 4.0) { //< grid 10*10
-		drawn_x_grid *= 10;
-		drawn_y_grid *= 10;
-	}else if (zoom_factor < 8.0) { //< grid 5*5
-		drawn_x_grid *= 5;
-		drawn_y_grid *= 5;
-		draw_cross = true;
-	} else if (zoom_factor < 10.0) { //< grid 2*2
-		drawn_x_grid *= 2;
-		drawn_y_grid *= 2;
-		draw_cross = true;
-	} else { //< grid 1*1
-		draw_cross = true;
-	}
-
-	m_scene->setGrid(drawn_x_grid, drawn_y_grid);
+	m_scene->setGrid(grid_step, grid_step);
 
 	if (draw_grid) {
 		// draw the dots of the grid
@@ -579,12 +572,12 @@ void ElementView::drawBackground(QPainter *p, const QRectF &r) {
 		qreal limit_y = r.y() + r.height();
 
 		int g_x = (int)ceil(r.x());
-		while (g_x % drawn_x_grid) ++ g_x;
+		while (g_x % grid_step) ++ g_x;
 		int g_y = (int)ceil(r.y());
-		while (g_y % drawn_y_grid) ++ g_y;
+		while (g_y % grid_step) ++ g_y;
 
-		for (int gx = g_x ; gx < limit_x ; gx += drawn_x_grid) {
-			for (int gy = g_y ; gy < limit_y ; gy += drawn_y_grid) {
+		for (int gx = g_x ; gx < limit_x ; gx += grid_step) {
+			for (int gy = g_y ; gy < limit_y ; gy += grid_step) {
 				if (draw_cross) {
 					if (!(gx % 10) && !(gy % 10)) {
 						p -> drawLine(QLineF(gx - (pen.width()/4.0), gy, gx + (pen.width()/4.0), gy));
@@ -598,6 +591,19 @@ void ElementView::drawBackground(QPainter *p, const QRectF &r) {
 			}
 		}
 	}
+
+	if (m_scene->backgroundFrameVisible()) {
+		const QSizeF frame_size = m_scene->backgroundFrameSize();
+		const QRectF frame_rect(-frame_size.width() / 2.0, -frame_size.height() / 2.0,
+					 frame_size.width(), frame_size.height());
+		QPen frame_pen(Qt::blue);
+		frame_pen.setCosmetic(true);
+		frame_pen.setStyle(Qt::DashLine);
+		p -> setPen(frame_pen);
+		p -> setBrush(Qt::NoBrush);
+		p -> drawRect(frame_rect);
+	}
+
 	p -> restore();
 }
 

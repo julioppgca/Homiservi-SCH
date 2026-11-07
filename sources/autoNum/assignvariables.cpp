@@ -24,6 +24,9 @@
 #include "../qetgraphicsitem/element.h"
 #include "../qetxml.h"
 #include "../qetproject.h"
+#include "../ElementsCollection/qetlabelsfile.h"
+#include <QDir>
+#include <QDomDocument>
 #include <QStringList>
 #include <QVariant>
 #include <utility>
@@ -219,11 +222,55 @@ namespace autonum
 						const Element *elmt,
 						const Conductor *cndr)
 	{
+		if (!diagram) {
+			return formula;
+		}
+
+		FormulaContext context;
+		const BorderTitleBlock &border = diagram->border_and_titleblock;
+		context.folio = border.folio();
+		context.folio_index = diagram->folioIndex();
+		context.folio_total = border.folioTotal();
+		context.plant = border.plant();
+		context.locmach = border.locmach();
+		context.title_block_fields = border.additionalFields();
+		context.project_properties = diagram->project()->projectProperties();
+		if (elmt)
+		{
+			context.has_element = true;
+			context.element_position = diagram->convertPosition(elmt->scenePos());
+			context.element_prefix = elmt->getPrefix();
+		}
+		if (cndr)
+		{
+			context.has_conductor = true;
+			context.wire_function = cndr->properties().m_function;
+			context.wire_tension_protocol = cndr->properties().m_tension_protocol;
+			context.wire_color = cndr->properties().m_wire_color;
+			context.wire_section = cndr->properties().m_wire_section;
+		}
+		return formulaToLabel(std::move(formula), seqStruct, context);
+	}
+
+	/**
+		@brief AssignVariables::formulaToLabel
+		Return the formula with its variables assigned from @p context,
+		which describes a folio and the element or conductor the formula
+		belongs to without needing either to be built.
+		@param formula - the formula to work
+		@param seqStruct - struct where is stocked int values
+		(struct is passed as a reference
+		and modified by this static method)
+		@param context - what the variables are read from
+		@return the string with variable assigned.
+	*/
+	QString AssignVariables::formulaToLabel(QString formula,
+						sequentialNumbers &seqStruct,
+						const FormulaContext &context)
+	{
 		AssignVariables av(std::move(formula),
 				   seqStruct,
-				   diagram,
-				   elmt,
-				   cndr);
+				   context);
 		seqStruct = av.m_seq_struct;
 		return av.m_assigned_label;
 	}
@@ -257,6 +304,7 @@ namespace autonum
 		str.replace("%{designation_auxiliary1}", dc.value("designation_auxiliary1").toString());
 		str.replace("%{manufacturer_auxiliary1}", dc.value("manufacturer_auxiliary1").toString());
 		str.replace("%{manufacturer_reference_auxiliary1}", dc.value("manufacturer_reference_auxiliary1").toString());
+		str.replace("%{machine_manufacturer_reference_auxiliary1}", dc.value("machine_manufacturer_reference_auxiliary1").toString());
 		str.replace("%{supplier_auxiliary1}", dc.value("supplier_auxiliary1").toString());
 		str.replace("%{quantity_auxiliary1}", dc.value("quantity_auxiliary1").toString());
 		str.replace("%{unity_auxiliary1}", dc.value("unity_auxiliary1").toString());
@@ -266,6 +314,7 @@ namespace autonum
 		str.replace("%{designation_auxiliary2}", dc.value("designation_auxiliary2").toString());
 		str.replace("%{manufacturer_auxiliary2}", dc.value("manufacturer_auxiliary2").toString());
 		str.replace("%{manufacturer_reference_auxiliary2}", dc.value("manufacturer_reference_auxiliary2").toString());
+		str.replace("%{machine_manufacturer_reference_auxiliary2}", dc.value("machine_manufacturer_reference_auxiliary2").toString());
 		str.replace("%{supplier_auxiliary2}", dc.value("supplier_auxiliary2").toString());
 		str.replace("%{quantity_auxiliary2}", dc.value("quantity_auxiliary2").toString());
 		str.replace("%{unity_auxiliary2}", dc.value("unity_auxiliary2").toString());
@@ -276,6 +325,7 @@ namespace autonum
 		str.replace("%{designation_auxiliary3}", dc.value("designation_auxiliary3").toString());
 		str.replace("%{manufacturer_auxiliary3}", dc.value("manufacturer_auxiliary3").toString());
 		str.replace("%{manufacturer_reference_auxiliary3}", dc.value("manufacturer_reference_auxiliary3").toString());
+		str.replace("%{machine_manufacturer_reference_auxiliary3}", dc.value("machine_manufacturer_reference_auxiliary3").toString());
 		str.replace("%{supplier_auxiliary3}", dc.value("supplier_auxiliary3").toString());
 		str.replace("%{quantity_auxiliary3}", dc.value("quantity_auxiliary3").toString());
 		str.replace("%{unity_auxiliary3}", dc.value("unity_auxiliary3").toString());
@@ -286,6 +336,7 @@ namespace autonum
 		str.replace("%{designation_auxiliary4}", dc.value("designation_auxiliary4").toString());
 		str.replace("%{manufacturer_auxiliary4}", dc.value("manufacturer_auxiliary4").toString());
 		str.replace("%{manufacturer_reference_auxiliary4}", dc.value("manufacturer_reference_auxiliary4").toString());
+		str.replace("%{machine_manufacturer_reference_auxiliary4}", dc.value("machine_manufacturer_reference_auxiliary4").toString());
 		str.replace("%{supplier_auxiliary4}", dc.value("supplier_auxiliary4").toString());
 		str.replace("%{quantity_auxiliary4}", dc.value("quantity_auxiliary4").toString());
 		str.replace("%{unity_auxiliary4}", dc.value("unity_auxiliary4").toString());
@@ -345,76 +396,54 @@ namespace autonum
 	
 	AssignVariables::AssignVariables(const QString& formula,
 					 const sequentialNumbers& seqStruct,
-					 Diagram *diagram,
-					 const Element *elmt,
-					 const Conductor *cndr):
-	m_diagram(diagram),
+					 const FormulaContext &context):
+	m_context(context),
 	m_arg_formula(formula),
 	m_assigned_label(formula),
-	m_seq_struct(seqStruct),
-	m_element(elmt),
-	m_conductor(cndr)
+	m_seq_struct(seqStruct)
 	{
-		if (m_diagram)
+		m_assigned_label.replace("%F", m_context.folio);
+		m_assigned_label.replace("%f",
+					 QString::number(m_context.folio_index+1));
+		m_assigned_label.replace("%id",
+					 QString::number(m_context.folio_index+1));
+		m_assigned_label.replace("%total",
+					 QString::number(m_context.folio_total));
+		m_assigned_label.replace("%M", m_context.plant);
+		m_assigned_label.replace("%LM", m_context.locmach);
+
+		QSettings settings;
+		if (m_context.has_element)
 		{
-			m_assigned_label.replace("%F",
-						 m_diagram
-						 -> border_and_titleblock
-						 .folio());
-			m_assigned_label.replace("%f",
-						 QString::number(
-							 m_diagram
-							 ->folioIndex()+1));
-			m_assigned_label.replace("%id",
-						 QString::number(
-							 m_diagram
-							 ->folioIndex()+1));
-			m_assigned_label.replace("%total",
-						 QString::number(
-							 m_diagram
-							 ->border_and_titleblock
-							 .folioTotal()));
-			m_assigned_label.replace("%M",
-						 m_diagram
-						 -> border_and_titleblock
-						 .plant());
-			m_assigned_label.replace("%LM",
-						 m_diagram
-						 -> border_and_titleblock
-						 .locmach());
-
-			QSettings settings;
-			if (m_element)
-			{
-			if (settings.value("border-columns_0", true).toBool()){
-				m_assigned_label.replace("%c", QString::number(m_diagram->convertPosition(m_element->scenePos()).number() - 1));
-				}else{
-				m_assigned_label.replace("%c", QString::number(m_diagram->convertPosition(m_element->scenePos()).number()));
-				}
-				m_assigned_label.replace("%l", m_diagram->convertPosition(m_element->scenePos()).letter());
-				m_assigned_label.replace("%prefix", m_element->getPrefix());
+		if (settings.value("border-columns_0", true).toBool()){
+			m_assigned_label.replace("%c", QString::number(m_context.element_position.number() - 1));
+			}else{
+			m_assigned_label.replace("%c", QString::number(m_context.element_position.number()));
 			}
-
-			if (m_conductor)
-			{
-				m_assigned_label.replace("%wf", cndr->properties().m_function);
-				m_assigned_label.replace("%wv", cndr->properties().m_tension_protocol);
-				m_assigned_label.replace("%wc", cndr->properties().m_wire_color);
-				m_assigned_label.replace("%ws", cndr->properties().m_wire_section);
-			}
-
-			assignTitleBlockVar();
-			assignProjectVar();
-			assignSequence();
+			m_assigned_label.replace("%l", m_context.element_position.letter());
+			m_assigned_label.replace("%prefix", m_context.element_prefix);
 		}
+
+		if (m_context.has_conductor)
+		{
+			m_assigned_label.replace("%wf", m_context.wire_function);
+			m_assigned_label.replace("%wv", m_context.wire_tension_protocol);
+			m_assigned_label.replace("%wc", m_context.wire_color);
+			m_assigned_label.replace("%ws", m_context.wire_section);
+		}
+
+		assignTitleBlockVar();
+		assignProjectVar();
+		assignSequence();
 	}
 
 	void AssignVariables::assignTitleBlockVar()
 	{
-		for (int i = 0; i < m_diagram->border_and_titleblock.additionalFields().count(); i++)
+		DiagramContext fields = m_context.title_block_fields;
+		for (int i = 0; i < fields.count(); i++)
 		{
-			QString folio_variable = m_diagram->border_and_titleblock.additionalFields().keys().at(i);
-			QVariant folio_value = m_diagram->border_and_titleblock.additionalFields().operator [](folio_variable);
+			QString folio_variable = fields.keys().at(i);
+			QVariant folio_value = fields[folio_variable];
 
 			if (m_assigned_label.contains(folio_variable)) {
 				m_assigned_label.replace("%{" + folio_variable + "}", folio_value.toString());
@@ -425,10 +454,11 @@ namespace autonum
 
 	void AssignVariables::assignProjectVar()
 	{
-		for (int i = 0; i < m_diagram->project()->projectProperties().count(); i++)
+		DiagramContext properties = m_context.project_properties;
+		for (int i = 0; i < properties.count(); i++)
 		{
-			QString folio_variable = m_diagram->project()->projectProperties().keys().at(i);
-			QVariant folio_value = m_diagram->project()->projectProperties().operator [](folio_variable);
+			QString folio_variable = properties.keys().at(i);
+			QVariant folio_value = properties[folio_variable];
 
 			if (m_assigned_label.contains(folio_variable)) {
 				m_assigned_label.replace("%{" + folio_variable + "}", folio_value.toString());
@@ -716,114 +746,85 @@ namespace autonum
 		if (!location.isProject())
 			return QString();
 
-		QXmlStreamReader rxml;
-		QString path[10];
-		int i = -1;
+			//Directory names from the element up to (not including) the
+			//collection root, outermost last -- path[dirLevel] is the
+			//top-level category, path[1] the element's immediate parent
+			//directory, path[0] the element's own file name (never matched
+			//against a category: the search stops descending once it has
+			//matched path[1], the deepest real directory). An unbounded
+			//QStringList rather than a fixed-size array, because a custom
+			//collection can nest deeper than the shipped one -- see
+			//bugtracker #671 item 3.
+		QStringList path;
 		ElementsLocation current_location = location;
-		int dirLevel = -1;
-
-			//Add location name to path array
-		while((current_location.parent() != current_location) && (current_location.parent().fileName() != "import"))
+		while ((current_location.parent() != current_location)
+			   && (current_location.parent().fileName() != "import"))
 		{
-			i++;
-			path[i]=current_location.fileName();
+			path << current_location.fileName();
 			current_location = current_location.parent();
-			dirLevel++;
 		}
-			//User Element without folder treatment
-		if (i == -1)
-		{
-			i = 0;
-			path[i]=current_location.fileName();
+			//User element without folder treatment
+		if (path.isEmpty()) {
+			path << current_location.fileName();
 			current_location = current_location.parent();
-			dirLevel = 0;
+		}
+		const int dirLevel = path.size() - 1;
+			//Name of the top-level tree the element's path was found
+			//under, e.g. "10_electric" -- or, for a custom/company
+			//collection not organised that way, whatever its top-level
+			//folder happens to be called.
+		const QString collection_root = current_location.fileName();
+
+			//Every top-level common-collection tree (10_electric,
+			//20_logic, 30_hydraulic, ...) may carry its own
+			//qet_labels.xml, with categories relative to that tree, the
+			//same way 10_electric/qet_labels.xml already does -- not just
+			//10_electric, which is all the hardcoded check this replaces
+			//used to allow (bugtracker #671 item 2). commonElementsDir()
+			//-- unlike customElementsDir(), which normalises this itself
+			//-- returns whatever path the user configured verbatim, with
+			//no guaranteed trailing separator; concatenating a suffix onto
+			//it directly used to silently mangle the path (and so the
+			//prefix lookup) for any install relocated to a directory
+			//without a trailing slash (#671 item 1). QDir::filePath()
+			//joins correctly either way.
+		{
+			const QString common_file = QDir(QETApp::commonElementsDir())
+					.filePath(collection_root + QStringLiteral("/qet_labels.xml"));
+			const QString prefix = QetLabelsFile::prefixForPath(common_file, path, dirLevel);
+			if (!prefix.isNull()) {
+				return prefix;
+			}
 		}
 
-		// Create Custom labels if qet_labels.xml exits in customElementsDir
-		if (current_location.fileName() != "10_electric"){
-		QString custom_labels = "qet_labels.xml";
-		QString customfilepath = QETApp::customElementsDir().append(custom_labels);
-		
-		QFile file(customfilepath);
-		file.isReadable();
-		if (!file.open(QFile::ReadOnly | QFile::Text))
-			return QString();
-				rxml.setDevice(&file);
-				rxml.readNext();
+			/* Which collection an element actually came from is not
+			 * recoverable post-import (addElement() strips the protocol),
+			 * so custom and company labels files are tried against two
+			 * possible layouts: with the collection's top-level tree name
+			 * folded into the path (a custom/company file organised as a
+			 * mirror of the common collection, tree name included) and
+			 * without it (a file scoped to just this one tree, matching
+			 * how the common collection's own files are written). Custom
+			 * is tried before company, so a user override wins over a
+			 * shared one.
+			 */
+		QStringList path_from_root = path;
+		path_from_root << collection_root;
 
-		while(!rxml.atEnd())
-		{
-			if (rxml.attributes().value("name").toString() == path[i])
-			{
-				rxml.readNext();
-				i=i-1;
-					//reached element directory
-				if (i==0)
-				{
-					for (int j=i; j<= dirLevel; j = j +1)
-					{
-							//if there is a prefix available apply prefix
-						if(rxml.name().toString()=="prefix")
-						{
-							return rxml.readElementText();
-						}
-							//if there isn't a prefix available, find parent prefix in parent folder
-						else
-						{
-							while (rxml.readNextStartElement() && rxml.name().toString()!="prefix")
-							{
-								rxml.skipCurrentElement();
-								rxml.readNext();
-							}
-						}
-					}
+		const QStringList candidate_dirs = {
+			QETApp::customElementsDir(),
+			QETApp::companyElementsDir()
+		};
+		for (const QString &dir : candidate_dirs) {
+			const QString candidate =
+					QDir(dir).filePath(QStringLiteral("qet_labels.xml"));
+			for (const QStringList &segments : {path_from_root, path}) {
+				const QString prefix = QetLabelsFile::prefixForPath(
+							candidate, segments, segments.size() - 1);
+				if (!prefix.isNull()) {
+					return prefix;
 				}
 			}
-			rxml.readNext();
-			}
-		}
-		else
-		{
-		QString qet_labels = "10_electric/qet_labels.xml";
-		QString filepath = QETApp::commonElementsDir().append(qet_labels);
-		QFile file(filepath);
-		file.isReadable();
-		if (!file.open(QFile::ReadOnly | QFile::Text))
-			return QString();
-			
-		rxml.setDevice(&file);
-		rxml.readNext();
-
-		while(!rxml.atEnd())
-		{
-			if (rxml.attributes().value("name").toString() == path[i])
-			{
-				rxml.readNext();
-				i=i-1;
-					//reached element directory
-				if (i==0)
-				{
-					for (int j=i; j<= dirLevel; j = j +1)
-					{
-							//if there is a prefix available apply prefix
-						if(rxml.name().toString()=="prefix")
-						{
-							return rxml.readElementText();
-						}
-							//if there isn't a prefix available, find parent prefix in parent folder
-						else
-						{
-							while (rxml.readNextStartElement() && rxml.name().toString()!="prefix")
-							{
-								rxml.skipCurrentElement();
-								rxml.readNext();
-							}
-						}
-					}
-				}
-			}
-			rxml.readNext();
-		}
 		}
 		return QString();
 	}

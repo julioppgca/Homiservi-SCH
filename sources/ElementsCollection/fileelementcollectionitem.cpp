@@ -24,6 +24,7 @@
 
 #include <QApplication>
 #include <QDir>
+#include <QFile>
 #include <QPainter>
 #include <QPixmap>
 #include <QStyle>
@@ -162,7 +163,7 @@ QString FileElementCollectionItem::localName()
 			else if (m_path == QETApp::customElementsDirN())
 				setText(QObject::tr("Collection utilisateur"));
 			else if (m_path == macrosPath)
-				setText(QObject::tr("Makros"));
+				setText(QObject::tr("Macros"));
 			else
 				setText(QObject::tr("Collection inconnue"));
 		}
@@ -178,7 +179,12 @@ QString FileElementCollectionItem::localName()
 			bool readable = false;
 			QString str(fileSystemPath() % "/qet_directory");
 			pugi::xml_document docu;
-			if (docu.load_file(str.toStdWString().c_str()))
+				// QFile rather than pugi's load_file(), which fails on
+				// Windows once the full path reaches 260 characters.
+			QFile file(str);
+			const QByteArray data = file.open(QIODevice::ReadOnly)
+					? file.readAll() : QByteArray();
+			if (!data.isEmpty() && docu.load_buffer(data.constData(), data.size()))
 			{
 				if (QString(docu.document_element().name())
 					== "qet-directory")
@@ -430,7 +436,7 @@ void FileElementCollectionItem::setUpData()
  */
 void FileElementCollectionItem::setUpIcon()
 {
-		// Must return unconditionally once an icon is set: setIcon() calls
+		// Must return unconditionally once setUpIcon has run: setIcon() calls
 		// setData(), which emits dataChanged() regardless of whether the new
 		// icon differs from the old one (QIcon has no meaningful equality).
 		// QTreeView responds to dataChanged() by recomputing the row's size
@@ -438,26 +444,31 @@ void FileElementCollectionItem::setUpIcon()
 		// guard, any repeated setIcon() here recurses until the stack
 		// overflows. Confirmed by crash report on PR #633.
 		//
+		// We use a dedicated bool instead of icon().isNull() because
+		// some items intentionally keep a null icon (e.g. .qetmak),
+		// which would bypass a null-based guard and still recurse.
+		//
 		// This item's m_qet_directory_unreadable is already final by the time
 		// this can run at all: ElementsCollectionModel only attaches itself
 		// to the tree view (making data() reachable) from loadingFinished(),
 		// which fires after the QtConcurrent::map over every item -- this one
 		// included -- has completed. So there is no race to work around here.
-	if (!icon().isNull())
+	if (m_icon_initialized)
 		return;
+	m_icon_initialized = true;
 
 	if (isCollectionRoot()) {
 		QString macrosPath = QETApp::userMacrosDir();
 		if (macrosPath.endsWith("/")) macrosPath.remove(macrosPath.length() - 1, 1);
 
 		if (m_path == QETApp::commonElementsDirN())
-			setIcon(QIcon(":/ico/16x16/qet.png"));
+			setIcon(QIcon::fromTheme("qet"));
 		else if (m_path == QETApp::companyElementsDirN())
-			setIcon(QIcon(":/ico/16x16/go-company.png"));
+			setIcon(QIcon::fromTheme("go-company"));
 		else if (m_path == macrosPath)
-			setIcon(QIcon(":/ico/16x16/go-home.png"));
+			setIcon(QIcon::fromTheme("go-home"));
 		else
-			setIcon(QIcon(":/ico/16x16/go-home.png"));
+			setIcon(QIcon::fromTheme("go-home"));
 	}
 	else
 	{
@@ -473,6 +484,22 @@ void FileElementCollectionItem::setUpIcon()
 			}
 		}
 	}
+}
+
+/**
+	@brief FileElementCollectionItem::clearData
+	Reset the data, and let setUpIcon() build the icon again.
+	Without this the guard in setUpIcon() keeps the icon cleared here
+	empty until the whole collection is reloaded, e.g. after an element
+	is saved from the element editor (see locationWasSaved()).
+*/
+void FileElementCollectionItem::clearData()
+{
+		// Reset the flag only after the base class has cleared the icon:
+		// its setIcon() emits dataChanged(), which re-enters setUpIcon(),
+		// and that call must still see the flag set and return early.
+	ElementCollectionItem::clearData();
+	m_icon_initialized = false;
 }
 
 /**

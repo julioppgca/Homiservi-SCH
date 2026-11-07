@@ -16,11 +16,13 @@
 	along with QElectroTech. If not, see <http://www.gnu.org/licenses/>.
 */
 #include "qetgraphicstableitem.h"
+#include "../../shownkinds.h"
 #include "../../qetproject.h"
 #include "../../QPropertyUndoCommand/qpropertyundocommand.h"
 #include "../../createdxf.h"
 #include "../../diagram.h"
 #include "../../elementprovider.h"
+#include "../../qetmessagebox.h"
 #include "../../qetxml.h"
 #include "../../utils/qetutils.h"
 #include "projectdbmodel.h"
@@ -119,7 +121,7 @@ void QetGraphicsTableItem::checkInsufficientRowsCount(
 			text = tr("Les information à afficher sont supérieurs à la quantité maximal pouvant être affiché par le tableau.\n"
 					  "Veuillez ajouter un nouveau tableau ou regler le tableau existant afin d'afficher l'integralité des informations.");
 		}
-		QMessageBox::information(parent, tr("Limitation de tableau"), text);
+		QET::QetMessageBox::information(parent, tr("Limitation de tableau"), text);
 	}
 
 }
@@ -132,6 +134,7 @@ void QetGraphicsTableItem::checkInsufficientRowsCount(
 QetGraphicsTableItem::QetGraphicsTableItem(QGraphicsItem *parent) :
 	QetGraphicsItem(parent)
 {
+	ShownKinds::tag(this, ShownKinds::Tables);
 	setFlag(QGraphicsItem::ItemIsMovable, true);
 	setFlag(QGraphicsItem::ItemIsSelectable, true);
 	setAcceptHoverEvents(true);

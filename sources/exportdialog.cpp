@@ -16,14 +16,19 @@
 	along with QElectroTech.  If not, see <http://www.gnu.org/licenses/>.
 */
 #include "exportdialog.h"
+#include "shownkinds.h"
 
 #include "conductorsegment.h"
 #include "createdxf.h"
+#include "dxfexport.h"
 #include "exportpropertieswidget.h"
 #include "factory/elementpicturefactory.h"
+#include "qet.h"
 #include "qetgraphicsitem/ViewItem/qetgraphicstableitem.h"
+#include "dxfpaintdevice.h"
 #include "qetgraphicsitem/conductor.h"
 #include "qetgraphicsitem/conductortextitem.h"
+#include "qetgraphicsitem/crossrefitem.h"
 #include "qetgraphicsitem/diagramimageitem.h"
 #include "qetgraphicsitem/diagramtextitem.h"
 #include "qetgraphicsitem/dynamicelementtextitem.h"
@@ -87,8 +92,8 @@ ExportDialog::ExportDialog(
 	deSelectAll -> setText(tr("Tout décocher"));
 	hLayout -> addWidget(selectAll);
 	hLayout -> addWidget(deSelectAll);
-	connect(selectAll,   SIGNAL(clicked()),            this, SLOT(slot_selectAllClicked()));
-	connect(deSelectAll, SIGNAL(clicked()),            this, SLOT(slot_deSelectAllClicked()));
+	connect(selectAll, &QPushButton::clicked, this, &ExportDialog::slot_selectAllClicked);
+	connect(deSelectAll, &QPushButton::clicked, this, &ExportDialog::slot_deSelectAllClicked);
 
 
 	QVBoxLayout *layout = new QVBoxLayout(this);
@@ -98,13 +103,15 @@ ExportDialog::ExportDialog(
 	layout -> addWidget(buttons);
 	
 	// connexions signaux/slots
-	connect(epw,     SIGNAL(formatChanged()),       this, SLOT(slot_changeFilesExtension()));
-	connect(epw,     SIGNAL(exportedAreaChanged()), this, SLOT(slot_changeUseBorder()));
-	connect(buttons, SIGNAL(accepted()),            this, SLOT(slot_export()));
-	connect(buttons, SIGNAL(rejected()),            this, SLOT(reject()));
+	connect(epw, &ExportPropertiesWidget::formatChanged, this, [this]() { slot_changeFilesExtension(); });
+	connect(epw, &ExportPropertiesWidget::exportedAreaChanged, this, &ExportDialog::slot_changeUseBorder);
+	connect(buttons, &QDialogButtonBox::accepted, this, &ExportDialog::slot_export);
+	connect(buttons, &QDialogButtonBox::rejected, this, &ExportDialog::reject);
 	
 	// ajustement des extensions des fichiers
 	slot_changeFilesExtension(true);
+
+	QET::trackDialogGeometry(this);
 }
 
 /**
@@ -140,12 +147,12 @@ QWidget *ExportDialog::initDiagramsListPart()
 	reset_mapper_     = new QSignalMapper(this);
 	clipboard_mapper_ = new QSignalMapper(this);
 	
-	connect(preview_mapper_,   SIGNAL(mapped(int)), this, SLOT(slot_previewDiagram(int)));
-	connect(width_mapper_,     SIGNAL(mapped(int)), this, SLOT(slot_correctHeight(int)));
-	connect(height_mapper_,    SIGNAL(mapped(int)), this, SLOT(slot_correctWidth(int)));
-	connect(ratio_mapper_,     SIGNAL(mapped(int)), this, SLOT(slot_keepRatioChanged(int)));
-	connect(reset_mapper_,     SIGNAL(mapped(int)), this, SLOT(slot_resetSize(int)));
-	connect(clipboard_mapper_, SIGNAL(mapped(int)), this, SLOT(slot_exportToClipBoard(int)));
+	connect(preview_mapper_, &QSignalMapper::mappedInt, this, &ExportDialog::slot_previewDiagram);
+	connect(width_mapper_, &QSignalMapper::mappedInt, this, &ExportDialog::slot_correctHeight);
+	connect(height_mapper_, &QSignalMapper::mappedInt, this, &ExportDialog::slot_correctWidth);
+	connect(ratio_mapper_, &QSignalMapper::mappedInt, this, &ExportDialog::slot_keepRatioChanged);
+	connect(reset_mapper_, &QSignalMapper::mappedInt, this, &ExportDialog::slot_resetSize);
+	connect(clipboard_mapper_, &QSignalMapper::mappedInt, this, &ExportDialog::slot_exportToClipBoard);
 	
 	diagrams_list_layout_ = new QGridLayout();
 	
@@ -165,25 +172,25 @@ QWidget *ExportDialog::initDiagramsListPart()
 		diagrams_list_layout_ -> addLayout(diagram_line -> sizeLayout(),   line_count, 3);
 		
 		// si on decoche tous les schemas, on desactive le bouton "Exporter"
-		connect(diagram_line -> must_export, SIGNAL(toggled(bool)), this, SLOT(slot_checkDiagramsCount()));
+		connect(diagram_line -> must_export, &QCheckBox::toggled, this, &ExportDialog::slot_checkDiagramsCount);
 		
 		// mappings et signaux pour la gestion des dimensions du schema
 		width_mapper_  -> setMapping(diagram_line -> width,      line_count);
 		height_mapper_ -> setMapping(diagram_line -> height,     line_count);
 		ratio_mapper_  -> setMapping(diagram_line -> keep_ratio, line_count);
 		reset_mapper_  -> setMapping(diagram_line -> reset_size, line_count);
-		connect(diagram_line -> width,      SIGNAL(valueChanged(int)), width_mapper_,  SLOT(map()));
-		connect(diagram_line -> height,     SIGNAL(valueChanged(int)), height_mapper_, SLOT(map()));
-		connect(diagram_line -> keep_ratio, SIGNAL(toggled(bool)),     ratio_mapper_,  SLOT(map()));
-		connect(diagram_line -> reset_size, SIGNAL(clicked(bool)),     reset_mapper_,  SLOT(map()));
+		connect(diagram_line -> width, qOverload<int>(&QSpinBox::valueChanged), width_mapper_, qOverload<>(&QSignalMapper::map));
+		connect(diagram_line -> height, qOverload<int>(&QSpinBox::valueChanged), height_mapper_, qOverload<>(&QSignalMapper::map));
+		connect(diagram_line -> keep_ratio, &QPushButton::toggled, ratio_mapper_, qOverload<>(&QSignalMapper::map));
+		connect(diagram_line -> reset_size, &QPushButton::clicked, reset_mapper_, qOverload<>(&QSignalMapper::map));
 		
 		// mappings et signaux pour l'apercu du schema
 		preview_mapper_ -> setMapping(diagram_line -> preview, line_count);
-		connect(diagram_line -> preview, SIGNAL(clicked(bool)), preview_mapper_, SLOT(map()));
+		connect(diagram_line -> preview, &QPushButton::clicked, preview_mapper_, qOverload<>(&QSignalMapper::map));
 		
 		// mappings et signaux pour l'export du schema vers le presse-papier
 		clipboard_mapper_ -> setMapping(diagram_line -> clipboard, line_count);
-		connect(diagram_line -> clipboard, SIGNAL(clicked(bool)), clipboard_mapper_, SLOT(map()));
+		connect(diagram_line -> clipboard, &QPushButton::clicked, clipboard_mapper_, qOverload<>(&QSignalMapper::map));
 	}
 	
 	QWidget *widget_diagrams_list = new QWidget();
@@ -428,283 +435,6 @@ void ExportDialog::generateSvg(
 	saveReloadDiagramParameters(diagram, false);
 }
 
-/**
-	Exporte le schema en DXF
-	@param diagram Schema a exporter en DXF
-	@param width  Largeur de l'export DXF
-	@param height Hauteur de l'export DXF
-	@param file_path
-*/
-void ExportDialog::generateDxf(
-		Diagram *diagram,
-					int width,
-					int height,
-		QString &file_path)
-{
-	saveReloadDiagramParameters(diagram, true);
-
-	width  -= 2*Diagram::margin;
-	height -= 2*Diagram::margin;
-
-	Createdxf::xScale = Createdxf::sheetWidth  / double(width);
-	Createdxf::yScale = Createdxf::sheetHeight / double(height);
-
-	Createdxf::dxfBegin(file_path);
-
-	//Add project elements (lines, rectangles, circles, texts) to dxf file
-	if (epw -> exportProperties().draw_border) {
-		QRectF rect(Diagram::margin,Diagram::margin,width,height);
-		Createdxf::drawRectangle(file_path,rect,0);
-	}
-	diagram -> border_and_titleblock.drawDxf(file_path, 0);
-
-	// Build the lists of elements.
-	QList<Element *> list_elements;
-	QList<Conductor *> list_conductors;
-	QList<DiagramTextItem *> list_texts;
-	QList<DiagramImageItem *> list_images;
-	QList<QLineF *> list_lines;
-	QList<QRectF *> list_rectangles;
-	//QList<QRectF *> list_ellipses;
-	QList <QetShapeItem *> list_shapes;
-	QList <QetGraphicsTableItem *> list_tables;
-//	QList <Terminal *> list_terminals;
-
-	// Determine les elements a "XMLiser"
-	foreach(QGraphicsItem *qgi, diagram -> items()) {
-		if (Element *elmt = qgraphicsitem_cast<Element *>(qgi)) {
-			list_elements << elmt;
-		} else if (Conductor *f = qgraphicsitem_cast<Conductor *>(qgi)) {
-			list_conductors << f;
-		} else if (IndependentTextItem *iti = qgraphicsitem_cast<IndependentTextItem *>(qgi)) {
-			list_texts << iti;
-		} else if (DiagramImageItem *dii = qgraphicsitem_cast<DiagramImageItem *>(qgi)) {
-			list_images << dii;
-		} else if (QetShapeItem *dii = qgraphicsitem_cast<QetShapeItem *>(qgi)) {
-			list_shapes << dii;
-		} else if (DynamicElementTextItem *deti = qgraphicsitem_cast<DynamicElementTextItem *>(qgi)) {
-			list_texts << deti;
-		} else if (QetGraphicsTableItem *gti = qgraphicsitem_cast<QetGraphicsTableItem *>(qgi)) {
-			list_tables << gti;
-		}
-	}
-
-	// Draw shapes
-	foreach (QetShapeItem *qsi, list_shapes) qsi->toDXF(file_path, qsi->pen());
-
-	// Draw tables
-	foreach (QetGraphicsTableItem *gti, list_tables) {
-		gti->toDXF(file_path);
-	}
-
-	//Draw elements
-	foreach(Element *elmt, list_elements)
-	{
-		double rotation_angle = elmt -> orientation() * 90;
-
-		qreal elem_pos_x = elmt -> pos().x();
-		qreal elem_pos_y = elmt -> pos().y();// - (diagram -> margin / 2);
-
-		ElementPictureFactory::primitives primitives = ElementPictureFactory::instance()->getPrimitives(elmt->location());
-
-		for(QGraphicsSimpleTextItem *text : primitives.m_texts)
-		{
-			qreal fontSize = text->font().pointSizeF();
-			if (fontSize < 0)
-				fontSize = text->font().pixelSize();
-
-			qreal x = elem_pos_x + text->pos().x();
-			qreal y = elem_pos_y + text->pos().y();
-
-			qreal angle = text -> rotation() + rotation_angle;
-			qreal angler = angle * M_PI/180;
-			int xdir = -sin(angler);
-			int ydir = -cos(angler);
-
-			QPointF transformed_point = rotation_transformed(x, y, elem_pos_x, elem_pos_y, -rotation_angle);
-			x = transformed_point.x() - ydir * fontSize * 0.5;
-			y = transformed_point.y() - xdir * fontSize * 0.5;
-			QStringList lines = text->text().split('\n');
-			qreal offset = fontSize * 1.6;
-			for (QString line : lines)
-			{
-				if (line.size() > 0 && line != "_" ) {
-					Createdxf::drawText(file_path, line, QPointF(x, y), fontSize, 360 - angle, 0, 0.72);
-				}
-				x += offset * xdir;
-				y -= offset * ydir;
-			}
-		}
-
-		for (QLineF line : primitives.m_lines)
-		{
-			QTransform t = QTransform().translate(elem_pos_x,elem_pos_y).rotate(rotation_angle);
-			QLineF l = t.map(line);
-			Createdxf::drawLine(file_path, l, 0);
-		}
-
-		for (QRectF rect : primitives.m_rectangles)
-		{
-			QTransform t = QTransform().translate(elem_pos_x,elem_pos_y).rotate(rotation_angle);
-			QRectF r = t.mapRect(rect);
-			Createdxf::drawRectangle(file_path,r,0);
-		}
-
-		for (QRectF circle_rect : primitives.m_circles)
-		{
-			QTransform t = QTransform().translate(elem_pos_x,elem_pos_y).rotate(rotation_angle);
-			QPointF c = t.map(QPointF(circle_rect.center().x(),circle_rect.center().y()));
-			Createdxf::drawCircle(file_path,c,circle_rect.width()/2,0);
-		}
-
-		for (QVector<QPointF> polygon : primitives.m_polygons)
-		{
-			if (polygon.size() == 0)
-				continue;
-			QTransform t = QTransform().translate(elem_pos_x,elem_pos_y).rotate(rotation_angle);
-			QPolygonF poly = t.map(polygon);
-			if(poly.isClosed())
-				Createdxf::drawPolygon(file_path,poly,0);
-			else
-				Createdxf::drawPolyline(file_path,poly,0);
-		}
-
-		// Draw arcs and ellipses
-		for (QVector<qreal> arc : primitives.m_arcs)
-		{
-			if (arc.size() == 0)
-				continue;
-			qreal x = (elem_pos_x + arc.at(0));
-			qreal y = (elem_pos_y + arc.at(1));
-			qreal w = arc.at(2);
-			qreal h = arc.at(3);
-			qreal startAngle = arc.at(4);
-			qreal spanAngle = arc .at(5);
-			QRectF r(x,y,w,h);
-			QPointF hotspot(elem_pos_x,elem_pos_y);
-			Createdxf::drawArcEllipse(file_path, r, startAngle, spanAngle, hotspot, rotation_angle, 0);
-		}
-		if (epw -> exportProperties().draw_terminals) {
-			// Draw terminals
-			QList<Terminal *> list_terminals = elmt->terminals();
-			QColor col("red");
-			QTransform t = QTransform().translate(elem_pos_x,elem_pos_y).rotate(rotation_angle);
-			foreach(Terminal *tp, list_terminals) {
-				QPointF c = t.map(QPointF(tp->dock_elmt_.x(),tp->dock_elmt_.y()));
-				Createdxf::drawCircle(file_path,c,3.0,Createdxf::dxfColor(col));
-			}
-		}
-	}
-
-	//Draw conductors
-	foreach(Conductor *cond, list_conductors) {
-		QPolygonF poly;
-		bool firstseg = true;
-		foreach(ConductorSegment *segment, cond -> segmentsList()) {
-			//Createdxf::drawLine(file_path,QLineF(cond->pos()+segment->firstPoint(),cond->pos()+segment->secondPoint()),0);
-			if(firstseg){
-				poly << cond->pos()+segment->firstPoint();
-				firstseg = false;
-			}
-			poly << cond->pos()+segment->secondPoint();
-		}
-		Createdxf::drawPolyline(file_path,poly,0);
-		//Draw conductor text item
-		ConductorTextItem *textItem = cond -> textItem();
-
-		if (textItem) {
-			qreal fontSize = textItem -> font().pointSizeF();
-			if (fontSize < 0)
-				fontSize = textItem -> font().pixelSize();
-			qreal angle = textItem -> rotation();
-			qreal angler = angle * M_PI/180;
-			int xdir = -sin(angler);
-			int ydir = -cos(angler);
-
-			qreal x = (cond->pos().x() + textItem -> pos().x())
-					+ xdir * fontSize * 1.8
-					- ydir * fontSize;
-			qreal y = (cond->pos().y() + textItem -> pos().y())
-					- ydir * fontSize * 1.8
-					- xdir * fontSize * 0.9;
-			QStringList lines = textItem->toPlainText().split('\n');
-			qreal offset = fontSize * 1.6;
-			foreach (QString line, lines) {
-				if (line.size() > 0 && line != "_" )
-					Createdxf::drawText(file_path, line, QPointF(x, y), fontSize, 360-angle, 0, 0.72 );
-				x += offset * xdir;
-				y -= offset * ydir;
-			}
-		}
-
-		// Draw the junctions
-		QList<QPointF> junctions_list = cond->junctions();
-		if (!junctions_list.isEmpty()) {
-			foreach(QPointF point, junctions_list) {
-				Createdxf::drawEllipse(file_path,QRectF(cond->pos().x() + point.x() - 1.5, cond->pos().y() + point.y() - 1.5, 3.0, 3.0),0);
-			}
-		}
-	}
-
-	//Draw text items
-	foreach(DiagramTextItem *dti, list_texts) {
-		qreal fontSize = dti -> font().pointSizeF();
-		if (fontSize < 0)
-			fontSize = dti -> font().pixelSize();
-
-		qreal angle = dti -> rotation();
-
-		QGraphicsItem *parent = dti->parentItem();
-		while (parent) {
-			angle += parent->rotation();
-			parent = parent->parentItem();
-		}
-
-		qreal angler = angle * M_PI/180;
-		int xdir = -sin(angler);
-		int ydir = -cos(angler);
-		qreal x = (dti->scenePos().x())
-				+ xdir * fontSize * 1.8
-				- ydir * fontSize;
-		qreal y = dti->scenePos().y()
-				- ydir * fontSize * 1.8
-				- xdir * fontSize * 0.9;
-		QStringList lines = dti -> toPlainText().split('\n');
-		qreal offset = fontSize * 1.6;
-		foreach (QString line, lines) {
-			if (line.size() > 0 && line != "_" )
-				Createdxf::drawText(file_path, line, QPointF(x, y), fontSize, 360-angle, Createdxf::dxfColor(dti->color()), 0.72 );
-			x += offset * xdir;
-			y -= offset * ydir;
-		}
-	}
-
-	Createdxf::dxfEnd(file_path);
-
-	saveReloadDiagramParameters(diagram, false);
-}
-
-QPointF ExportDialog::rotation_transformed(qreal px,
-					   qreal py,
-					   qreal origin_x,
-					   qreal origin_y,
-					   qreal angle) {
-
-	angle *= -3.14159265 / 180;
-
-	float s = sin(angle);
-	float c = cos(angle);
-
-	// Vector to rotate:
-	qreal Vx = px - origin_x;
-	qreal Vy = py - origin_y;
-
-	// rotate vector
-	float xnew = Vx * c - Vy * s;
-	float ynew = Vx * s + Vy * c;
-
-	return QPointF(xnew + origin_x, ynew + origin_y);
-}
 
 /**
 	Slot effectuant les exports apres la validation du dialogue.
@@ -751,6 +481,44 @@ void ExportDialog::slot_export()
 			QMessageBox::Ok
 		);
 		return;
+	}
+	
+	// Warn once, up front, rather than per-diagram: this DXF dialect
+	// (AC1006, AutoCAD R10) has no raster image representation at all
+	// (IMAGE/IMAGEDEF wasn't introduced until R2000, over a decade
+	// later, and even there the picture is never embedded, only
+	// referenced by external file path) -- so any image ends up as a
+	// placeholder rectangle outline instead (see DxfPaintEngine::
+	// drawPixmap()), with its position/size/rotation/skew preserved but
+	// not its actual content.
+	if (epw -> exportProperties().format.compare(QLatin1String("dxf"), Qt::CaseInsensitive) == 0)
+	{
+		bool any_images = false;
+		for (ExportDiagramLine *diagram_line : std::as_const(diagrams_to_export))
+		{
+			for (QGraphicsItem *item : diagram_line->diagram->items())
+			{
+					//A picture hidden by View > Show is not exported
+				if (qgraphicsitem_cast<DiagramImageItem *>(item)
+						&& !ShownKinds::isHidden(item)) {
+					any_images = true;
+					break;
+				}
+			}
+			if (any_images) break;
+		}
+
+		if (any_images)
+		{
+			QET::QetMessageBox::warning(
+				this,
+				tr("Images non incluses dans l'export DXF", "message box title"),
+				tr("Le format DXF utilisé ici (AC1006) ne permet pas d'inclure d'image. "
+				   "Les images seront représentées uniquement par un rectangle de contour "
+				   "(position, taille, rotation et inclinaison conservées), sans le contenu de l'image.",
+				   "message box content")
+			);
+		}
 	}
 	
 	// exporte chaque schema a exporter
@@ -814,11 +582,12 @@ void ExportDialog::exportDiagram(ExportDiagramLine *diagram_line) {
 			target_file
 		);
 	} else if (format_acronym == "DXF") {
-		generateDxf(
+		DxfExport::write(
 			diagram_line -> diagram,
 			diagram_line -> width  -> value(),
 			diagram_line -> height -> value(),
-			diagram_path
+			diagram_path,
+			export_properties
 		);
 	} else {
 		QImage image = generateImage(
@@ -930,7 +699,7 @@ void ExportDialog::slot_previewDiagram(int diagram_id) {
 	QGraphicsView *preview_view = new QGraphicsView(preview_scene);
 	preview_view -> setDragMode(QGraphicsView::ScrollHandDrag);
 	QDialogButtonBox *buttons = new QDialogButtonBox(QDialogButtonBox::Ok);
-	connect(buttons, SIGNAL(accepted()), &preview_dialog, SLOT(accept()));
+	connect(buttons, &QDialogButtonBox::accepted, &preview_dialog, &QDialog::accept);
 	
 	QVBoxLayout *vboxlayout1 = new QVBoxLayout();
 	vboxlayout1 -> addWidget(preview_view);

@@ -16,6 +16,8 @@
 	along with QElectroTech.  If not, see <http://www.gnu.org/licenses/>.
 */
 #include "../qetgraphicsitem/terminal.h"
+#include "../ElementsCollection/terminaluuids.h"
+#include "../qet.h"
 #include "../qetproject.h"
 #include "../conductorautonumerotation.h"
 #include "../diagram.h"
@@ -24,7 +26,11 @@
 #include "../qetgraphicsitem/conductor.h"
 #include "../qetgraphicsitem/element.h"
 #include "conductortextitem.h"
+#include "../wiringrules.h"
 
+#include <QToolTip>
+
+#include <QtCore/qnumeric.h>
 #include <utility>
 
 QColor Terminal::neutralColor      = QColor(Qt::blue);
@@ -85,7 +91,12 @@ Terminal::Terminal(TerminalData* data, Element* e) :
  * Destruction of the terminal, and also docked conductor
  */
 Terminal::~Terminal() {
-	qDeleteAll(m_conductors_list);
+	// Each conductor's destructor calls removeConductor() on both its
+	// terminals, which mutates m_conductors_list while qDeleteAll() is
+	// still iterating it. Delete from a snapshot so the live list can
+	// change underneath without affecting the iteration.
+	const QList<Conductor *> conductors_to_delete = m_conductors_list;
+	qDeleteAll(conductors_to_delete);
 	delete d;
 }
 
@@ -107,13 +118,20 @@ Qet::Orientation Terminal::orientation() const
 		// orientations actuelle et par defaut de l'element
 		// current and default element orientations
 		int ori_cur = elt -> orientation();
-	if (ori_cur == 0) return(d->m_orientation);
+		// The mirrors of an element are about its own axes, before it is
+		// rotated (Element::setMirror()): a horizontal one swaps east and
+		// west, a vertical one north and south
+		Qet::Orientation ori_elmt = d->m_orientation;
+		if (Qet::isHorizontal(ori_elmt) ? elt -> hasHorizontalMirror()
+										: elt -> hasVerticalMirror())
+			ori_elmt = (Qet::Orientation)((ori_elmt + 2) % 4);
+	if (ori_cur == 0) return(ori_elmt);
 		else {
 			// calcul l'angle de rotation implique par l'orientation de l'element parent
 			// angle de rotation de la borne sur la scene, divise par 90
 			// calculates the angle of rotation implied by the orientation of the parent
 			// element angle of rotation of the terminal on the scene, divided by 90
-			int angle = ori_cur + d->m_orientation;
+			int angle = ori_cur + ori_elmt;
 			while (angle >= 4) angle -= 4;
 			return((Qet::Orientation)angle);
 		}
@@ -288,6 +306,25 @@ void Terminal::paint(
 		QFontMetrics fm(d->m_label_font);
 		QSizeF text_size = fm.size(Qt::TextSingleLine, display_name);
 
+			// When the element mirrors its symbol, or turns it in a project
+			// that keeps symbol texts horizontal, undo that on the name
+			// about the centre of its box, in the frame it is drawn in
+			// (turned by label_rotation): its box stays where the element
+			// puts it, but it reads as in the symbol (Element::keepReadable())
+		const Element *element = qgraphicsitem_cast<Element *>(parentItem());
+		const QTransform texts_transform = element ? element->symbolTextsTransform()
+												   : QTransform();
+		auto keep_readable = [painter, &texts_transform](const QRectF &rect, qreal label_rotation) {
+			if (texts_transform.isIdentity()) return;
+			const QTransform undo = QTransform().rotate(label_rotation)
+									* texts_transform.inverted()
+									* QTransform().rotate(-label_rotation);
+			const QPointF c = rect.center();
+			painter->setTransform(QTransform::fromTranslate(-c.x(), -c.y())
+								  * undo
+								  * QTransform::fromTranslate(c.x(), c.y()), true);
+		};
+
 		if (!qFuzzyIsNull(d->m_label_rotation)) {
 			painter->save();
 			painter->translate(label_pos);
@@ -303,6 +340,7 @@ void Terminal::paint(
 			else if (d->m_label_valignment & Qt::AlignBottom) ry = -text_size.height();
 
 			QRectF text_rect(QPointF(rx, ry), text_size);
+			keep_readable(text_rect, d->m_label_rotation);
 			painter->drawText(text_rect, static_cast<int>(d->m_label_halignment | d->m_label_valignment), display_name);
 			painter->restore();
 		} else {
@@ -316,6 +354,7 @@ void Terminal::paint(
 			else if (d->m_label_valignment & Qt::AlignBottom) dy = -text_size.height();
 
 			QRectF text_rect(label_pos + QPointF(dx, dy), text_size);
+			keep_readable(text_rect, 0);
 			if (d->m_label_frame) {
 				painter->drawRect(text_rect.adjusted(-1, -1, 1, 1));
 			}
@@ -602,7 +641,22 @@ void Terminal::mouseReleaseEvent(QGraphicsSceneMouseEvent *e)
 	other_terminal -> m_hovered       = false;
 
 	//We stop her if we can't link this terminal with other terminal
-	if (!canBeLinkedTo(other_terminal)) return;
+	if (!canBeLinkedTo(other_terminal))
+	{
+			//Say why when it is the wire limit (discussion #1158): a red
+			//terminal alone does not tell the user what to do instead.
+		const Terminal *full = !hasRoomForWire() ? this
+							 : !other_terminal->hasRoomForWire() ? other_terminal
+							 : nullptr;
+		if (full) {
+			QToolTip::showText(e->screenPos(),
+							   tr("Cette borne a déjà %n conducteur(s), la limite du projet. "
+								  "Ajoutez une borne pour raccorder un conducteur de plus.",
+								  "wire refused by the wires-per-terminal limit",
+								  full->wireLimit()));
+		}
+		return;
+	}
 
 	//Create conductor
 	Conductor *new_conductor = new Conductor(this, other_terminal);
@@ -684,6 +738,7 @@ bool Terminal::isLinkedTo(Terminal *other_terminal) {
 	Reasons for not linable:
 	 - \p other_terminal is this terminal
 	 - this terminal is already connected to \p other_terminal
+	 - either terminal already has as many wires as the project allows
 	@param other_terminal
 	@return true if this terminal can be linked to other_terminal,
 	otherwise false
@@ -693,7 +748,38 @@ bool Terminal::canBeLinkedTo(Terminal *other_terminal)
 	if (other_terminal == this || isLinkedTo(other_terminal))
 		return false;
 
+	if (!hasRoomForWire() || !other_terminal->hasRoomForWire())
+		return false;
+
 	return true;
+}
+
+/**
+	@brief Terminal::wireLimit
+	@return the most wires this terminal may take under its project's
+	wiring rules (discussion #1158), 0 for no limit.
+*/
+int Terminal::wireLimit() const
+{
+	const Diagram *parent_diagram = diagram();
+	if (!parent_diagram || !parent_diagram->project()) {
+		return 0;
+	}
+	const Element *element = parentElement();
+	const bool is_report = element
+			&& (element->linkType() & (Element::NextReport | Element::PreviousReport));
+	return WiringRules::limit(parent_diagram->project()->wiringRules(),
+							  WiringRules::masterEnabled(),
+							  is_report);
+}
+
+/**
+	@brief Terminal::hasRoomForWire
+	@return true if one more wire may be connected to this terminal
+*/
+bool Terminal::hasRoomForWire() const
+{
+	return WiringRules::hasRoom(wireLimit(), conductorsCount());
 }
 
 /**
@@ -741,13 +827,17 @@ bool Terminal::valideXml(QDomElement &terminal)
 	if (!terminal.hasAttribute("orientation")) return(false);
 
 	bool conv_ok;
+		//QString::toDouble() accepts "nan"/"inf"/"-inf" and reports a
+		//successful conversion for them, so conv_ok alone doesn't reject a
+		//non-finite coordinate -- see the matching comment in
+		//Element::valideXml().
 	// parse l'abscisse
-	terminal.attribute("x").toDouble(&conv_ok);
-	if (!conv_ok) return(false);
+	double x = terminal.attribute("x").toDouble(&conv_ok);
+	if (!conv_ok || !qIsFinite(x)) return(false);
 
 	// parse l'ordonnee
-	terminal.attribute("y").toDouble(&conv_ok);
-	if (!conv_ok) return(false);
+	double y = terminal.attribute("y").toDouble(&conv_ok);
+	if (!conv_ok || !qIsFinite(y)) return(false);
 
 	// parse l'id
 	terminal.attribute("id").toInt(&conv_ok);
@@ -820,20 +910,94 @@ QUuid Terminal::uuid() const
 	return d->m_uuid;
 }
 
+/**
+	@brief Terminal::stableUuid
+	An identity for this terminal that exists on every element, not only on
+	those saved by a uuid-aware element editor.
+
+	uuid() comes from the catalog .elmt definition and is empty for every
+	element authored before that field existed -- which is most of the
+	installed base. Anything keyed on uuid() alone therefore cannot see those
+	elements at all.
+
+	When there is no uuid, derive one from the terminal's local position and
+	orientation inside its element. That is not an arbitrary choice: it is the
+	same thing the project format itself uses to match a conductor back to a
+	terminal ("each connection is made by using the local position of the
+	terminal and a dynamic id" -- TerminalData::m_uuid). m_pos is the position
+	read from the definition and is not touched by moving the element on the
+	folio, so the result is stable across loads, saves and folio moves, and it
+	is unique within an element except where a definition genuinely declares
+	two terminals at the same point -- three cases in the whole example
+	corpus. Opening a project gives every terminal of its symbols a uuid
+	(TerminalUuids::fillMissing()), the same value for all but the second
+	of such a pair, so in a project this is the fallback for terminals of a
+	symbol imported since it was opened.
+
+	Derived values are UUID v5 in a fixed namespace, so they are reproducible
+	without being written to the file, and cannot collide with the v4 uuids
+	the element editor generates.
+
+	@return the terminal's own uuid when it has one, otherwise a derived one
+*/
+QUuid Terminal::stableUuid() const
+{
+	if (!d->m_uuid.isNull()) {
+		return d->m_uuid;
+	}
+	return derivedUuid();
+}
+
+/**
+	@brief Terminal::derivedUuid
+	The identity worked out from this terminal's local position and
+	orientation, whether or not it carries a uuid of its own: the value
+	stableUuid() gives when it has none, and the one a project gives it
+	when it is opened (TerminalUuids::fillMissing()).
+
+	Position and orientation only. The name is deliberately excluded: it
+	is not stable across a save cycle -- QET rewrites a terminal named "_"
+	as unnamed, which would silently change the identity of 1421 of
+	industrial.qet's 1790 terminals on the first resave. It is also not
+	needed: keying on geometry alone produces exactly the same number of
+	collisions across the example corpus, and it means renaming a terminal
+	does not change what it is.
+
+	A second terminal at the same point with the same orientation gets the
+	next occurrence (see setPlaceRank()), as TerminalUuids::fillMissing()
+	gives it, so the two terminals of such a pair are told apart.
+*/
+QUuid Terminal::derivedUuid() const
+{
+	return TerminalUuids::derived(d->m_pos.x(),
+								  d->m_pos.y(),
+								  static_cast<int>(d->m_orientation),
+								  m_place_rank);
+}
+
+/**
+	@brief Terminal::setPlaceRank
+	@param rank : how many terminals of the definition, before this one in
+	document order, sit at the same point with the same orientation.
+	Set by Element::parseTerminal().
+*/
+void Terminal::setPlaceRank(int rank)
+{
+	m_place_rank = rank;
+}
+
 QString Terminal::name() const
 {
 	if (d->m_use_master_label && parent_element_) {
-		// Find the master element in the slave's linked elements
 		for (Element *elmt : parent_element_->linkedElements()) {
 			if (elmt->linkType() == Element::Master) {
 				int group_idx = elmt->groupIndexForElement(parent_element_);
 				if (group_idx >= 0) {
-					// For PLC masters, use io.terminals as labels
 					if (elmt->elementData().m_master_type == ElementData::PLC) {
 						const auto &plc_data = elmt->elementData().plcMasterData();
 						if (group_idx < plc_data.ios.size()) {
 							int label_idx = d->m_master_label_index;
-							const QStringList &labels = plc_data.ios.at(group_idx).terminals;
+							const QStringList labels = plc_data.ios.at(group_idx).effectiveTerminals();
 							if (label_idx >= 0 && label_idx < labels.size()) {
 								return labels.at(label_idx);
 							}
@@ -924,7 +1088,7 @@ QList<Terminal *> relatedPotentialTerminal (
 	else if (terminal -> parentElement() -> linkType() & Element::Terminale)
 	{
 		// English: Check if the user activated the potential isolation checkbox for this terminal
-		if (terminal->parentElement()->elementInformations().value(QStringLiteral("potential_isolating")).toString() == QLatin1String("true")) {
+		if (QET::infoFlagIsTrue(terminal->parentElement()->elementInformations().value(QStringLiteral("potential_isolating")).toString())) {
 			// English: Potential is isolated. Return an empty list so it does not propagate to the other side.
 			return QList<Terminal *>();
 		}

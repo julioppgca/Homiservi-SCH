@@ -44,9 +44,9 @@ ProjectPropertiesDialog::ProjectPropertiesDialog(QETProject *project, QWidget *p
 
 	m_properties_dialog->addPage(new TerminalStripProjectConfigPage { project, parent });
 
-	connect(projectAutoNumConfigPage,SIGNAL(setAutoNum(QString)),newDiagramPage,SLOT(setFolioAutonum(QString)));
-	connect(projectAutoNumConfigPage,SIGNAL(saveCurrentTbp()),newDiagramPage,SLOT(saveCurrentTbp()));
-	connect(projectAutoNumConfigPage,SIGNAL(loadSavedTbp()),newDiagramPage,SLOT(loadSavedTbp()));
+	connect(projectAutoNumConfigPage, qOverload<QString>(&ProjectAutoNumConfigPage::setAutoNum), newDiagramPage, &NewDiagramPage::setFolioAutonum);
+	connect(projectAutoNumConfigPage, &ProjectAutoNumConfigPage::saveCurrentTbp, newDiagramPage, &NewDiagramPage::saveCurrentTbp);
+	connect(projectAutoNumConfigPage, &ProjectAutoNumConfigPage::loadSavedTbp, newDiagramPage, &NewDiagramPage::loadSavedTbp);
 }
 
 /**
@@ -92,4 +92,16 @@ void ProjectPropertiesDialog::changeToFolio()
 			static_cast <ProjectAutoNumConfigPage*>(
 				m_properties_dialog->pages.at(2));
 	autoNumPage->changeToTab(3);
+}
+
+/**
+	@brief ProjectPropertiesDialog::changeToElement
+	Change the current displayed tab to the element numberings tab.
+*/
+void ProjectPropertiesDialog::changeToElement()
+{
+	ProjectAutoNumConfigPage *autoNumPage =
+			static_cast <ProjectAutoNumConfigPage*>(
+				m_properties_dialog->pages.at(2));
+	autoNumPage->changeToTab(2);
 }

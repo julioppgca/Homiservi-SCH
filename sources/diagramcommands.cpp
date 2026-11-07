@@ -17,11 +17,32 @@
 */
 #include "diagramcommands.h"
 
+#include "autoNum/elementautonumschemecommand.h"
 #include "diagram.h"
+#include "itemgroups.h"
+#include "qetproject.h"
 #include "qetgraphicsitem/conductortextitem.h"
+#include "qetgraphicsitem/diagramimageitem.h"
+#include "qetgraphicsitem/dynamicelementtextitem.h"
 #include "qetgraphicsitem/element.h"
 #include "qetgraphicsitem/elementtextitemgroup.h"
+#include "qetgraphicsitem/independenttextitem.h"
+#include "qetgraphicsitem/qetshapeitem.h"
+#include "qetinformation.h"
 #include "qgimanager.h"
+
+namespace {
+/// Is @p element among those the numberings in @p schemes are given to?
+bool pasted_schemes_has(const QMap<QString, QVector<Element *>> &schemes, const Element *element)
+{
+	for (auto it = schemes.constBegin() ; it != schemes.constEnd() ; ++it) {
+		if (it.value().contains(const_cast<Element *>(element))) {
+			return true;
+		}
+	}
+	return false;
+}
+} // namespace
 
 /**
 	@brief PasteDiagramCommand::PasteDiagramCommand
@@ -58,6 +79,10 @@ void PasteDiagramCommand::undo()
 {
 	diagram -> showMe();
 
+		//The numbering of the pasted elements, if any: gives the numbers
+		//back to the numberings they came from
+	QUndoCommand::undo();
+
 	foreach(QGraphicsItem *item, content.items(filter))
 		diagram->removeItem(item);
 }
@@ -75,12 +100,115 @@ void PasteDiagramCommand::redo()
 	{
 		first_redo = false;
 
-		//this is the first paste, we do some actions for the new element
+		//Resolve a linked master/slave pair pasted together (bugtracker
+		//#607) before anything below renews their uuids: at this exact
+		//moment a pasted element's tmp_uuids_link still holds its
+		//source's original partner uuid, which still equals the
+		//not-yet-renewed uuid of that partner's own pasted copy if it
+		//was carried along in the same batch. Scoped to this batch only
+		//(not a project-wide search), so a pair pasted together links to
+		//each other and not to an original element left elsewhere that
+		//happens to still carry that same soon-to-be-replaced uuid. If
+		//only one half of a linked group was pasted, its link entry
+		//simply finds no match here and is dropped -- same "leave it
+		//unlinked" outcome as always.
 		const QList <Element *> elmts_list = content.m_elements;
+		for (Element *e : elmts_list) {
+			e->initLink(elmts_list);
+		}
+
+		//The numberings the pasted elements follow, known now: the label
+		//erasing below empties their formula. Pasted elements get the next
+		//number of their numbering, as placed ones do, instead of the
+		//label of the element they were copied from.
+		const bool autonumber = m_autonumber && settings.value(
+					"diagramcommands/autonumber-pasted-elements", true).toBool();
+		QETProject *project = diagram->project();
+		QMap<QString, QVector<Element *>> pasted_schemes;
+		if (project && autonumber) {
+			pasted_schemes = ElementAutoNumSchemeCommand::pastedSchemes(project, elmts_list);
+		}
+
+		//make new uuid for every pasted conductor, because old uuid are
+		//the uuid of the copied conductor
+		const QList <Conductor *> all_pasted_conductors = content.conductors();
+		for (Conductor *c : all_pasted_conductors) {
+			c -> newUuid();
+		}
+		for (IndependentTextItem *t : std::as_const(content.m_text_fields)) {
+			t -> newUuid();
+		}
+		for (DiagramImageItem *i : std::as_const(content.m_images)) {
+			i -> newUuid();
+		}
+		for (QetShapeItem *s : std::as_const(content.m_shapes)) {
+			s -> newUuid();
+		}
+
+		//this is the first paste, we do some actions for the new element
 		for (Element *e : elmts_list)
 		{
 			//make new uuid, because old uuid are the uuid of the copied element
 			e -> newUuid();
+
+			// PLC slaves carry master-specific data (type, address,
+			// function, cross-ref, etc.) in their elementInformations.
+			// Always clear those on paste so the duplicate starts clean,
+			// regardless of the user's erase-label-on-copy preference.
+			// A slave pasted together with its master was relinked to the
+			// master's copy by initLink() above: that data is still right,
+			// and its texts show the master's label, so leave it alone.
+			const bool is_slave = (e->linkType() == Element::Slave);
+			if (is_slave && e->isFree()) {
+				DiagramContext dc = e->elementInformations();
+				dc.remove(QETInformation::ELMT_PLC_TYPE);
+				dc.remove(QETInformation::ELMT_PLC_ADDRESS);
+				dc.remove(QETInformation::ELMT_PLC_FUNCTION);
+				dc.remove(QETInformation::ELMT_PLC_COMMENT);
+				dc.remove(QETInformation::ELMT_PLC_CROSSREF);
+				dc.remove(QETInformation::ELMT_LABEL);
+				dc.remove(QETInformation::ELMT_PLC_TC);
+				dc.remove(QETInformation::ELMT_PLC_T1);
+				dc.remove(QETInformation::ELMT_PLC_T2);
+				dc.remove(QETInformation::ELMT_PLC_T3);
+				dc.remove(QETInformation::ELMT_PLC_T4);
+				dc.remove(QStringLiteral("xref"));
+
+				// Block alignment before setElementInformations so
+				// that elementInfoChanged() resolves texts without
+				// finishAlignment() shifting right/center-aligned items.
+				for (DynamicElementTextItem *deti : e->dynamicTextItems())
+					deti->m_block_alignment = true;
+				for (auto *group : e->textGroups())
+					group->blockAlignmentUpdate(true);
+
+				e->setElementInformations(dc);
+
+				for (DynamicElementTextItem *deti : e->dynamicTextItems())
+					deti->m_block_alignment = false;
+				for (auto *group : e->textGroups())
+					group->blockAlignmentUpdate(false);
+
+				// After setElementInformations, elementInfoChanged()
+				// resolves composite text with cleaned dc.  Clear
+				// all non-UserText items directly as a safety net.
+				for (DynamicElementTextItem *deti : e->dynamicTextItems()) {
+					if (deti->textFrom() != DynamicElementTextItem::UserText) {
+						deti->m_block_alignment = true;
+						deti->setPlainText(QString());
+						deti->m_block_alignment = false;
+					}
+				}
+				for (auto *group : e->textGroups()) {
+					for (DynamicElementTextItem *deti : group->texts()) {
+						if (deti->textFrom() != DynamicElementTextItem::UserText) {
+							deti->m_block_alignment = true;
+							deti->setPlainText(QString());
+							deti->m_block_alignment = false;
+						}
+					}
+				}
+			}
 
 			if (settings.value("diagramcommands/erase-label-on-copy", true).toBool())
 			{
@@ -90,17 +218,97 @@ void PasteDiagramCommand::redo()
 				dc.addValue("label", "");
 				dc.addValue("comment", "");
 				dc.addValue("location", "");
+
+				// Block alignment during setElementInformations
+				// for non-slaves, same as Element::fromXml() (line 890-896).
+				if (!is_slave) {
+					for (DynamicElementTextItem *deti : e->dynamicTextItems())
+						deti->m_block_alignment = true;
+					for (auto *group : e->textGroups())
+						group->blockAlignmentUpdate(true);
+				}
+
 				e->setElementInformations(dc);
+
+				for (DynamicElementTextItem *deti : e->dynamicTextItems())
+					deti->m_block_alignment = false;
+				for (auto *group : e->textGroups())
+					group->blockAlignmentUpdate(false);
 				
-				//Reset the text of conductors
+				//Reset the text of conductors, the same way the label/comment/
+				//location above are reset to "" rather than to some other
+				//value - "erase on copy" means erase, not "replace with the
+				//project's default new-conductor text" (which happens to
+				//default to a literal "_" character, unrelated to whether the
+				//user wanted this copy's old label kept or cleared; see
+				//issue #413).
 				const QList <Conductor *> conductors_list = content.m_conductors_to_move;
 				for (Conductor *c : conductors_list)
 				{
 					ConductorProperties cp = c -> properties();
-					cp.text = c->diagram() ? c -> diagram() -> defaultConductorProperties.text : "_";
+					cp.text = "";
 					c -> setProperties(cp);
 				}
 			}
+		}
+
+			//What the pasted elements keep of their numbering names a
+			//numbering of this project, or none (a paste from another
+			//project, or from a file written before the ids)
+		if (project) {
+			ElementAutoNumSchemeCommand::linkPasted(project, elmts_list);
+			if (autonumber)
+			{
+					//A formula which names no numbering of this project is
+					//not kept: it would stand for a numbering which does
+					//not exist here, with a label which is not its result.
+					//The label is what the erase preference made of it.
+				for (Element *e : elmts_list)
+				{
+					const DiagramContext &info = e->elementInformations();
+					if (e->linkType() == Element::Slave || (e->linkType() & Element::AllReport)
+							|| info.value(QETInformation::ELMT_FORMULA).toString().isEmpty()
+							|| !ElementAutoNumSchemeCommand::followedScheme(project, info).isEmpty()
+							|| pasted_schemes_has(pasted_schemes, e)) {
+						continue;
+					}
+					DiagramContext dc = info;
+					dc.addValue(QETInformation::ELMT_FORMULA, QString());
+					for (DynamicElementTextItem *deti : e->dynamicTextItems())
+						deti->m_block_alignment = true;
+					for (auto *group : e->textGroups())
+						group->blockAlignmentUpdate(true);
+					e->setElementInformations(dc);
+					for (DynamicElementTextItem *deti : e->dynamicTextItems())
+						deti->m_block_alignment = false;
+					for (auto *group : e->textGroups())
+						group->blockAlignmentUpdate(false);
+				}
+			}
+			if (!pasted_schemes.isEmpty()) {
+				ElementAutoNumSchemeCommand::numberPasted(project, pasted_schemes, this);
+			}
+		}
+
+			//Pasted groups become new groups: the members of one source
+			//group all get the same new uuid, never the source's, or the
+			//copy would join the original's group. After the elements got
+			//their own uuids: the database row is found by uuid, and before
+			//that it would have been the source element's row.
+		QHash<QUuid, QUuid> renewed_groups;
+		for (QGraphicsItem *item : content.items(DiagramContent::Elements
+												 | DiagramContent::TextFields
+												 | DiagramContent::Images
+												 | DiagramContent::Shapes))
+		{
+			const QUuid source_group = ItemGroups::groupOf(item);
+			if (source_group.isNull()) {
+				continue;
+			}
+			if (!renewed_groups.contains(source_group)) {
+				renewed_groups.insert(source_group, QUuid::createUuid());
+			}
+			diagram -> setItemGroup(item, renewed_groups.value(source_group));
 		}
 	}
 	else
@@ -110,6 +318,10 @@ void PasteDiagramCommand::redo()
 			diagram->addItem(item);
 		}
 	}
+
+		//The numbering of the pasted elements, if any, on the first redo
+		//as well as on the next ones
+	QUndoCommand::redo();
 
 	const QList<QGraphicsItem *> qgis_list = content.items();
 	for (QGraphicsItem *qgi : qgis_list)

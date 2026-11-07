@@ -42,8 +42,11 @@ class PartDynamicTextField : public QGraphicsTextItem, public CustomElementPart
 	Q_PROPERTY(bool frame READ frame WRITE setFrame NOTIFY frameChanged)
 	Q_PROPERTY(qreal textWidth READ textWidth WRITE setTextWidth NOTIFY textWidthChanged)
 	Q_PROPERTY(Qt::Alignment alignment READ alignment WRITE setAlignment NOTIFY alignmentChanged)
+	Q_PROPERTY(QPointF anchorPos READ anchorPos WRITE setAnchorPos)
+	Q_PROPERTY(Qt::Alignment alignmentAtAnchor READ alignment WRITE setAlignmentAtAnchor NOTIFY alignmentChanged)
 	Q_PROPERTY(QFont font READ font WRITE setFont NOTIFY fontChanged)
 	Q_PROPERTY(bool keepVisualRotation READ keepVisualRotation WRITE setKeepVisualRotation NOTIFY keepVisualRotationChanged)
+	Q_PROPERTY(bool rotationPointCenter READ rotationPointCenter WRITE setRotationPointCenter NOTIFY rotationPointCenterChanged)
 
 	public:
 			///PROPERTY
@@ -62,6 +65,7 @@ class PartDynamicTextField : public QGraphicsTextItem, public CustomElementPart
 		void alignmentChanged(Qt::Alignment alignment);
 		void fontChanged(QFont font);
 		void keepVisualRotationChanged(bool keep);
+		void rotationPointCenterChanged(bool center);
 
 	public:
 		PartDynamicTextField(QETElementEditor *editor, QGraphicsItem *parent = nullptr);
@@ -73,6 +77,8 @@ class PartDynamicTextField : public QGraphicsTextItem, public CustomElementPart
 		QString xmlName() const override;
 		static QString xmlTaggName() {return QString("dynamic_text");}
 		bool isUseless() const override {return false;}
+		QUuid uuid() const {return m_uuid;}
+		void setNewUuid() {m_uuid = QUuid::createUuid();}
 		QRectF sceneGeometricRect() const override {return sceneBoundingRect();}
 		void startUserTransformation(const QRectF &initial_selection_rect) override;
 		void handleUserTransformation(const QRectF &initial_selection_rect, const QRectF &new_selection_rect) override;
@@ -97,13 +103,18 @@ class PartDynamicTextField : public QGraphicsTextItem, public CustomElementPart
 		void setPlainText(const QString &text);
 		void setAlignment(Qt::Alignment alignment);
 		Qt::Alignment alignment() const;
+		QPointF anchorPos() const;
+		void setAnchorPos(const QPointF &anchor);
+		void setAlignmentAtAnchor(Qt::Alignment alignment);
 		void setFont(const QFont &font);
 		void setKeepVisualRotation(const bool &keep);
 		bool keepVisualRotation() const;
+		void setRotationPointCenter(const bool &center);
+		bool rotationPointCenter() const;
 
 		void setRotation(qreal angle);
-		void mirror();
-		void flip();
+		void mirror(qreal axis_x = 0);
+		void flip(qreal axis_y = 0);
 
 
 	protected:
@@ -129,7 +140,8 @@ class PartDynamicTextField : public QGraphicsTextItem, public CustomElementPart
 		bool m_frame = false,
 			 m_first_add = true,
 			 m_block_alignment = false,
-			 m_keep_visual_rotation = false;
+			 m_keep_visual_rotation = false,
+			 m_rotation_point_center = false;
 		qreal m_text_width = -1;
 		Qt::Alignment m_alignment = Qt::AlignTop|Qt::AlignLeft;
 		QRectF m_alignment_rect;

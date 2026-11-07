@@ -19,6 +19,11 @@
 
 #include "../../diagram.h"
 #include "../../diagramview.h"
+#include "../../qetgraphicsitem/element.h"
+#include "../../qeticons.h"
+#include "../elementautonumschemecommand.h"
+#include "counterwarning.h"
+#include "renumberpreviewdialog.h"
 #include "../../qetapp.h"
 #include "../../shortcutmanager.h"
 #include "../../titleblockproperties.h"
@@ -26,9 +31,13 @@
 #include "../numerotationcontext.h"
 #include "../numerotationcontextcommands.h"
 #include "ui_autonumberingdockwidget.h"
+#include "../../undocommand/changetitleblockcommand.h"
 
 #include <QComboBox>
+#include <QHBoxLayout>
 #include <QLineEdit>
+#include <QMessageBox>
+#include <QPushButton>
 #include <QSignalBlocker>
 #include <QSpinBox>
 
@@ -42,7 +51,125 @@ AutoNumberingDockWidget::AutoNumberingDockWidget(QWidget *parent) :
 	ui(new Ui::AutoNumberingDockWidget)
 {
 	ui->setupUi(this);
+
+		//The element row gets a button to the left of its reset button
+		//which gives the numbering shown to the selected elements
+	QPushButton *reset = ui->m_element_reset_start_pb;
+	ui->gridLayout->removeWidget(reset);
+	auto *actions = new QWidget(this);
+	auto *actions_layout = new QHBoxLayout(actions);
+	actions_layout->setContentsMargins(0, 0, 0, 0);
+	actions_layout->setSpacing(2);
+	m_element_apply_pb = new QPushButton(QET::Icons::DialogOk, QString(), actions);
+	m_element_apply_pb->setObjectName(QStringLiteral("m_element_apply_pb"));
+	m_element_apply_pb->setMaximumWidth(24);
+	m_element_apply_pb->setToolTip(tr("Appliquer cette numérotation aux éléments sélectionnés"));
+	reset->setParent(actions);
+	actions_layout->addWidget(m_element_apply_pb);
+	actions_layout->addWidget(reset);
+	ui->gridLayout->addWidget(actions, 3, 2);
+	connect(m_element_apply_pb, &QPushButton::clicked,
+			this, &AutoNumberingDockWidget::applyElementSchemeToSelection);
+	connect(ui->m_element_cb, qOverload<int>(&QComboBox::currentIndexChanged),
+			this, &AutoNumberingDockWidget::updateApplyEnabled);
+	m_element_apply_pb->setEnabled(false);
+
 	this->setDisabled(true);
+}
+
+/**
+	@brief AutoNumberingDockWidget::applyElementSchemeToSelection
+	Give the element numbering shown in the list to the elements selected
+	in the current folio: each takes its formula and the next number, in
+	folio and position order, and the counter moves on.
+
+	What would change is shown first. An element which holds another
+	numbering, or whose label is frozen, is left as it is, unless the user
+	asks to replace them too (a frozen one is then given back). One undo
+	step.
+*/
+void AutoNumberingDockWidget::applyElementSchemeToSelection()
+{
+	if (!m_project || m_project->isReadOnly()) {
+		return;
+	}
+	const QString caption = tr("Appliquer la numérotation");
+	const QString title = ui->m_element_cb->currentText();
+	DiagramView *view = m_project_view ? m_project_view->currentDiagram() : nullptr;
+	Diagram *diagram = view ? view->diagram() : nullptr;
+	if (!diagram || !m_project->elementAutoNum().contains(title)) {
+		QMessageBox::information(this, caption,
+								 tr("Choisissez une numérotation d'éléments du projet."));
+		return;
+	}
+
+	QVector<Element *> selected;
+	const auto items = diagram->selectedItems();
+	for (QGraphicsItem *item : items) {
+		if (auto *el = qgraphicsitem_cast<Element *>(item)) {
+			selected << el;
+		}
+	}
+	if (selected.isEmpty()) {
+		QMessageBox::information(this, caption,
+								 tr("Sélectionnez d'abord des éléments dans le folio."));
+		return;
+	}
+
+	const auto plan = ElementAutoNumSchemeCommand::assignPlan(m_project, title, selected);
+	QVector<RenumberPreviewDialog::LeftAlone> left;
+	for (Element *el : plan.frozen) {
+		left.append({el, tr("(figé)")});
+	}
+	for (Element *el : plan.otherFormula) {
+		left.append({el, tr("(autre numérotation)")});
+	}
+	const int replaceable = static_cast<int>(left.size());
+
+	auto *cmd = ElementAutoNumSchemeCommand::assign(m_project, title, selected, false);
+	if (!cmd && !replaceable) {
+		QMessageBox::information(
+					this, caption,
+					tr("Rien à appliquer : les éléments sélectionnés suivent déjà "
+					   "la numérotation « %1 », ou prennent leur nom d'un autre élément.").arg(title));
+		return;
+	}
+
+	const QString intro = cmd
+			? tr("%n élément(s) vont recevoir la numérotation « %1 », dans l'ordre des folios "
+				 "et des positions.", "", static_cast<int>(plan.todo.size())).arg(title)
+			: tr("Aucun élément ne peut recevoir la numérotation « %1 » sans remplacer "
+				 "ce qu'il a.").arg(title);
+	const auto answer = RenumberPreviewDialog::ask(
+				this, caption, intro,
+				cmd ? cmd->changes() : QVector<RenumberElementsCommand::ElementChange>(),
+				left,
+				replaceable
+				? tr("Remplacer aussi les %n élément(s) laissés comme ils sont", "", replaceable)
+				: QString());
+
+	if (answer == RenumberPreviewDialog::Answer::Cancel) {
+		delete cmd;
+		return;
+	}
+	int applied = cmd ? static_cast<int>(cmd->changes().size()) : 0;
+	if (answer == RenumberPreviewDialog::Answer::GoAndReplace) {
+		delete cmd;
+		cmd = ElementAutoNumSchemeCommand::assign(m_project, title, selected, true);
+		applied = cmd ? static_cast<int>(cmd->changes().size()) : 0;
+	}
+	if (cmd) {
+		m_project->undoStack()->push(cmd);
+	}
+
+	const int not_given = static_cast<int>(selected.size()) - applied;
+	if (not_given > 0) {
+		QMessageBox::information(
+					this, caption,
+					tr("%n élément(s) numérotés.", "", applied)
+					+ QLatin1Char('\n')
+					+ tr("%n élément(s) sélectionnés sont restés comme ils sont.", "", not_given));
+	}
 }
 
 /**
@@ -112,33 +239,21 @@ void AutoNumberingDockWidget::setProject(QETProject *project,
 		//Disconnect previous project
 	if (m_project && m_project_view)
 	{
-			//Conductor Signals
-		disconnect(m_project, SIGNAL(conductorAutoNumChanged()),
-			   this,SLOT(conductorAutoNumChanged()));
-		disconnect (m_project,SIGNAL(conductorAutoNumRemoved()),
-			    this,SLOT(conductorAutoNumChanged()));
-		disconnect (m_project,SIGNAL(conductorAutoNumAdded()),
-			    this,SLOT(conductorAutoNumChanged()));
-		disconnect(m_project_view,SIGNAL(diagramActivated(DiagramView*)),
-			   this,SLOT(setConductorActive(DiagramView*)));
-	
-			//Element Signals
-		disconnect (m_project,SIGNAL(elementAutoNumRemoved(QString)),
-			    this,SLOT(elementAutoNumChanged()));
-		disconnect (m_project,SIGNAL(elementAutoNumAdded(QString)),
-			    this,SLOT(elementAutoNumChanged()));
+		disconnect(m_project, &QETProject::conductorAutoNumChanged, this, &AutoNumberingDockWidget::conductorAutoNumChanged);
+		disconnect(m_project, &QETProject::conductorAutoNumRemoved, this, &AutoNumberingDockWidget::conductorAutoNumChanged);
+		disconnect(m_project, &QETProject::conductorAutoNumAdded, this, &AutoNumberingDockWidget::conductorAutoNumChanged);
+		disconnect(m_project_view, &ProjectView::diagramActivated, this, &AutoNumberingDockWidget::setConductorActive);
+		disconnect(m_project_view, &ProjectView::diagramActivated, this, &AutoNumberingDockWidget::followSelectionOf);
+		followSelectionOf(nullptr);
+
+		//Element Signals
+		disconnect(m_project, &QETProject::elementAutoNumRemoved, this, &AutoNumberingDockWidget::elementAutoNumChanged);
+		disconnect(m_project, &QETProject::elementAutoNumAdded, this, &AutoNumberingDockWidget::elementAutoNumChanged);
 	
 			//Folio Signals
-		disconnect (m_project,SIGNAL(folioAutoNumRemoved()),
-			    this,SLOT(folioAutoNumChanged()));
-		disconnect (m_project,SIGNAL(folioAutoNumAdded()),
-			    this,SLOT(folioAutoNumChanged()));
-		disconnect (this,
-			    SIGNAL(folioAutoNumChanged(QString)),
-			    &m_project_view->currentDiagram()->diagram()->border_and_titleblock,
-			    SLOT (slot_setAutoPageNum(QString)));
-		disconnect(m_project, SIGNAL(defaultTitleBlockPropertiesChanged()),
-			   this,SLOT(setActive()));
+		disconnect(m_project, &QETProject::folioAutoNumRemoved, this, qOverload<>(&AutoNumberingDockWidget::folioAutoNumChanged));
+		disconnect(m_project, &QETProject::folioAutoNumAdded, this, qOverload<>(&AutoNumberingDockWidget::folioAutoNumChanged));
+		disconnect(m_project, &QETProject::defaultTitleBlockPropertiesChanged, this, &AutoNumberingDockWidget::setActive);
 	
 			//Conductor, Element and Folio Signals
 		disconnect(m_project, &QETProject::autoNumContextUpdated,
@@ -151,33 +266,21 @@ void AutoNumberingDockWidget::setProject(QETProject *project,
 	m_project_view = projectview;
 	this->setEnabled(true);
 
-		//Conductor Signals
-	connect(m_project, SIGNAL(conductorAutoNumChanged()),
-		this,SLOT(conductorAutoNumChanged()));
-	connect(m_project,SIGNAL(conductorAutoNumRemoved()),
-		this,SLOT(conductorAutoNumChanged()));
-	connect(m_project,SIGNAL(conductorAutoNumAdded()),
-		this,SLOT(conductorAutoNumChanged()));
-	connect(m_project_view,SIGNAL(diagramActivated(DiagramView*)),
-		this,SLOT(setConductorActive(DiagramView*)));
+	connect(m_project, &QETProject::conductorAutoNumChanged, this, &AutoNumberingDockWidget::conductorAutoNumChanged);
+	connect(m_project, &QETProject::conductorAutoNumRemoved, this, &AutoNumberingDockWidget::conductorAutoNumChanged);
+	connect(m_project, &QETProject::conductorAutoNumAdded, this, &AutoNumberingDockWidget::conductorAutoNumChanged);
+	connect(m_project_view, &ProjectView::diagramActivated, this, &AutoNumberingDockWidget::setConductorActive);
+	connect(m_project_view, &ProjectView::diagramActivated, this, &AutoNumberingDockWidget::followSelectionOf);
+	followSelectionOf(m_project_view->currentDiagram());
 
-		//Element Signals
-	connect (m_project,SIGNAL(elementAutoNumRemoved(QString)),
-		 this,SLOT(elementAutoNumChanged()));
-	connect (m_project,SIGNAL(elementAutoNumAdded(QString)),
-		 this,SLOT(elementAutoNumChanged()));
+	//Element Signals
+	connect(m_project, &QETProject::elementAutoNumRemoved, this, &AutoNumberingDockWidget::elementAutoNumChanged);
+	connect(m_project, &QETProject::elementAutoNumAdded, this, &AutoNumberingDockWidget::elementAutoNumChanged);
 
 		//Folio Signals
-	connect (m_project,SIGNAL(folioAutoNumRemoved()),
-		 this,SLOT(folioAutoNumChanged()));
-	connect (m_project,SIGNAL(folioAutoNumAdded()),
-		 this,SLOT(folioAutoNumChanged()));
-	connect (this,
-		 SIGNAL(folioAutoNumChanged(QString)),
-		 &m_project_view->currentDiagram()->diagram()->border_and_titleblock,
-		 SLOT (slot_setAutoPageNum(QString)));
-	connect(m_project, SIGNAL(defaultTitleBlockPropertiesChanged()),
-		this,SLOT(setActive()));
+	connect(m_project, &QETProject::folioAutoNumRemoved, this, qOverload<>(&AutoNumberingDockWidget::folioAutoNumChanged));
+	connect(m_project, &QETProject::folioAutoNumAdded, this, qOverload<>(&AutoNumberingDockWidget::folioAutoNumChanged));
+	connect(m_project, &QETProject::defaultTitleBlockPropertiesChanged, this, &AutoNumberingDockWidget::setActive);
 
 		//Conductor, Element and Folio Signals
 	connect(m_project, &QETProject::autoNumContextUpdated,
@@ -232,6 +335,56 @@ void AutoNumberingDockWidget::setContext()
 	refreshRow(AutoNumCategory::Folio);
 
 	this->setActive();
+}
+
+/**
+	@brief AutoNumberingDockWidget::followSelectionOf
+	Enable the apply button only while elements are selected in the folio
+	shown: it gives a numbering to the selected elements, and with none
+	selected there is nothing for it to do.
+	@param view : the folio now shown, nullptr for none
+*/
+void AutoNumberingDockWidget::followSelectionOf(DiagramView *view)
+{
+	Diagram *diagram = view ? view->diagram() : nullptr;
+	if (m_selection_diagram) {
+		disconnect(m_selection_diagram, &QGraphicsScene::selectionChanged,
+				   this, &AutoNumberingDockWidget::updateApplyEnabled);
+	}
+	m_selection_diagram = diagram;
+	if (m_selection_diagram) {
+		connect(m_selection_diagram, &QGraphicsScene::selectionChanged,
+				this, &AutoNumberingDockWidget::updateApplyEnabled);
+	}
+	updateApplyEnabled();
+}
+
+/**
+	@brief AutoNumberingDockWidget::updateApplyEnabled
+	The apply button needs a numbering to give and elements selected.
+*/
+void AutoNumberingDockWidget::updateApplyEnabled()
+{
+	if (!m_element_apply_pb) {
+		return;
+	}
+	bool elements_selected = false;
+	if (m_selection_diagram) {
+		const auto items = m_selection_diagram->selectedItems();
+		for (QGraphicsItem *item : items) {
+			if (qgraphicsitem_cast<Element *>(item)) {
+				elements_selected = true;
+				break;
+			}
+		}
+	}
+	m_element_apply_pb->setEnabled(
+				elements_selected && m_project && !m_project->isReadOnly()
+				&& ui->m_element_cb->count() > 0);
+	m_element_apply_pb->setToolTip(
+				elements_selected
+				? tr("Appliquer cette numérotation aux éléments sélectionnés")
+				: tr("Sélectionnez d'abord des éléments dans le folio"));
 }
 
 /**
@@ -371,7 +524,16 @@ void AutoNumberingDockWidget::on_m_folio_cb_activated(int) {
 		ip.folio = "%id/%total";
 		m_project->setDefaultTitleBlockProperties(ip);
 	}
-		emit(folioAutoNumChanged(current_autonum));
+
+	if (m_project_view && m_project_view->currentDiagram()) {
+		Diagram *diagram = m_project_view->currentDiagram()->diagram();
+		TitleBlockProperties old_properties = diagram->border_and_titleblock.exportTitleBlock();
+		TitleBlockProperties new_properties = old_properties;
+		new_properties.auto_page_num = ip.auto_page_num;
+		new_properties.folio = ip.folio;
+		if (new_properties != old_properties)
+			diagram->undoStack().push(new ChangeTitleBlockCommand(diagram, old_properties, new_properties));
+	}
 	refreshRow(AutoNumCategory::Folio);
 }
 
@@ -557,6 +719,12 @@ void AutoNumberingDockWidget::applyValueField(QComboBox *combo_box, QLineEdit *l
 	}
 
 	context.replaceValue(index, typed);
+		//An element counter put back on numbers in use: ask first
+	if (category == AutoNumCategory::Element
+			&& !CounterWarning::confirm(this, m_project, combo_box->currentText(), context)) {
+		refreshRow(category);
+		return;
+	}
 	storeContext(combo_box, category, context);
 	refreshRow(category);
 }
@@ -700,6 +868,12 @@ void AutoNumberingDockWidget::resetAutoNum(QComboBox *combo_box, AutoNumCategory
 			context.replaceValue(i, QStringLiteral("0"));
 		else if (type == QLatin1String("alpha"))
 			context.replaceValue(i, QStringLiteral("a"));
+	}
+
+		//Back to the first number, over numbers in use: ask first
+	if (category == AutoNumCategory::Element
+			&& !CounterWarning::confirm(this, m_project, combo_box->currentText(), context)) {
+		return;
 	}
 
 	storeContext(combo_box, category, context);
