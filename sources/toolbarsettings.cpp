@@ -17,7 +17,10 @@
 */
 #include "toolbarsettings.h"
 
+#include "qetpalette.h"
+
 #include <QApplication>
+#include <QIcon>
 #include <QMainWindow>
 #include <QSettings>
 #include <QToolBar>
@@ -75,14 +78,31 @@ bool ToolbarSettings::homiserviIcons()
 
 /**
 	@brief ToolbarSettings::setHomiserviIcons
-	Store the choice; the icon theme changes with
-	QETApp::applyIconTheme().
+	Store the choice; the icon theme changes with applyIconTheme().
 */
 void ToolbarSettings::setHomiserviIcons(bool homiservi)
 {
 	QSettings settings;
 	if (homiservi) settings.remove(CLASSIC_ICONS);
 	else settings.setValue(CLASSIC_ICONS, true);
+}
+
+/**
+	@brief ToolbarSettings::applyIconTheme
+	Select "qet-dark" for a dark palette, "qet" otherwise, or their
+	Homiservi versions when homiserviIcons(). Icons created with
+	QIcon::fromTheme() re-resolve on their next paint, so this can be
+	called again whenever the palette or that setting changes.
+*/
+void ToolbarSettings::applyIconTheme(const QPalette &palette)
+{
+	const bool dark = QET::Palette::isDark(palette);
+	if (homiserviIcons())
+		QIcon::setThemeName(dark ? QStringLiteral("homiservi-dark")
+		                         : QStringLiteral("homiservi"));
+	else
+		QIcon::setThemeName(dark ? QStringLiteral("qet-dark")
+		                         : QStringLiteral("qet"));
 }
 
 /**

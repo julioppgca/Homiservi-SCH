@@ -17,7 +17,6 @@
 */
 #include "toolbarsconfigpage.h"
 
-#include "../../qetapp.h"
 #include "../../qeticons.h"
 #include "../../toolbarsettings.h"
 
@@ -85,7 +84,7 @@ void ToolbarsConfigPage::applyConf()
 			      m_locked->isChecked());
 	ToolbarSettings::applyToAll();
 	ToolbarSettings::setHomiserviIcons(m_icon_set->currentData().toBool());
-	QETApp::applyIconTheme(qApp->palette());
+	ToolbarSettings::applyIconTheme(qApp->palette());
 }
 
 QString ToolbarsConfigPage::title() const

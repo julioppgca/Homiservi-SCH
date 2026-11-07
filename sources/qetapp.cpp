@@ -2641,20 +2641,11 @@ void QETApp::initIconTheme()
 
 /**
 	@brief QETApp::applyIconTheme
-	Select "qet-dark" for a dark palette, "qet" otherwise, or their
-	Homiservi versions when ToolbarSettings::homiserviIcons(). Icons
-	created with QIcon::fromTheme() re-resolve on their next paint, so this
-	can be called again whenever the palette or that setting changes.
+	See ToolbarSettings::applyIconTheme().
 */
 void QETApp::applyIconTheme(const QPalette &palette)
 {
-	const bool dark = QET::Palette::isDark(palette);
-	if (ToolbarSettings::homiserviIcons())
-		QIcon::setThemeName(dark ? QStringLiteral("homiservi-dark")
-		                         : QStringLiteral("homiservi"));
-	else
-		QIcon::setThemeName(dark ? QStringLiteral("qet-dark")
-		                         : QStringLiteral("qet"));
+	ToolbarSettings::applyIconTheme(palette);
 }
 
 /**
