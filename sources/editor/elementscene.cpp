@@ -505,6 +505,9 @@ const QDomDocument ElementScene::toXml(bool all_parts)
 		size = elementSceneGeometricRect();
 	}
 
+	//Homiservi-SCH: the box saved also holds the static texts
+	size = elementDefinitionRect();
+
 	// define the size of the element by the upper multiple of 10
 	int upwidth = ((qRound(size.width())/10)*10)+10;
 	if ((qRound(size.width())%10) > 6)
@@ -693,6 +696,27 @@ QRectF ElementScene::elementSceneGeometricRect() const
 		}
 	}
 	return (esgr);
+}
+
+/**
+	@brief ElementScene::elementDefinitionRect
+	@return elementSceneGeometricRect() and the static texts, in scene
+	coordinates: the box toXml() saves as the size and hotspot of the
+	element. On a folio the element is repainted within that box only, and
+	the static texts are part of the element's own drawing, so a text left
+	outside of it stays behind on the folio, piece by piece, while the
+	element moves (a caption under a connector, for instance). The
+	dynamic text fields are items of their own on the folio and need not be
+	in it.
+*/
+QRectF ElementScene::elementDefinitionRect() const
+{
+	QRectF rect = elementSceneGeometricRect();
+	foreach (QGraphicsItem *qgi, items()) {
+		if (qgi->type() == PartText::Type)
+			rect |= static_cast<PartText *>(qgi)->sceneGeometricRect();
+	}
+	return rect;
 }
 
 /**
