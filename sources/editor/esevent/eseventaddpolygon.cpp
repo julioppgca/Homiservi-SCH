@@ -49,7 +49,7 @@ ESEventAddPolygon::~ESEventAddPolygon()
 bool ESEventAddPolygon::mousePressEvent(QGraphicsSceneMouseEvent *event) {
 	if (event -> button() == Qt::LeftButton) {
 		if(!m_running) m_running = true;
-		QPointF pos = m_scene->snapToGrid(event -> scenePos());
+		QPointF pos = snappedPos(event, m_polygon);
 
 		//create new polygon
 		if (!m_polygon) {
@@ -70,10 +70,10 @@ bool ESEventAddPolygon::mousePressEvent(QGraphicsSceneMouseEvent *event) {
 	@return
 */
 bool ESEventAddPolygon::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
-	updateHelpCross(event -> scenePos());
+	updateHelpCross(snappedPos(event, m_polygon));
 	if (!m_polygon) return false;
 
-	m_polygon -> setLastPoint(m_scene -> snapToGrid(event -> scenePos()));
+	m_polygon -> setLastPoint(snappedPos(event, m_polygon));
 	return true;
 }
 
@@ -88,7 +88,7 @@ bool ESEventAddPolygon::mouseReleaseEvent(QGraphicsSceneMouseEvent *event) {
 			m_polygon -> removeLastPoint();
 
 			if (m_polygon -> polygon().size() > 1)
-				{ m_polygon -> setLastPoint(m_scene -> snapToGrid(event -> scenePos())); }
+				{ m_polygon -> setLastPoint(snappedPos(event, m_polygon)); }
 			else
 				{ delete m_polygon; m_polygon = nullptr; }
 		}

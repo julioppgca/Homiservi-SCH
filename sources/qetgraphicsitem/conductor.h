@@ -155,6 +155,12 @@ class Conductor : public QGraphicsObject
 		QList<QPointF> junctions() const;
 		QPainterPath paintedPath() const;
 
+			/// Recomputes how this conductor is drawn when it belongs to a
+			/// cable (see CableData): only the two pieces from its terminals
+			/// to the cable, entering it at 45 degrees
+		void updateCableStub();
+		bool isInCable() const {return m_in_cable;}
+
 	private:
 		void setUpConnectionForFormula(
 				QString old_formula, QString new_formula);
@@ -241,6 +247,11 @@ class Conductor : public QGraphicsObject
 		static QBrush conductor_brush;
 		static bool pen_and_brush_initialized;
 		QPainterPath m_path;
+			/// The two pieces drawn instead of m_path while in a cable
+		QPainterPath m_cable_stub;
+		bool m_in_cable = false;
+		QPointF m_cable_text_pos;
+		bool m_cable_text_vertical = false;
 	
 	private:
 		void segmentsToPath();

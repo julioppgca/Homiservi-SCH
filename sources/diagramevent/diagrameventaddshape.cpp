@@ -38,10 +38,11 @@
 	a whole ellipse (the Arc tool). It is still an Ellipse with a start
 	and end angle, the same shape the arc handles of an ellipse produce.
 */
-DiagramEventAddShape::DiagramEventAddShape(Diagram *diagram, QetShapeItem::ShapeType shape_type, bool half_arc) :
+DiagramEventAddShape::DiagramEventAddShape(Diagram *diagram, QetShapeItem::ShapeType shape_type, bool half_arc, bool cable) :
 	DiagramEventInterface(diagram),
 	m_shape_type (shape_type),
 	m_half_arc (half_arc && shape_type == QetShapeItem::Ellipse),
+	m_cable (cable && shape_type == QetShapeItem::Polygon),
 	m_shape_item (nullptr),
 	m_help_horiz (nullptr),
 	m_help_verti (nullptr)
@@ -258,11 +259,22 @@ void DiagramEventAddShape::mousePressEvent(QGraphicsSceneMouseEvent *event)
 				//session, rather than always the hardcoded default.
 				//Not the brush for an arc: it is a line, and a fill
 				//would close it into a half disc.
-			if (LastUsedStyle::hasShapePen()) {
-				m_shape_item->setPen(LastUsedStyle::shapePen());
+			if (m_cable)
+			{
+					//A cable has a look of its own, and the next free name
+				CableData cable;
+				cable.enabled = true;
+				cable.name = QetShapeItem::nextCableName(m_diagram);
+				m_shape_item->setCable(cable);
 			}
-			if (LastUsedStyle::hasShapeBrush() && !m_half_arc) {
-				m_shape_item->setBrush(LastUsedStyle::shapeBrush());
+			else
+			{
+				if (LastUsedStyle::hasShapePen()) {
+					m_shape_item->setPen(LastUsedStyle::shapePen());
+				}
+				if (LastUsedStyle::hasShapeBrush() && !m_half_arc) {
+					m_shape_item->setBrush(LastUsedStyle::shapeBrush());
+				}
 			}
 			m_diagram->addItem (m_shape_item);
 			updateCreationHint();
@@ -443,7 +455,7 @@ void DiagramEventAddShape::mouseDoubleClickEvent(QGraphicsSceneMouseEvent *event
 			//If the last is at the same pos of the first point
 			//that mean user want a closed polygon, so we remove the last point and close polygon
 		QPolygonF polygon = m_shape_item->polygon();
-		if (polygon.first() == polygon.last())
+		if (!m_cable && polygon.first() == polygon.last())
 		{
 			m_shape_item->removePoints();
 			m_shape_item->setClosed(true);

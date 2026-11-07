@@ -650,6 +650,18 @@ void ElementQueryWidget::on_m_down_pb_clicked()
 }
 
 /**
+	@brief ElementQueryWidget::setCustomQuery
+	Use query as it is, as when the user writes it: for the queries the
+	lists of keys cannot describe (column names, computed columns).
+*/
+void ElementQueryWidget::setCustomQuery(const QString &query)
+{
+	ui->m_edit_sql_query_cb->setChecked(true);
+	m_custom_query = query;
+	on_m_edit_sql_query_cb_clicked();
+}
+
+/**
 	@brief ElementQueryWidget::on_m_edit_sql_query_cb_clicked
 */
 void ElementQueryWidget::on_m_edit_sql_query_cb_clicked()

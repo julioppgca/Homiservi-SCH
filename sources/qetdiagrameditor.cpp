@@ -16,6 +16,21 @@
 	along with QElectroTech.  If not, see <http://www.gnu.org/licenses/>.
 */
 #include "qetdiagrameditor.h"
+#include "projecthistory.h"
+#include "ui/projectdiffdock.h"
+#include "ui/wiringeditordock.h"
+#include "QPropertyUndoCommand/qpropertyundocommand.h"
+#include "qetgraphicsitem/independenttextitem.h"
+#include "undocommand/addgraphicsobjectcommand.h"
+#include "ui/potentialrulesdialog.h"
+#include "ui/textstylesdialog.h"
+#include "ui/homiserviprojectwizard.h"
+#include "ui/projectrevisionsdialog.h"
+#include "projectvariants.h"
+#include "terminalsheet.h"
+#include "iomap.h"
+#include "diagramevent/diagrameventpaintstyle.h"
+#include "ui/projecthistorydialog.h"
 #include "shownkinds.h"
 #ifdef QET_HAS_SCRIPTING
 #include "scripting/qetscripting.h"
@@ -109,6 +124,7 @@
 #include <QJsonObject>
 #include <QTime>
 #include <QStatusBar>
+#include <QStandardPaths>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QUrl>
@@ -451,6 +467,20 @@ void QETDiagramEditor::setUpActions()
 				: dv->viewport()->rect().center();
 		const QPointF start_pos = dv->mapToScene(view_pos);
 
+			//A picture rather than copied items (a screenshot, an image
+			//copied in a browser or a file manager): place it like the
+			//"add image" tool, starting under the cursor.
+		if (!Diagram::clipboardMayContainDiagram())
+		{
+			const QImage image = DiagramEventAddImage::imageFromClipboard();
+			if (!image.isNull()) {
+				auto *event = new DiagramEventAddImage(dv->diagram(), image, start_pos);
+				if (event->isNull()) delete event;
+				else dv->diagram()->setEventInterface(event);
+			}
+			return;
+		}
+
 		dv->diagram()->setEventInterface(
 					new DiagramEventAddPaste(dv->diagram(), start_pos, placement));
 	};
@@ -514,7 +544,7 @@ void QETDiagramEditor::setUpActions()
 	});
 
 		//Numerate conductor wire-end (ferrule) labels for the whole page
-	m_conductor_numerate_ends = new QAction(QET::Icons::ConductorSettings, tr("Numerar as pontas dos fios da página"), this);
+	m_conductor_numerate_ends = new QAction(QIcon::fromTheme(QStringLiteral("conductor-numerate-ends")), tr("Numerar as pontas dos fios da página"), this);
 	ShortcutManager::instance().registerAction(m_conductor_numerate_ends, "diagrameditor.conductor_numerate_ends", tr("Éditeur de schémas"), QKeySequence());
 	m_conductor_numerate_ends->setStatusTip(tr("Marca cada ponta dos fios do fólio atual com a identificação do elemento e pino da ponta oposta (destino)", "status bar tip"));
 	connect(m_conductor_numerate_ends, &QAction::triggered, [this]() {
@@ -615,7 +645,7 @@ void QETDiagramEditor::setUpActions()
 		// Show or hide the wire-end (ferrule) labels on screen. The labels
 		// are always computed by the numbering action either way; this only
 		// toggles whether they clutter the schematic view.
-	m_draw_conductor_end_labels = new QAction(QET::Icons::ConductorSettings, tr("Mostrar identificação nas pontas dos fios"), this);
+	m_draw_conductor_end_labels = new QAction(QIcon::fromTheme(QStringLiteral("conductor-end-labels")), tr("Mostrar identificação nas pontas dos fios"), this);
 	ShortcutManager::instance().registerAction(m_draw_conductor_end_labels, "diagrameditor.draw_conductor_end_labels", tr("Éditeur de schémas"), QKeySequence());
 	m_draw_conductor_end_labels->setStatusTip(tr("Exibe ou oculta, no próprio esquema, a identificação de elemento e pino em cada ponta dos fios", "status bar tip"));
 	m_draw_conductor_end_labels->setCheckable(true);
@@ -715,6 +745,76 @@ void QETDiagramEditor::setUpActions()
 	m_remove_diagram_from_project = new QAction(QET::Icons::DiagramDelete, tr("Supprimer le folio"), this);
 	ShortcutManager::instance().registerAction(m_remove_diagram_from_project, "diagrameditor.remove_diagram_from_project", tr("Éditeur de schémas"), QKeySequence());
 	connect(m_remove_diagram_from_project, &QAction::triggered, this, &QETDiagramEditor::removeDiagramFromProject);
+
+		//Previous versions of the project file
+	m_project_history = new QAction(QET::Icons::DocumentOpenRecent, tr("Histórico de versões..."), this);
+	ShortcutManager::instance().registerAction(m_project_history, "diagrameditor.project_history", tr("Éditeur de schémas"), QKeySequence());
+	m_project_history->setStatusTip(tr("Lista as versões anteriores do arquivo do projeto, guardadas a cada salvamento, para abrir ou restaurar", "status bar tip"));
+	connect(m_project_history, &QAction::triggered, this, &QETDiagramEditor::showProjectHistory);
+
+		//Differences with another version of the project file
+	m_project_compare = new QAction(tr("Comparar com arquivo..."), this);
+	ShortcutManager::instance().registerAction(m_project_compare, "diagrameditor.project_compare", tr("Éditeur de schémas"), QKeySequence());
+	m_project_compare->setStatusTip(tr("Lista os fólios, elementos e fios adicionados, removidos ou alterados em relação a outro arquivo do projeto", "status bar tip"));
+	connect(m_project_compare, &QAction::triggered, this, &QETDiagramEditor::compareProjectWithFile);
+
+		//Colour and section rules of the wires
+	m_potential_rules = new QAction(tr("Regras de cor e bitola..."), this);
+	ShortcutManager::instance().registerAction(m_potential_rules, "diagrameditor.potential_rules", tr("Éditeur de schémas"), QKeySequence());
+	m_potential_rules->setStatusTip(tr("Define a cor e a seção dos fios por tensão ou função (24 VCC azul 0,75 mm², PE verde-amarelo...), aplica nos fios e insere a legenda", "status bar tip"));
+	connect(m_potential_rules, &QAction::triggered, this, &QETDiagramEditor::showPotentialRules);
+	m_text_styles = new QAction(tr("Estilos de texto..."), this);
+	ShortcutManager::instance().registerAction(m_text_styles, "diagrameditor.text_styles", tr("Éditeur de schémas"), QKeySequence());
+	m_text_styles->setStatusTip(tr("Define estilos de texto do projeto (fonte e cor), como camadas: identificações, funções, notas...", "status bar tip"));
+	connect(m_text_styles, &QAction::triggered, this, &QETDiagramEditor::showTextStyles);
+	m_homiservi_data = new QAction(tr("Dados do projeto Homiservi..."), this);
+	ShortcutManager::instance().registerAction(m_homiservi_data, "diagrameditor.homiservi_data", tr("Éditeur de schémas"), QKeySequence());
+	m_homiservi_data->setStatusTip(tr("Edita cliente, título, local, número do desenho, responsáveis e revisão, e aplica na legenda de todas as folhas", "status bar tip"));
+	connect(m_homiservi_data, &QAction::triggered, this, &QETDiagramEditor::showHomiserviData);
+
+	m_project_revisions = new QAction(tr("Revisões do projeto..."), this);
+	ShortcutManager::instance().registerAction(m_project_revisions, "diagrameditor.project_revisions", tr("Éditeur de schémas"), QKeySequence());
+	m_project_revisions->setStatusTip(tr("Edita as revisões mostradas no quadro de revisões da legenda", "status bar tip"));
+	connect(m_project_revisions, &QAction::triggered, this, &QETDiagramEditor::showProjectRevisions);
+
+	m_add_component_list = new QAction(tr("Adicionar lista de componentes"), this);
+	ShortcutManager::instance().registerAction(m_add_component_list, "diagrameditor.add_component_list", tr("Éditeur de schémas"), QKeySequence());
+	m_add_component_list->setStatusTip(tr("Adiciona no fim do projeto a lista de componentes: símbolo, posição, função, fornecedor e códigos", "status bar tip"));
+	connect(m_add_component_list, &QAction::triggered, this, &QETDiagramEditor::addComponentList);
+
+	m_terminal_sheets = new QAction(tr("Gerar planilhas de bornes"), this);
+	ShortcutManager::instance().registerAction(m_terminal_sheets, "diagrameditor.terminal_sheets", tr("Éditeur de schémas"), QKeySequence());
+	m_terminal_sheets->setStatusTip(tr("Desenha no fim do projeto uma planilha por régua: potencial, borne, jumper, dispositivo e localização", "status bar tip"));
+	connect(m_terminal_sheets, &QAction::triggered, this, &QETDiagramEditor::generateTerminalSheets);
+
+	m_io_maps = new QAction(tr("Gerar mapas de entradas e saídas"), this);
+	ShortcutManager::instance().registerAction(m_io_maps, "diagrameditor.io_maps", tr("Éditeur de schémas"), QKeySequence());
+	m_io_maps->setStatusTip(tr("Desenha no fim do projeto o mapa de cada CLP: pino, endereço, localização e descrição das entradas e das saídas", "status bar tip"));
+	connect(m_io_maps, &QAction::triggered, this, &QETDiagramEditor::generateIoMaps);
+	m_paint_style = new QAction(QET::Icons::FormatPainter, tr("Pincel de estilo"), this);
+	ShortcutManager::instance().registerAction(m_paint_style, "diagrameditor.paint_style", tr("Éditeur de schémas"), QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_C));
+	m_paint_style->setStatusTip(tr("Copia a aparência do item selecionado (texto, componente, fio ou forma) para os itens em que você clicar", "status bar tip"));
+	m_paint_style->setEnabled(false);
+	connect(m_paint_style, &QAction::triggered, this, &QETDiagramEditor::startPaintStyle);
+
+		//Editable wiring list of the current project
+	m_wiring_editor = new QAction(QET::Icons::DocumentSpreadsheet, tr("Editor de fiação"), this);
+	ShortcutManager::instance().registerAction(m_wiring_editor, "diagrameditor.wiring_editor", tr("Éditeur de schémas"), QKeySequence());
+	m_wiring_editor->setStatusTip(tr("Tabela de todos os fios do projeto, com edição de número, função, cor, seção, cabo e tensão, inclusive de vários fios de uma vez", "status bar tip"));
+	m_wiring_editor->setCheckable(true);
+	connect(m_wiring_editor, &QAction::triggered, this, [this](bool checked) {
+		if (!m_wiring_editor_dock) {
+			m_wiring_editor_dock = new WiringEditorDock(this);
+			addDockWidget(Qt::BottomDockWidgetArea, m_wiring_editor_dock);
+			connect(m_wiring_editor_dock, &QDockWidget::visibilityChanged,
+				m_wiring_editor, &QAction::setChecked);
+		}
+		m_wiring_editor_dock->setVisible(checked);
+		if (checked) {
+			m_wiring_editor_dock->setProject(currentProject());
+			m_wiring_editor_dock->raise();
+		}
+	});
 
 		//Clean the current project
 	m_clean_project         = new QAction(QET::Icons::EditClear,             tr("Nettoyer le projet"),                   this);
@@ -1006,6 +1106,10 @@ void QETDiagramEditor::setUpActions()
 	connect(m_save_file_as, &QAction::triggered, this, &QETDiagramEditor::saveAs);
 	connect(m_save_file,    &QAction::triggered, this, &QETDiagramEditor::save);
 	connect(new_file,       &QAction::triggered, this, &QETDiagramEditor::newProject);
+	m_new_homiservi_project = new QAction(QET::Icons::ProjectNew, tr("Novo projeto Homiservi..."), this);
+	ShortcutManager::instance().registerAction(m_new_homiservi_project, "diagrameditor.new_homiservi_project", tr("Éditeur de schémas"), QKeySequence());
+	m_new_homiservi_project->setStatusTip(tr("Cria um projeto com a legenda Homiservi, os estilos e as regras de fiação, preenchendo os dados num assistente", "status bar tip"));
+	connect(m_new_homiservi_project, &QAction::triggered, this, &QETDiagramEditor::newHomiserviProject);
 	connect(open_file,      &QAction::triggered, this, &QETDiagramEditor::openProject);
 	connect(m_close_file,   &QAction::triggered, [this]() {
 		if (ProjectView *project_view = currentProjectView()) {
@@ -1290,6 +1394,7 @@ void QETDiagramEditor::setUpActions()
 	QAction *add_arc       = m_add_item_actions_group.addAction(QET::Icons::PartArc,       tr("Ajouter un arc"));
 	QAction *add_polyline  = m_add_item_actions_group.addAction(QET::Icons::PartPolygon,   tr("Ajouter une polyligne"));
 	QAction *add_path      = m_add_item_actions_group.addAction(QET::Icons::PartBezier,   tr("Ajouter une courbe"));
+	QAction *add_cable     = m_add_item_actions_group.addAction(QET::Icons::PartPolygon,   tr("Adicionar cabo"));
 	QAction *add_fillet    = m_add_item_actions_group.addAction(QET::Icons::DrawFillet,   tr("Ajouter un congé"));
 	QAction *add_terminal_strip = m_add_item_actions_group.addAction(QET::Icons::TerminalStrip, tr("Ajouter un plan de bornes"));
 
@@ -1304,6 +1409,7 @@ void QETDiagramEditor::setUpActions()
 	add_arc      ->setStatusTip(tr("Ajoute un arc sur le folio actuel"));
 	add_polyline ->setStatusTip(tr("Ajoute une polyligne sur le folio actuel"));
 	add_path     ->setStatusTip(tr("Ajoute une courbe de Bézier sur le folio actuel"));
+	add_cable    ->setStatusTip(tr("Desenha um cabo multivias: clique nos cantos, duplo clique para terminar; depois junte os fios a ele"));
 	add_fillet   ->setStatusTip(tr("Arrondit le coin entre deux lignes du folio actuel"));
 	add_terminal_strip->setStatusTip(tr("Ajoute un plan de bornier sur le folio actuel"));
 
@@ -1318,6 +1424,7 @@ void QETDiagramEditor::setUpActions()
 	add_arc      ->setData(QStringLiteral("arc"));
 	add_polyline ->setData(QStringLiteral("polyline"));
 	add_path     ->setData(QStringLiteral("path"));
+	add_cable    ->setData(QStringLiteral("cable"));
 	add_fillet   ->setData(QStringLiteral("fillet"));
 	add_terminal_strip->setData(QStringLiteral("terminal_strip"));
 
@@ -1328,6 +1435,7 @@ void QETDiagramEditor::setUpActions()
 	add_arc->setCheckable(true);
 	add_polyline->setCheckable(true);
 	add_path->setCheckable(true);
+	add_cable->setCheckable(true);
 	add_fillet->setCheckable(true);
 
 	connect(&m_add_item_actions_group, &QActionGroup::triggered, this, &QETDiagramEditor::addItemGroupTriggered);
@@ -1516,6 +1624,7 @@ void QETDiagramEditor::setUpMenu()
 	menu_fichier->addMenu(recentfile);
 	connect(QETApp::projectsRecentFiles(), &RecentFiles::fileOpeningRequested, this, &QETDiagramEditor::openRecentFile);
 	menu_fichier -> addActions(m_file_actions_group.actions());
+	menu_fichier -> insertAction(m_file_actions_group.actions().at(1), m_new_homiservi_project);
 	menu_fichier -> addSeparator();
 	//menu_fichier -> addAction(import_diagram);
 	menu_fichier -> addAction(m_export_to_images);
@@ -1558,7 +1667,6 @@ void QETDiagramEditor::setUpMenu()
 	menu_edition -> addAction(m_rotate_selection);
 	menu_edition -> addAction(m_rotate_group_selection);
 	menu_edition -> addAction(m_rotate_texts);
-	menu_edition -> addAction(m_find_element);
 	menu_edition -> addAction(m_edit_selection);
 	QMenu *group_menu = menu_edition -> addMenu(QET::Icons::textGroup, tr("Grouper"));
 	group_menu -> addAction(m_group_selection);
@@ -1573,9 +1681,23 @@ void QETDiagramEditor::setUpMenu()
 	m_align_menu -> addActions(m_align_actions_group.actions().mid(1, 3));
 	m_align_menu -> addSeparator();
 	m_align_menu -> addActions(m_align_actions_group.actions().mid(4));
-	menu_edition -> addSeparator();
-	menu_edition -> addAction(m_conductor_reset);
-	menu_edition -> addAction(m_conductor_numerate_ends);
+	m_text_style_menu = menu_edition -> addMenu(tr("Estilo de texto"));
+	menu_edition -> addAction(m_paint_style);
+	connect(m_text_style_menu, &QMenu::aboutToShow, this, &QETDiagramEditor::fillTextStyleMenu);
+	m_variant_menu = menu_edition -> addMenu(tr("Tipo de aplicação"));
+	m_variant_menu -> setStatusTip(tr("Marca os componentes selecionados, ou a folha quando nada está selecionado,"
+					  " como padrão, opcional, variante ou especial"));
+	for (const ProjectVariants::Kind &kind : ProjectVariants::kinds()) {
+		QAction *action = m_variant_menu -> addAction(QStringLiteral("%1 – %2").arg(kind.code, kind.name));
+		const QString code = kind.code;
+		connect(action, &QAction::triggered, this, [this, code]() { applyVariant(code); });
+	}
+	m_variant_menu -> addSeparator();
+	connect(m_variant_menu -> addAction(tr("Sem tipo (conta como padrão)")), &QAction::triggered,
+		this, [this]() { applyVariant(QString()); });
+	QMenu *conductor_menu = menu_edition -> addMenu(QET::Icons::Conductor, tr("Condutores"));
+	conductor_menu -> addAction(m_conductor_reset);
+	conductor_menu -> addAction(m_conductor_numerate_ends);
 	menu_edition -> addSeparator();
 	menu_edition -> addAction(m_edit_diagram_properties);
 		//Shared with the folio's context menu (see
@@ -1586,46 +1708,76 @@ void QETDiagramEditor::setUpMenu()
 	QMenu *depth_menu = menu_edition -> addMenu(QET::Icons::BringForward, tr("Profondeur"));
 	depth_menu -> addActions(m_depth_action_group->actions());
 	menu_edition -> addSeparator();
-	menu_edition -> addAction(m_find);
-	menu_edition -> addAction(m_jump_to_element);
-	menu_edition -> addAction(m_command_search);
+	QMenu *search_menu = menu_edition -> addMenu(QET::Icons::ZoomDraw, tr("Localizar"));
+	search_menu -> addAction(m_find);
+	search_menu -> addAction(m_jump_to_element);
+	search_menu -> addAction(m_command_search);
+	search_menu -> addAction(m_find_element);
 	menu_edition -> addSeparator();
 	menu_edition -> addAction(m_show_shortcut_bar);
 	menu_edition -> addAction(m_repeat_last_command);
 
 	// menu Projet
+		//Thirty entries in one column did not fit on a laptop screen: the
+		//families sit one level down, as in the Edit menu. Every action and
+		//its shortcut is unchanged.
 	menu_project -> addAction(m_project_edit_properties);
-	menu_project -> addAction(m_auto_conductor);
-		//Sits beside m_auto_conductor, the setting it pairs with. It was
-		//toolbar-only and so had no keyboard route at all.
-	menu_project -> addAction(m_auto_break_conductor);
+	menu_project -> addAction(m_homiservi_data);
+	menu_project -> addAction(m_project_revisions);
 	menu_project -> addSeparator();
 	menu_project -> addAction(m_project_add_diagram);
 	menu_project -> addAction(m_remove_diagram_from_project);
-	menu_project -> addAction(m_clean_project);
 	menu_project -> addSeparator();
-	menu_project -> addAction(m_add_summary);
-	menu_project -> addAction(m_add_nomenclature);
-	menu_project -> addAction(m_csv_export);
-	menu_project -> addAction(m_project_export_conductor_num);
-	menu_project -> addAction(m_terminal_strip_dialog);
-	menu_project -> addAction(m_project_terminalBloc);
-	menu_project -> addAction(m_project_export_wiring_list);
-	menu_project -> addAction(m_project_print_wire_tags);
-	menu_project -> addAction(m_project_export_wire_tags_csv);
-	menu_project -> addAction(m_project_wiring_list_view);
-	menu_project -> addAction(m_terminal_numbering);
-	menu_project -> addAction(m_reload_element_drawings);
+
+	QMenu *generated_menu = menu_project -> addMenu(QET::Icons::TableOfContent, tr("Folhas automáticas"));
+	generated_menu -> addAction(m_add_summary);
+	generated_menu -> addAction(m_add_nomenclature);
+	generated_menu -> addAction(m_add_component_list);
+	generated_menu -> addSeparator();
+	generated_menu -> addAction(m_terminal_sheets);
+	generated_menu -> addAction(m_io_maps);
+
+	QMenu *wiring_menu = menu_project -> addMenu(QET::Icons::Conductor, tr("Fiação e condutores"));
+	wiring_menu -> addAction(m_auto_conductor);
+		//Sits beside m_auto_conductor, the setting it pairs with. It was
+		//toolbar-only and so had no keyboard route at all.
+	wiring_menu -> addAction(m_auto_break_conductor);
+	wiring_menu -> addSeparator();
+	wiring_menu -> addAction(m_wiring_editor);
+	wiring_menu -> addAction(m_project_wiring_list_view);
+	wiring_menu -> addAction(m_potential_rules);
+
+	QMenu *terminal_menu = menu_project -> addMenu(QET::Icons::TerminalStrip, tr("Bornes"));
+	terminal_menu -> addAction(m_terminal_strip_dialog);
+	terminal_menu -> addAction(m_project_terminalBloc);
+	terminal_menu -> addAction(m_terminal_numbering);
+
+	QMenu *export_menu = menu_project -> addMenu(QET::Icons::DocumentSpreadsheet, tr("Exportar listas"));
+	export_menu -> addAction(m_csv_export);
+	export_menu -> addAction(m_project_export_conductor_num);
+	export_menu -> addAction(m_project_export_wiring_list);
+	export_menu -> addSeparator();
+	export_menu -> addAction(m_project_print_wire_tags);
+	export_menu -> addAction(m_project_export_wire_tags_csv);
+#ifdef QET_EXPORT_PROJECT_DB
+	export_menu -> addSeparator();
+	export_menu -> addAction(m_export_project_db);
+#endif
+	menu_project -> addAction(m_text_styles);
+	menu_project -> addSeparator();
+
+	QMenu *maintenance_menu = menu_project -> addMenu(QET::Icons::EditClear, tr("Manutenção"));
+	maintenance_menu -> addAction(m_clean_project);
+	maintenance_menu -> addAction(m_reload_element_drawings);
+	maintenance_menu -> addSeparator();
+	maintenance_menu -> addAction(m_project_history);
+	maintenance_menu -> addAction(m_project_compare);
 #ifdef QET_HAS_SCRIPTING
 	m_scripts_menu = menu_project -> addMenu(tr("Scripts"));
 	rebuildScriptActions();
 	connect(&ScriptLibrary::instance(), &ScriptLibrary::changed,
 		this, &QETDiagramEditor::rebuildScriptActions);
 	AssistantInfo::watch();
-#endif
-#ifdef QET_EXPORT_PROJECT_DB
-	menu_project -> addSeparator();
-	menu_project -> addAction(m_export_project_db);
 #endif
 
 	main_tool_bar         -> toggleViewAction() -> setStatusTip(tr("Affiche ou non la barre d'outils principale"));
@@ -1771,6 +1923,173 @@ bool QETDiagramEditor::newProject()
 }
 
 /**
+	@brief QETDiagramEditor::newHomiserviProject
+	Ask the data of a new project, then create it from the Homiservi
+	template with its first folios (HomiserviTemplate).
+*/
+void QETDiagramEditor::newHomiserviProject()
+{
+	HomiserviTemplate::Data data;
+	data.date = QDate::currentDate();
+	HomiserviProjectWizard wizard(HomiserviProjectWizard::NewProject, data, 0, this);
+	if (wizard.exec() != QDialog::Accepted) {
+		return;
+	}
+	auto project = new QETProject(this);
+	HomiserviTemplate::prepare(project, wizard.data().layout);
+	HomiserviTemplate::createFolios(project, wizard.data(), wizard.folios());
+	addProject(project);
+}
+
+/**
+	@brief QETDiagramEditor::showHomiserviData
+	Edit the Homiservi data of the current project and write it in the
+	title block of every folio.
+*/
+void QETDiagramEditor::showHomiserviData()
+{
+	QETProject *project = currentProject();
+	if (!project || project->isReadOnly()) {
+		return;
+	}
+	HomiserviProjectWizard wizard(HomiserviProjectWizard::ExistingProject,
+				      HomiserviTemplate::fromProject(project),
+				      int(project->diagrams().size()), this);
+	if (wizard.exec() != QDialog::Accepted) {
+		return;
+	}
+	if (wizard.loadStyles()) {
+		if (project->textStyles().isEmpty()) {
+			project->setTextStyles(TextStyles::examples());
+		}
+		if (project->potentialRules().rules.isEmpty()) {
+			project->setPotentialRules(PotentialRules::examples());
+		}
+	}
+	HomiserviTemplate::apply(project, wizard.data(), wizard.useTitleBlock());
+	fillTextStyleMenu();
+}
+
+/**
+	@brief QETDiagramEditor::showProjectRevisions
+	Edit the revisions of the current project, shown by the revision table
+	of its title block (ProjectRevisions).
+*/
+void QETDiagramEditor::showProjectRevisions()
+{
+	QETProject *project = currentProject();
+	if (!project || project->isReadOnly()) {
+		return;
+	}
+	ProjectRevisionsDialog dialog(ProjectRevisions::read(project), this);
+	if (dialog.exec() == QDialog::Accepted) {
+		ProjectRevisions::write(project, dialog.revisions());
+	}
+}
+
+/**
+	@brief QETDiagramEditor::generateTerminalSheets
+	Draw the terminal sheets of the current project on folios at its end
+	(TerminalSheet), replacing the ones drawn before once the user agrees.
+*/
+void QETDiagramEditor::generateTerminalSheets()
+{
+	QETProject *project = currentProject();
+	ProjectView *view = currentProjectView();
+	if (!project || !view || project->isReadOnly()) {
+		return;
+	}
+	const QList<TerminalSheet::Strip> strips = TerminalSheet::collect(project);
+	if (strips.isEmpty()) {
+		QET::QetMessageBox::information(this, tr("Planilhas de bornes"),
+						tr("O projeto não tem bornes: use componentes do tipo borne,"
+						   " soltos ou montados em réguas no editor de réguas de bornes."));
+		return;
+	}
+	const QList<Diagram *> old_folios = TerminalSheet::generatedFolios(project);
+	if (!old_folios.isEmpty()) {
+		const auto answer = QET::QetMessageBox::question(
+					this, tr("Planilhas de bornes"),
+					tr("O projeto já tem %n folha(s) de planilha de bornes gerada(s) antes."
+					   " Substituir pelas novas?", nullptr, int(old_folios.size())),
+					QMessageBox::Yes | QMessageBox::Cancel, QMessageBox::Yes);
+		if (answer != QMessageBox::Yes) {
+			return;
+		}
+		for (Diagram *diagram : old_folios) {
+			view->removeDiagram(diagram, true);
+		}
+	}
+	const int first = int(project->diagrams().size());
+	const int count = TerminalSheet::createFolios(project, strips);
+	if (first < project->diagrams().size()) {
+		view->showDiagram(project->diagrams().at(first));
+	}
+	statusBar()->showMessage(tr("%n folha(s) de planilha de bornes geradas", nullptr, count), 5000);
+}
+
+/**
+	@brief QETDiagramEditor::generateIoMaps
+	Draw the input/output map of each PLC of the current project on folios
+	at its end (IoMap), replacing the ones drawn before once the user
+	agrees.
+*/
+void QETDiagramEditor::generateIoMaps()
+{
+	QETProject *project = currentProject();
+	ProjectView *view = currentProjectView();
+	if (!project || !view || project->isReadOnly()) {
+		return;
+	}
+	const QList<IoMap::Module> modules = IoMap::collect(project);
+	if (modules.isEmpty()) {
+		QET::QetMessageBox::information(this, tr("Mapas de entradas e saídas"),
+						tr("O projeto não tem CLP com tabela de entradas e saídas: use um"
+						   " componente mestre do tipo CLP e preencha a tabela dele."));
+		return;
+	}
+	const QList<Diagram *> old_folios = IoMap::generatedFolios(project);
+	if (!old_folios.isEmpty()) {
+		const auto answer = QET::QetMessageBox::question(
+					this, tr("Mapas de entradas e saídas"),
+					tr("O projeto já tem %n folha(s) de mapa de entradas e saídas gerada(s) antes."
+					   " Substituir pelas novas?", nullptr, int(old_folios.size())),
+					QMessageBox::Yes | QMessageBox::Cancel, QMessageBox::Yes);
+		if (answer != QMessageBox::Yes) {
+			return;
+		}
+		for (Diagram *diagram : old_folios) {
+			view->removeDiagram(diagram, true);
+		}
+	}
+	const int first = int(project->diagrams().size());
+	const int count = IoMap::createFolios(project, modules);
+	if (first < project->diagrams().size()) {
+		view->showDiagram(project->diagrams().at(first));
+	}
+	statusBar()->showMessage(tr("%n folha(s) de mapa de entradas e saídas geradas", nullptr, count), 5000);
+}
+
+/**
+	@brief QETDiagramEditor::addComponentList
+	Add a folio with the component list at the end of the current project
+	and show it.
+*/
+void QETDiagramEditor::addComponentList()
+{
+	QETProject *project = currentProject();
+	if (!project || project->isReadOnly()) {
+		return;
+	}
+	HomiserviTemplate::addComponentList(project);
+	if (ProjectView *view = currentProjectView()) {
+		if (!project->diagrams().isEmpty()) {
+			view->showDiagram(project->diagrams().constLast());
+		}
+	}
+}
+
+/**
 	Slot utilise pour ouvrir un fichier recent.
 	Transfere filepath au slot openAndAddDiagram seulement si cet editeur est
 	actif
@@ -1836,6 +2155,341 @@ bool QETDiagramEditor::closeProject(QETProject *project)
 		return(closeProject(project_view));
 	}
 	return(true);
+}
+
+/**
+	@brief QETDiagramEditor::showTextStyles
+	Edit the text styles of the current project and bring every text to
+	them; the texts of a renamed style follow it.
+*/
+void QETDiagramEditor::showTextStyles()
+{
+	QETProject *project = currentProject();
+	if (!project || project->isReadOnly()) {
+		return;
+	}
+
+	TextStylesDialog dialog(project->textStyles(), this);
+	if (dialog.exec() != QDialog::Accepted) {
+		return;
+	}
+	const QList<TextStyles::Style> styles = dialog.styles();
+	const QHash<QString, QString> renames = dialog.renames();
+	if (styles == project->textStyles() && renames.isEmpty()) {
+		return;
+	}
+	if (!renames.isEmpty()) {
+		for (Diagram *diagram : project->diagrams()) {
+			for (QGraphicsItem *item : diagram->items()) {
+				if (item->type() != IndependentTextItem::Type
+				    && item->type() != DynamicElementTextItem::Type) {
+					continue;
+				}
+				auto text = static_cast<DiagramTextItem *>(item);
+				if (renames.contains(text->textStyle())) {
+					text->setTextStyle(renames.value(text->textStyle()));
+				}
+			}
+		}
+	}
+	project->setTextStyles(styles);
+	project->setModified(true);
+	fillTextStyleMenu();
+}
+
+/**
+	@brief QETDiagramEditor::fillTextStyleMenu
+	One entry per style of the project, then the automatic style and no
+	style, enabled when the selection holds a text.
+*/
+void QETDiagramEditor::fillTextStyleMenu()
+{
+	if (!m_text_style_menu) {
+		return;
+	}
+	m_text_style_menu->clear();
+	DiagramView *dv = currentDiagramView();
+	QETProject *project = currentProject();
+	const bool has_texts = dv && !dv->diagram()->isReadOnly()
+			&& !TextStyles::styledTexts(dv->diagram()->selectedItems()).isEmpty();
+
+	if (project) {
+		for (const TextStyles::Style &style : project->textStyles()) {
+			QAction *action = m_text_style_menu->addAction(style.name);
+			action->setStatusTip(TextStyles::fontDescription(style.font));
+			action->setEnabled(has_texts);
+			const QString name = style.name;
+			connect(action, &QAction::triggered, this, [this, name]() { applyTextStyle(name); });
+		}
+	}
+	m_text_style_menu->addSeparator();
+	QAction *automatic = m_text_style_menu->addAction(tr("Seguir o estilo automático"));
+	automatic->setStatusTip(tr("O texto volta a seguir o estilo que pega sozinho os textos do seu tipo"));
+	automatic->setEnabled(has_texts);
+	connect(automatic, &QAction::triggered, this, [this]() { applyTextStyle(QString()); });
+	QAction *none = m_text_style_menu->addAction(tr("Sem estilo"));
+	none->setStatusTip(tr("O texto fica com a fonte e a cor atuais e deixa de seguir qualquer estilo"));
+	none->setEnabled(has_texts);
+	connect(none, &QAction::triggered, this, [this]() { applyTextStyle(TextStyles::NoStyle); });
+	m_text_style_menu->addSeparator();
+	QAction *manage = m_text_style_menu->addAction(tr("Gerenciar os estilos..."));
+	manage->setEnabled(m_text_styles && m_text_styles->isEnabled());
+	connect(manage, &QAction::triggered, this, &QETDiagramEditor::showTextStyles);
+}
+
+/**
+	@brief QETDiagramEditor::startPaintStyle
+	Take the look of the selected item and start the format painter.
+*/
+void QETDiagramEditor::startPaintStyle()
+{
+	DiagramView *dv = currentDiagramView();
+	if (!dv || dv->diagram()->isReadOnly()) {
+		return;
+	}
+	const StylePainter::Source source = StylePainter::capture(dv->diagram()->selectedItems());
+	if (source.kind == StylePainter::Nothing) {
+		statusBar()->showMessage(tr("Selecione o texto, componente, fio ou forma cujo estilo será copiado"), 5000);
+		return;
+	}
+	auto event = new DiagramEventPaintStyle(dv->diagram(), source);
+	if (!event->isRunning()) {
+		delete event;
+		return;
+	}
+	dv->diagram()->setEventInterface(event);
+}
+
+/**
+	@brief QETDiagramEditor::applyVariant
+	Mark the selected elements with the variant code (X, O, V, E; none
+	when empty), or the current folio when no element is selected
+	(ProjectVariants).
+*/
+void QETDiagramEditor::applyVariant(const QString &code)
+{
+	DiagramView *dv = currentDiagramView();
+	if (!dv || dv->diagram()->isReadOnly()) {
+		return;
+	}
+	QList<Element *> elements;
+	for (QGraphicsItem *item : dv->diagram()->selectedItems()) {
+		if (auto element = qgraphicsitem_cast<Element *>(item)) {
+			elements << element;
+		}
+	}
+	QUndoCommand *command = elements.isEmpty()
+			? ProjectVariants::folioCommand(dv->diagram(), code)
+			: ProjectVariants::elementsCommand(elements, code);
+	if (command) {
+		dv->diagram()->undoStack().push(command);
+	}
+	const QString what = elements.isEmpty() ? tr("a folha") : tr("%n componente(s)", nullptr, int(elements.size()));
+	statusBar()->showMessage(code.isEmpty() ? tr("Tipo de aplicação removido de %1").arg(what)
+						: tr("%1 marcado(s) como tipo %2").arg(what, code), 4000);
+}
+
+/**
+	@brief QETDiagramEditor::applyTextStyle
+	Give the texts of the selection, and every text of the selected
+	elements, the text style named style (see TextStyles::SetStyleCommand).
+*/
+void QETDiagramEditor::applyTextStyle(const QString &style)
+{
+	DiagramView *dv = currentDiagramView();
+	if (!dv || dv->diagram()->isReadOnly()) {
+		return;
+	}
+	const QList<DiagramTextItem *> texts = TextStyles::styledTexts(dv->diagram()->selectedItems());
+	if (texts.isEmpty()) {
+		return;
+	}
+	dv->diagram()->undoStack().push(
+				new TextStyles::SetStyleCommand(dv->diagram()->project(), texts, style));
+}
+
+/**
+	@brief QETDiagramEditor::showPotentialRules
+	Edit the colour and section rules of the wires of the current project,
+	then apply them to every wire or insert their legend on the current
+	folio if asked.
+*/
+void QETDiagramEditor::showPotentialRules()
+{
+	QETProject *project = currentProject();
+	if (!project || project->isReadOnly()) {
+		return;
+	}
+
+	PotentialRulesDialog dialog(project->potentialRules(), this);
+	if (dialog.exec() != QDialog::Accepted) {
+		return;
+	}
+	const PotentialRules::Settings rules = dialog.settings();
+	if (rules != project->potentialRules()) {
+		project->setPotentialRules(rules);
+		project->setModified(true);
+	}
+
+	if (dialog.action() == PotentialRulesDialog::ApplyAll)
+	{
+		auto undo = new QUndoCommand(tr("Aplicar as regras de cor e bitola"));
+		int changed = 0;
+		for (Diagram *diagram : project->diagrams()) {
+			for (Conductor *conductor : diagram->conductors()) {
+				ConductorProperties properties = conductor->properties();
+				if (!PotentialRules::apply(rules, properties)) {
+					continue;
+				}
+				QVariant old_value, new_value;
+				old_value.setValue(conductor->properties());
+				new_value.setValue(properties);
+				new QPropertyUndoCommand(conductor, "properties", old_value, new_value, undo);
+				++changed;
+			}
+		}
+		if (changed) {
+			project->undoStack()->push(undo);
+		} else {
+			delete undo;
+		}
+		QET::QetMessageBox::information(this, tr("Regras de cor e bitola"),
+			changed ? tr("%n fio(s) alterado(s). Ctrl+Z desfaz.", nullptr, changed)
+				: tr("Nenhum fio precisou mudar."));
+	}
+	else if (dialog.action() == PotentialRulesDialog::InsertLegend)
+	{
+		DiagramView *view = currentDiagramView();
+		const QStringList lines = PotentialRules::legend(rules);
+		if (!view || lines.isEmpty()) {
+			QET::QetMessageBox::information(this, tr("Regras de cor e bitola"),
+				!view ? tr("Abra um fólio para inserir a legenda.")
+				      : tr("Nenhuma regra com cor ou seção para a legenda."));
+			return;
+		}
+		auto text = new IndependentTextItem(tr("Legenda de fiação") + QLatin1Char('\n')
+						    + lines.join(QLatin1Char('\n')));
+		const QPointF position = view->mapToScene(view->viewport()->rect().center());
+		view->diagram()->undoStack().push(
+			new AddGraphicsObjectCommand(text, view->diagram(), position));
+	}
+}
+
+/**
+	@brief QETDiagramEditor::showProjectHistory
+	Show the versions ProjectHistory kept of the current project, then open
+	the chosen one as a read-only copy or restore it in place of the
+	project file (the project is closed and opened again).
+*/
+void QETDiagramEditor::showProjectHistory()
+{
+	QETProject *project = currentProject();
+	if (!project || project->filePath().isEmpty()) {
+		return;
+	}
+	const QString project_path = project->filePath();
+	const QFileInfo project_info(project_path);
+
+	ProjectHistoryDialog dialog(project_path, this);
+	if (dialog.exec() != QDialog::Accepted) {
+		return;
+	}
+	const ProjectHistory::Entry entry = dialog.selectedEntry();
+	const QString when = QLocale().toString(entry.saved_at, QStringLiteral("dd/MM/yyyy HH:mm"));
+
+	if (dialog.action() == ProjectHistoryDialog::OpenCopy)
+	{
+			//Outside the project folder, which may be synchronised
+		const QString dir = QStandardPaths::writableLocation(QStandardPaths::TempLocation)
+				+ QStringLiteral("/QElectroTech-historico");
+		const QString copy = dir + QLatin1Char('/') + project_info.completeBaseName()
+				+ entry.saved_at.toString(QStringLiteral(" (yyyy-MM-dd HH-mm-ss)."))
+				+ project_info.suffix();
+		if (ProjectView *open_copy = findProject(copy)) {
+			activateProject(open_copy);
+			return;
+		}
+		QDir().mkpath(dir);
+		QFile::remove(copy);
+		if (!QFile::copy(entry.file_path, copy)) {
+			QET::QetMessageBox::critical(this, tr("Histórico de versões"),
+				tr("Não foi possível copiar a versão de %1 para %2.").arg(when, copy));
+			return;
+		}
+		if (openAndAddProject(copy)) {
+			if (ProjectView *view = findProject(copy)) {
+				view->project()->setReadOnly(true);
+			}
+		}
+	}
+	else if (dialog.action() == ProjectHistoryDialog::Compare)
+	{
+		compareProject(project, entry.file_path, tr("versão de %1").arg(when));
+	}
+	else if (dialog.action() == ProjectHistoryDialog::Restore)
+	{
+		const auto answer = QET::QetMessageBox::question(this,
+			tr("Restaurar versão"),
+			tr("O projeto será fechado e o arquivo\n%1\nsubstituído pela versão"
+			   " de %2. A versão atual do arquivo entra no histórico antes,"
+			   " então esta restauração também pode ser desfeita.\n\nContinuar?")
+				.arg(QDir::toNativeSeparators(project_path), when),
+			QMessageBox::Yes | QMessageBox::Cancel, QMessageBox::Cancel);
+		if (answer != QMessageBox::Yes) {
+			return;
+		}
+			//May ask to save the changes, and the user may cancel
+		if (!closeProject(project)) {
+			return;
+		}
+		QString error;
+		if (!ProjectHistory::restore(entry, project_path, &error)) {
+			QET::QetMessageBox::critical(this, tr("Restaurar versão"),
+				tr("Não foi possível restaurar a versão de %1: %2").arg(when, error));
+		}
+		openAndAddProject(project_path);
+	}
+}
+
+/**
+	@brief QETDiagramEditor::compareProjectWithFile
+	Ask for another version of the current project and list the
+	differences with it.
+*/
+void QETDiagramEditor::compareProjectWithFile()
+{
+	QETProject *project = currentProject();
+	if (!project) {
+		return;
+	}
+	const QString dir = project->filePath().isEmpty()
+			? QString()
+			: QFileInfo(project->filePath()).absolutePath();
+	const QString path = QFileDialog::getOpenFileName(this,
+		tr("Comparar com arquivo"), dir,
+		tr("Projetos QElectroTech (*.qet);;Todos os arquivos (*)"));
+	if (path.isEmpty()) {
+		return;
+	}
+	compareProject(project, path, QFileInfo(path).fileName());
+}
+
+/**
+	@brief QETDiagramEditor::compareProject
+	Show in the "Diferenças" dock what changed from the project file at
+	reference_path to project, as it is now.
+*/
+void QETDiagramEditor::compareProject(QETProject *project,
+				      const QString &reference_path,
+				      const QString &reference_label)
+{
+	if (!m_project_diff_dock) {
+		m_project_diff_dock = new ProjectDiffDock(this);
+		addDockWidget(Qt::RightDockWidgetArea, m_project_diff_dock);
+	}
+	m_project_diff_dock->show();
+	m_project_diff_dock->raise();
+	m_project_diff_dock->compare(project, reference_path, reference_label);
 }
 
 /**
@@ -2343,6 +2997,8 @@ void QETDiagramEditor::addItemGroupTriggered(QAction *action)
 		diagram_event = new DiagramEventAddShape (d, QetShapeItem::Ellipse, true);
 	else if (value == "polyline")
 		diagram_event = new DiagramEventAddShape (d, QetShapeItem::Polygon);
+	else if (value == "cable")
+		diagram_event = new DiagramEventAddShape (d, QetShapeItem::Polygon, false, true);
 	else if (value == "path")
 	{
 		diagram_event = new DiagramEventAddPath (d);
@@ -2634,6 +3290,18 @@ void QETDiagramEditor::slot_updateActions()
 	m_project_add_diagram         -> setEnabled(editable_project);
 	m_remove_diagram_from_project -> setEnabled(editable_project);
 	m_clean_project               -> setEnabled(editable_project);
+	m_project_history             -> setEnabled(opened_project && !currentProject()->filePath().isEmpty());
+	m_project_compare             -> setEnabled(opened_project);
+	m_wiring_editor               -> setEnabled(opened_project);
+	m_potential_rules             -> setEnabled(editable_project);
+	m_text_styles                 -> setEnabled(editable_project);
+	m_homiservi_data              -> setEnabled(editable_project);
+	m_project_revisions           -> setEnabled(editable_project);
+	m_add_component_list          -> setEnabled(editable_project);
+	m_terminal_sheets             -> setEnabled(editable_project);
+	m_io_maps                     -> setEnabled(editable_project);
+	if (m_wiring_editor_dock && m_wiring_editor_dock->isVisible())
+		m_wiring_editor_dock->setProject(currentProject());
 	m_add_summary                 -> setEnabled(editable_project);
 	m_add_nomenclature            -> setEnabled(editable_project);
 	m_csv_export                  -> setEnabled(editable_project);
@@ -2692,6 +3360,22 @@ void QETDiagramEditor::slot_updateUndoStack()
 */
 void QETDiagramEditor::slot_updateComplexActions()
 {
+		//Rebuilt here, not only before showing: the context menu leaves out
+		//a submenu whose entries are all disabled
+	fillTextStyleMenu();
+	if (m_paint_style) {
+		DiagramView *paint_view = currentDiagramView();
+		m_paint_style->setEnabled(paint_view && !paint_view->diagram()->isReadOnly()
+					  && StylePainter::capture(paint_view->diagram()->selectedItems()).kind
+					  != StylePainter::Nothing);
+	}
+	if (m_variant_menu) {
+		DiagramView *variant_view = currentDiagramView();
+		const bool editable = variant_view && !variant_view->diagram()->isReadOnly();
+		for (QAction *action : m_variant_menu->actions()) {
+			action->setEnabled(editable);
+		}
+	}
 #ifdef QET_HAS_SCRIPTING
 	updateScriptActions();
 #endif
@@ -2947,7 +3631,10 @@ void QETDiagramEditor::slot_updatePasteAction()
 
 	// pour coller, il faut un schema ouvert et un schema dans le presse-papier
 	const bool may_be_diagram = Diagram::clipboardMayContainDiagram();
-	m_paste -> setEnabled(editable_diagram && may_be_diagram);
+		//Ctrl+V also places a picture of the clipboard (not "paste at
+		//origin": a picture has none)
+	const bool has_image = !may_be_diagram && DiagramEventAddImage::clipboardHasImage();
+	m_paste -> setEnabled(editable_diagram && (may_be_diagram || has_image));
 	m_paste_origin -> setEnabled(editable_diagram && may_be_diagram);
 
 		//Read the clipboard once here rather than on every selection

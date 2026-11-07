@@ -491,6 +491,10 @@ class QetScriptApi : public QObject
 		Q_INVOKABLE bool setShapePathNodes(int folioIndex, int shapeIndex, const QVariantList &nodes);
 		Q_INVOKABLE bool setShapeClosed(int folioIndex, int shapeIndex, bool closed);
 
+		// -- cables: an open polyline the wires of a multicore cable run into --
+		Q_INVOKABLE QVariantMap shapeCable(int folioIndex, int shapeIndex) const;
+		Q_INVOKABLE bool setShapeCable(int folioIndex, int shapeIndex, const QVariantMap &data);
+
 		// -- query the project database --
 		Q_INVOKABLE QStringList tables() const;
 		Q_INVOKABLE QVariantList query(const QString &sql);
@@ -513,6 +517,12 @@ class QetScriptApi : public QObject
 		Q_INVOKABLE bool groupTerminals(int stripIndex, const QVariantList &realTerminalIndices);
 		Q_INVOKABLE bool bridgeTerminals(int stripIndex, const QVariantList &realTerminalIndices);
 		Q_INVOKABLE bool sortTerminalStrip(int stripIndex);
+		Q_INVOKABLE int generateTerminalSheets();
+		Q_INVOKABLE int generateIoMaps();
+		Q_INVOKABLE QVariantMap readDatasheet(const QString &pdfFile);
+		Q_INVOKABLE QVariantMap pictureComponent(const QVariantList &pins, bool drawParts,
+							 const QString &bodyText = QString());
+		Q_INVOKABLE QVariantList elementEditorSnap(const QString &definition, const QVariantList &steps);
 
 		// -- a BOM/nomenclature or summary table placed on a folio --
 		Q_INVOKABLE QStringList tables(int folioIndex) const;

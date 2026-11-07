@@ -28,6 +28,7 @@
 #include <QSet>
 
 #include <algorithm>
+#include <functional>
 
 /**
 	@brief ConductorMultiEdit
@@ -97,13 +98,18 @@ namespace ConductorMultiEdit
 		@param targets : the conductors to change, see targets()
 		@param shown : the properties as the panel showed them
 		@param edited : the properties after the user's edit
+		@param adjust : if set, called with each target's properties
+		before and after the edit, to change the latter further (the
+		project's colour and section rules)
 		@return one undo step giving each target the fields that differ
 		between shown and edited, or nullptr if no conductor changes
 	*/
 	template <typename T>
 	QUndoCommand *undo(const QList<T *> &targets,
 			   const ConductorProperties &shown,
-			   const ConductorProperties &edited)
+			   const ConductorProperties &edited,
+			   const std::function<void(const ConductorProperties &,
+						    ConductorProperties &)> &adjust = {})
 	{
 		if (edited == shown)
 			return nullptr;
@@ -115,6 +121,8 @@ namespace ConductorMultiEdit
 			const ConductorProperties old_properties = conductor->properties();
 			ConductorProperties properties = old_properties;
 			properties.applyChanges(shown, edited);
+			if (adjust)
+				adjust(old_properties, properties);
 			if (properties == old_properties)
 				continue;
 

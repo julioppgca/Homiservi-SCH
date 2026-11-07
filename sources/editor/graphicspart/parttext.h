@@ -35,6 +35,7 @@ class PartText : public QGraphicsTextItem, public CustomElementPart {
 	Q_PROPERTY(QString text READ toPlainText WRITE setPlainText NOTIFY plainTextChanged)
 	Q_PROPERTY(QFont font READ font WRITE setFont NOTIFY fontChanged)
 	Q_PROPERTY(Qt::Alignment alignment READ alignment WRITE setAlignment NOTIFY alignmentChanged)
+	Q_PROPERTY(QString elementStyle READ elementStyle WRITE setElementStyle)
 
 	signals:
 		void fontChanged(const QFont &font);
@@ -85,6 +86,9 @@ class PartText : public QGraphicsTextItem, public CustomElementPart {
 		void setFont(const QFont &font);
 		void setAlignment(const Qt::Alignment &alignment);
 		Qt::Alignment alignment() const {return m_alignment;}
+			///The element text style the text follows (ElementTextStyles), empty for none
+		QString elementStyle() const {return m_element_style;}
+		void setElementStyle(const QString &style) {m_element_style = style;}
 
 	public slots:
 		void adjustItemPosition(int = 0);
@@ -117,5 +121,6 @@ class PartText : public QGraphicsTextItem, public CustomElementPart {
 		QPointF m_origin_pos;
 		Qt::Alignment m_alignment = (Qt::AlignTop | Qt::AlignLeft);
 		QRectF m_alignment_rect;
+		QString m_element_style;
 };
 #endif

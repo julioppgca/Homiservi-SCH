@@ -55,10 +55,33 @@
 #include "../../qet_elementscaler/qet_elementscaler.h"
 #include "../UndoCommand/openelmtcommand.h"
 #include "scaleelementdialog.h"
+#include "componentwizarddialog.h"
+#include "datasheetdialog.h"
+#include "picturecomponentdialog.h"
+#include "../../qetinformation.h"
+#include "modulegeneratordialog.h"
+#include "terminaltabledialog.h"
+#include "../UndoCommand/deletepartscommand.h"
+#include "../UndoCommand/pastepartscommand.h"
 #include "../../toolbarsettings.h"
+#include "../../QPropertyUndoCommand/qpropertyundocommand.h"
+#include "../../ui/textstylesdialog.h"
+#include "../elementtextstyles.h"
+#include "../elementchecker.h"
+#include "elementcheckdialog.h"
+#include "partlibrarydialog.h"
+#include "connectordialog.h"
+#include "selectionpanel.h"
+#include "../elementalign.h"
+#include "../esevent/eseventmeasure.h"
 
 #include <QSettings>
 #include <QActionGroup>
+#include <QComboBox>
+#include <QRegularExpression>
+#include <QSpinBox>
+#include <QtMath>
+#include <QStatusBar>
 #include <QFileDialog>
 #include <QSvgGenerator>
 #include <QHBoxLayout>
@@ -716,14 +739,17 @@ void QETElementEditor::updateInformations()
 			}
 		}
 	}
-	//Else we only display the number of selected items
+	//Else the parts of several kinds: what they share, where they are
 	else {
-		clearToolsDock();
-		m_default_informations -> setText(tr("%n partie(s) sélectionnée(s).",
-											 "",
-											 selected_qgis.size()));
-		m_default_informations -> setAlignment(Qt::AlignHCenter | Qt::AlignTop);
-		m_tools_dock_stack -> setCurrentIndex(0);
+		if (!m_selection_panel) {
+			m_selection_panel = new SelectionPanel(m_elmt_scene, this);
+		}
+		if (m_tools_dock_stack -> widget(1) != m_selection_panel) {
+			clearToolsDock();
+			m_tools_dock_stack -> insertWidget(1, m_selection_panel);
+		}
+		m_selection_panel -> refresh();
+		m_tools_dock_stack -> setCurrentIndex(1);
 	}
 }
 
@@ -891,6 +917,15 @@ bool QETElementEditor::checkElement()
 								   " désigner chaque borne, et ne peut donc pas servir à"
 								   " câbler l'armoire en atelier.", "", unnamed));
 		}
+	}
+
+		// Terminals a conductor cannot reach well: off the diagrams' grid,
+		// on top of each other, facing into the drawing
+	for (const ElementChecker::Issue &issue : ElementChecker::check(m_elmt_scene)) {
+		if (issue.id == QLatin1String("off_grid") || issue.id == QLatin1String("stacked")
+		    || issue.id == QLatin1String("facing_in"))
+			warnings << qMakePair(issue.title, QStringLiteral("<br>") + issue.detail.toHtmlEscaped()
+					      + tr("<br>Édition > Verificar componente (F7) corrige ou mostra as partes."));
 	}
 
 	if (!errors.count() && !warnings.count()) {
@@ -1161,6 +1196,135 @@ void QETElementEditor::setupActions()
 	ShortcutManager::instance().registerAction(m_scale_element_action, "elementeditor.scale_element", tr("Éditeur d'élément"), QKeySequence());
 	connect(m_scale_element_action, &QAction::triggered, this, &QETElementEditor::scaleElement);
 
+	m_component_wizard_action = new QAction(QET::Icons::ElementNew, tr("Criar componente por tipo..."), this);
+	m_component_wizard_action->setStatusTip(tr("Desenha uma bobina, contato, disjuntor, botoeira, sinaleiro, motor, fonte ou borne com as marcações IEC e o tipo mestre/escravo já definidos"));
+	ui->m_edit_menu->addAction(m_component_wizard_action);
+	ShortcutManager::instance().registerAction(m_component_wizard_action, "elementeditor.component_wizard", tr("Éditeur d'élément"), QKeySequence());
+	connect(m_component_wizard_action, &QAction::triggered, this, &QETElementEditor::createComponent);
+
+	m_generate_module_action = new QAction(QET::Icons::Terminal, tr("Gerar módulo ou conector..."), this);
+	m_generate_module_action->setStatusTip(tr("Desenha um módulo de CLP, conector ou régua com muitos bornes de uma vez, já numerados"));
+	ui->m_edit_menu->addAction(m_generate_module_action);
+	ShortcutManager::instance().registerAction(m_generate_module_action, "elementeditor.generate_module", tr("Éditeur d'élément"), QKeySequence());
+	connect(m_generate_module_action, &QAction::triggered, this, &QETElementEditor::generateModule);
+
+	m_connector_action = new QAction(QET::Icons::Terminal, tr("Gerar conector padrão..."), this);
+	m_connector_action->setStatusTip(tr("Desenha um conector D-sub, RJ45, USB ou genérico: o símbolo com os pinos na grade e a vista frontal numerada"));
+	ui->m_edit_menu->addAction(m_connector_action);
+	ShortcutManager::instance().registerAction(m_connector_action, "elementeditor.connector", tr("Éditeur d'élément"), QKeySequence());
+	connect(m_connector_action, &QAction::triggered, this, &QETElementEditor::showConnectorGenerator);
+
+	m_terminal_table_action = new QAction(QET::Icons::Terminal, tr("Tabela de bornes..."), this);
+	m_terminal_table_action->setStatusTip(tr("Lista todas as bornes do elemento para editar nome, posição, orientação e tipo, e renomear em série"));
+	ui->m_edit_menu->addAction(m_terminal_table_action);
+	ShortcutManager::instance().registerAction(m_terminal_table_action, "elementeditor.terminal_table", tr("Éditeur d'élément"), QKeySequence());
+	connect(m_terminal_table_action, &QAction::triggered, this, &QETElementEditor::showTerminalTable);
+
+	m_datasheet_action = new QAction(QET::Icons::DocumentImport, tr("Datasheet do componente..."), this);
+	m_datasheet_action->setStatusTip(tr("Guarda o datasheet (arquivo ou link) do componente, preenche os dados e gera o desenho dos pinos lendo o PDF"));
+	ui->m_edit_menu->addAction(m_datasheet_action);
+	ShortcutManager::instance().registerAction(m_datasheet_action, "elementeditor.datasheet", tr("Éditeur d'élément"), QKeySequence());
+	connect(m_datasheet_action, &QAction::triggered, this, &QETElementEditor::showDatasheet);
+
+	m_picture_action = new QAction(QET::Icons::adding_image, tr("Componente a partir de imagem..."), this);
+	m_picture_action->setStatusTip(tr("Cria o desenho do componente (caixa, bornes e contatos) a partir do diagrama de ligação dele e preenche os dados"));
+	ui->m_edit_menu->addAction(m_picture_action);
+	ShortcutManager::instance().registerAction(m_picture_action, "elementeditor.picture_component", tr("Éditeur d'élément"), QKeySequence());
+	connect(m_picture_action, &QAction::triggered, this, &QETElementEditor::showPictureComponent);
+
+	m_terminals_grid_action = new QAction(tr("Colocar bornes na grade"), this);
+	m_terminals_grid_action->setStatusTip(tr("Move os bornes fora da grade dos esquemas (de 10 em 10) para o ponto da grade mais próximo, para os condutores se ligarem a eles"));
+	ui->m_edit_menu->addAction(m_terminals_grid_action);
+	ShortcutManager::instance().registerAction(m_terminals_grid_action, "elementeditor.terminals_on_grid", tr("Éditeur d'élément"), QKeySequence());
+	connect(m_terminals_grid_action, &QAction::triggered, this, &QETElementEditor::placeTerminalsOnGrid);
+
+	m_check_action = new QAction(QET::Icons::DialogInformation, tr("Verificar componente..."), this);
+	m_check_action->setStatusTip(tr("Procura bornes fora da grade, sobrepostos, virados para dentro ou sem nome, falta do campo de rótulo, textos sobre bornes e partes vazias, e corrige o que der"));
+	ui->m_edit_menu->addAction(m_check_action);
+	ShortcutManager::instance().registerAction(m_check_action, "elementeditor.check_element", tr("Éditeur d'élément"), QKeySequence(Qt::Key_F7));
+	connect(m_check_action, &QAction::triggered, this, &QETElementEditor::showElementCheck);
+
+	m_part_library_action = new QAction(QET::Icons::ElementNew, tr("Inserir peça..."), this);
+	m_part_library_action->setStatusTip(tr("Insere símbolos IEC prontos (contatos, bobina, fusível, lâmpada, motor...) ou formas paramétricas (polígono, fileira de bornes, seta...)"));
+	ui->m_edit_menu->addAction(m_part_library_action);
+	ShortcutManager::instance().registerAction(m_part_library_action, "elementeditor.part_library", tr("Éditeur d'élément"), QKeySequence(Qt::Key_F6));
+	connect(m_part_library_action, &QAction::triggered, this, &QETElementEditor::showPartLibrary);
+
+	m_repeat_action = new QAction(QET::Icons::EditCopy, tr("Repetir em série..."), this);
+	m_repeat_action->setStatusTip(tr("Copia as partes escolhidas várias vezes, a passos iguais, numerando os bornes"));
+	ui->m_edit_menu->addAction(m_repeat_action);
+	ShortcutManager::instance().registerAction(m_repeat_action, "elementeditor.repeat_selection", tr("Éditeur d'élément"), QKeySequence());
+	connect(m_repeat_action, &QAction::triggered, this, &QETElementEditor::showRepeatSelection);
+
+		//Align and distribute the parts selected, by their drawing
+	auto align_menu = ui->m_edit_menu->addMenu(QIcon::fromTheme("align-left"), tr("Alinhar e distribuir"));
+	auto align_toolbar = addToolBar(tr("Alinhar", "toolbar title"));
+	align_toolbar->setObjectName("element_align");
+	const QList<QPair<ElementAlign::Mode, QString>> align_modes {
+		{ElementAlign::Left, "align-left"}, {ElementAlign::HCenter, "align-hcenter"},
+		{ElementAlign::Right, "align-right"}, {ElementAlign::Top, "align-top"},
+		{ElementAlign::VCenter, "align-vcenter"}, {ElementAlign::Bottom, "align-bottom"},
+		{ElementAlign::DistributeH, "distribute-h"}, {ElementAlign::DistributeV, "distribute-v"}};
+	for (const auto &mode : align_modes) {
+		auto action = new QAction(QIcon::fromTheme(mode.second), ElementAlign::modeName(mode.first), this);
+		action->setStatusTip(mode.first >= ElementAlign::DistributeH
+				     ? tr("Espaça igualmente os centros das partes escolhidas (pelo menos três)")
+				     : tr("Alinha as partes escolhidas pela caixa de todas elas; bornes contam pelo ponto de ligação"));
+		const int value = mode.first;
+		connect(action, &QAction::triggered, this, [this, value]() { arrangeSelection(value); });
+		ShortcutManager::instance().registerAction(action, QStringLiteral("elementeditor.") + mode.second,
+							   tr("Éditeur d'élément"), QKeySequence());
+		align_menu->addAction(action);
+		align_toolbar->addAction(action);
+		if (mode.first == ElementAlign::Bottom) {
+			align_menu->addSeparator();
+			align_toolbar->addSeparator();
+		}
+		m_align_actions << action;
+	}
+	addToolBar(Qt::TopToolBarArea, align_toolbar);
+
+		//Point snap: the cursor and the parts moved snap to the ends,
+		//corners, centres, terminals and text anchors of the other parts
+	auto *point_snap_action = new QAction(QIcon::fromTheme("snap-points", QET::Icons::SnapToGrid), tr("Encaixe em pontos"), this);
+	point_snap_action->setStatusTip(tr("Encaixa o cursor e as partes movidas nas pontas, cantos, centros, bornes e âncoras de texto das outras partes. Segure Ctrl para desligar o encaixe e a grade"));
+	point_snap_action->setCheckable(true);
+	point_snap_action->setChecked(QSettings().value("elementeditor/point_snap", true).toBool());
+	m_elmt_scene->setPointSnap(point_snap_action->isChecked());
+	connect(point_snap_action, &QAction::toggled, this, [this](bool checked) {
+		m_elmt_scene->setPointSnap(checked);
+		QSettings().setValue("elementeditor/point_snap", checked);
+	});
+	ShortcutManager::instance().registerAction(point_snap_action, "elementeditor.point_snap", tr("Éditeur d'élément"), QKeySequence(Qt::Key_F3));
+	ui->m_display_menu->addAction(point_snap_action);
+	ui->m_view_toolbar->addAction(point_snap_action);
+
+		//Element text styles: the font and colour of a kind of text
+		//(name of a terminal, text of the box...), given to the texts
+		//chosen from the combo of their toolbar
+	m_text_styles_action = new QAction(QET::Icons::PartText, tr("Estilos de texto..."), this);
+	m_text_styles_action->setStatusTip(tr("Cria e edita os estilos de texto dos elementos: fonte e cor do nome do borne, do texto da caixa, do rótulo..."));
+	ui->m_edit_menu->addAction(m_text_styles_action);
+	ShortcutManager::instance().registerAction(m_text_styles_action, "elementeditor.text_styles", tr("Éditeur d'élément"), QKeySequence());
+	connect(m_text_styles_action, &QAction::triggered, this, &QETElementEditor::editTextStyles);
+
+	auto styles_toolbar = addToolBar(tr("Estilos de texto", "toolbar title"));
+	styles_toolbar->setObjectName("element_text_styles");
+	m_text_style_combo = new QComboBox(styles_toolbar);
+	m_text_style_combo->setToolTip(tr("Estilo dos textos escolhidos"));
+	m_text_style_combo->setSizeAdjustPolicy(QComboBox::AdjustToContents);
+	styles_toolbar->addWidget(m_text_style_combo);
+	styles_toolbar->addAction(m_text_styles_action);
+	styles_toolbar->addSeparator();
+	styles_toolbar->addAction(m_check_action);
+	styles_toolbar->addAction(m_part_library_action);
+	styles_toolbar->addAction(m_connector_action);
+	styles_toolbar->addAction(m_repeat_action);
+	addToolBar(Qt::TopToolBarArea, styles_toolbar);
+	fillTextStyles();
+	connect(m_text_style_combo, QOverload<int>::of(&QComboBox::activated), this, &QETElementEditor::applyTextStyle);
+	connect(m_elmt_scene, &QGraphicsScene::selectionChanged, this, &QETElementEditor::showTextStyle);
+
 
 		//Zoom action
 	ShortcutManager::instance().registerAction(ui->m_zoom_in_action, "elementeditor.zoom_in", tr("Éditeur d'élément"), QKeySequence::ZoomIn);
@@ -1179,6 +1343,7 @@ void QETElementEditor::setupActions()
 	auto *add_arc                = new QAction(QET::Icons::PartArc,       tr("Ajouter un arc de cercle"),         m_add_part_action_grp);
 	auto *add_terminal           = new QAction(QET::Icons::Terminal,      tr("Ajouter une borne"),                m_add_part_action_grp);
 	auto *add_dynamic_text_field = new QAction(QET::Icons::PartTextField, tr("Ajouter un champ texte dynamique"), m_add_part_action_grp);
+	auto *measure                = new QAction(QIcon::fromTheme("measure", QET::Icons::ZoomDraw), tr("Medir"), m_add_part_action_grp);
 
 	for (auto action : m_add_part_action_grp->actions()) {
 		action -> setCheckable(true);
@@ -1192,6 +1357,9 @@ void QETElementEditor::setupActions()
 	connect(add_arc,       &QAction::triggered, [this]() {m_elmt_scene->setEventInterface(new ESEventAddArc(m_elmt_scene));});
 	connect(add_terminal,  &QAction::triggered, [this]() {m_elmt_scene->setEventInterface(new ESEventAddTerminal(m_elmt_scene));});
 	connect(add_dynamic_text_field, &QAction::triggered, [this]() {m_elmt_scene->setEventInterface(new ESEventAddDynamicTextField(m_elmt_scene));});
+	connect(measure,       &QAction::triggered, [this]() {m_elmt_scene->setEventInterface(new ESEventMeasure(m_elmt_scene));});
+	measure -> setStatusTip(tr("Mede a distância, os afastamentos e o ângulo entre dois pontos, com o encaixe em pontos; não altera o elemento"));
+	ShortcutManager::instance().registerAction(measure, "elementeditor.measure", tr("Éditeur d'élément"), QKeySequence(Qt::Key_M));
 
 	add_polygon -> setStatusTip(tr("Double-click pour terminer la forme, Click droit pour annuler le dernier point"));
 	add_text    -> setStatusTip(tr("Ajouter un texte d'élément non éditable dans les schémas"));
@@ -1255,10 +1423,22 @@ void QETElementEditor::updateAction()
 	auto ro_list = m_add_part_action_grp->actions();
 	ro_list << ui->m_paste_from_file_action
 			<< ui->m_paste_from_element_action
-			<< m_scale_element_action;
+			<< m_scale_element_action
+			<< m_component_wizard_action
+			<< m_generate_module_action
+			<< m_terminal_table_action
+			<< m_datasheet_action
+			<< m_picture_action
+			<< m_terminals_grid_action
+			<< m_part_library_action
+			<< m_connector_action
+			<< m_repeat_action;
+	ro_list << m_align_actions;
 	for (auto action : std::as_const(ro_list)) {
 		action->setDisabled(m_read_only);
 	}
+	if (m_text_style_combo)
+		m_text_style_combo->setDisabled(m_read_only);
 
 		//Changing what is selected does not change the element, so these stay
 		//available when it is read only -- otherwise there is no way to pick
@@ -1831,6 +2011,480 @@ void QETElementEditor::scaleElement()
 	}
 	m_elmt_scene->undoStack().push(
 				new ScaleElementCommand(m_elmt_scene, dialog.factor(), dialog.scaleText()));
+}
+
+/**
+	@brief QETElementEditor::generateModule
+	Ask for the pins of a module or connector, then paste the box, the
+	terminals and their names in the element as one undo step.
+*/
+void QETElementEditor::generateModule()
+{
+	ModuleGeneratorDialog dialog(this);
+	if (dialog.exec() != QDialog::Accepted) {
+		return;
+	}
+	ElementContent content;
+	m_elmt_scene->fromXml(ModuleGenerator::build(dialog.settings()), QPointF(), false, &content);
+	if (content.isEmpty()) {
+		return;
+	}
+	m_elmt_scene->clearSelection();
+	m_elmt_scene->undoStack().push(new PastePartsCommand(m_view, content));
+}
+
+/**
+	@brief QETElementEditor::createComponent
+	Draw a usual component from its kind and give the element the matching
+	type, name and label prefix, as one undo step.
+*/
+void QETElementEditor::createComponent()
+{
+	ComponentWizardDialog dialog(!m_elmt_scene->primitives().isEmpty(), this);
+	if (dialog.exec() != QDialog::Accepted) {
+		return;
+	}
+	const ComponentWizard::Settings settings = dialog.settings();
+	QVector<QGraphicsItem *> old_parts;
+	if (dialog.replaceDrawing()) {
+		for (CustomElementPart *part : m_elmt_scene->primitives()) {
+			old_parts << part->toItem();
+		}
+	}
+	ElementContent content;
+	m_elmt_scene->fromXml(ComponentWizard::build(settings), QPointF(), false, &content);
+	if (content.isEmpty()) {
+		return;
+	}
+
+	auto undo = new QUndoCommand(tr("Criar o componente %1").arg(settings.name));
+	if (!old_parts.isEmpty()) {
+		new DeletePartsCommand(m_elmt_scene, old_parts, undo);
+	}
+	m_elmt_scene->clearSelection();
+	new PastePartsCommand(m_view, content, undo);
+	const ElementData old_data = m_elmt_scene->elementData();
+	ElementData new_data = old_data;
+	ComponentWizard::applyData(settings, new_data);
+	if (new_data != old_data) {
+		new changeElementDataCommand(m_elmt_scene, old_data, new_data, undo);
+	}
+	m_elmt_scene->undoStack().push(undo);
+}
+
+/**
+	@brief QETElementEditor::showDatasheet
+	Keep where the datasheet of the element is and apply what reading it
+	gave, once the user reviewed it: the information, the name and the
+	box with the pins, as one undo step.
+*/
+void QETElementEditor::showDatasheet()
+{
+	DatasheetDialog dialog(m_elmt_scene->elementData(), !m_elmt_scene->primitives().isEmpty(), this);
+	if (dialog.exec() != QDialog::Accepted) {
+		return;
+	}
+	auto undo = new QUndoCommand(tr("Aplicar o datasheet"));
+
+	if (dialog.drawPins()) {
+			//The parts to replace, taken before fromXml() adds the new ones
+		QVector<QGraphicsItem *> old_parts;
+		if (dialog.replaceDrawing()) {
+			for (CustomElementPart *part : m_elmt_scene->primitives()) {
+				old_parts << part->toItem();
+			}
+		}
+		ElementContent content;
+		m_elmt_scene->fromXml(ModuleGenerator::build(DatasheetReader::drawing(dialog.pins(), dialog.bodyText())),
+				      QPointF(), false, &content);
+		if (!content.isEmpty()) {
+			if (!old_parts.isEmpty()) {
+				new DeletePartsCommand(m_elmt_scene, old_parts, undo);
+			}
+			m_elmt_scene->clearSelection();
+			new PastePartsCommand(m_view, content, undo);
+		}
+	}
+
+	const ElementData old_data = m_elmt_scene->elementData();
+	ElementData new_data = old_data;
+	new_data.m_informations.addValue(QETInformation::ELMT_DATASHEET, dialog.datasheet());
+	const QMap<QString, QString> information = dialog.information();
+	for (auto it = information.cbegin(); it != information.cend(); ++it) {
+		new_data.m_informations.addValue(it.key(), it.value());
+	}
+	if (!dialog.name().isEmpty()) {
+		new_data.m_names_list.addName(QETApp::langFromSetting().left(2), dialog.name());
+	}
+	if (new_data != old_data) {
+		new changeElementDataCommand(m_elmt_scene, old_data, new_data, undo);
+	}
+
+	if (undo->childCount()) {
+		m_elmt_scene->undoStack().push(undo);
+	} else {
+		delete undo;
+	}
+}
+
+/**
+	@brief QETElementEditor::placeTerminalsOnGrid
+	Move the terminals off the diagrams' grid to its nearest point, in
+	one undo: the conductors of a diagram only reach a terminal there.
+*/
+void QETElementEditor::placeTerminalsOnGrid()
+{
+	const QList<PartTerminal *> terminals = m_elmt_scene->terminalsOffGrid();
+	if (terminals.isEmpty()) {
+		QET::QetMessageBox::information(this, tr("Bornes na grade"),
+						tr("Todos os bornes já estão na grade dos esquemas."));
+		return;
+	}
+	auto undo = new QUndoCommand(tr("Colocar %n borne(s) na grade", "", terminals.size()));
+	for (PartTerminal *terminal : terminals) {
+		const QPointF pos = terminal->pos();
+		new QPropertyUndoCommand(terminal, "pos", pos,
+					 m_elmt_scene->snapTerminal(pos, Qt::NoModifier), undo);
+	}
+	m_elmt_scene->undoStack().push(undo);
+}
+
+/**
+	@brief QETElementEditor::showConnectorGenerator
+	Draw a connector (ConnectorDialog), in place of the drawing or beside
+	it, and name the element, as one undo step.
+*/
+void QETElementEditor::showConnectorGenerator()
+{
+	ConnectorDialog dialog(!m_elmt_scene->primitives().isEmpty(), this);
+	if (dialog.exec() != QDialog::Accepted) {
+		return;
+	}
+	auto undo = new QUndoCommand(tr("Gerar o conector %1").arg(dialog.name()));
+
+		//The parts to replace, taken before fromXml() adds the new ones
+	QVector<QGraphicsItem *> old_parts;
+	if (dialog.replaceDrawing()) {
+		for (CustomElementPart *part : m_elmt_scene->primitives()) {
+			old_parts << part->toItem();
+		}
+	}
+	ElementContent content;
+	m_elmt_scene->fromXml(dialog.drawing(), QPointF(), false, &content);
+	if (!content.isEmpty()) {
+		if (!old_parts.isEmpty()) {
+			new DeletePartsCommand(m_elmt_scene, old_parts, undo);
+		}
+		m_elmt_scene->clearSelection();
+		new PastePartsCommand(m_view, content, undo);
+	}
+
+	const ElementData old_data = m_elmt_scene->elementData();
+	ElementData new_data = old_data;
+	if (!dialog.name().isEmpty()) {
+		new_data.m_names_list.addName(QETApp::langFromSetting().left(2), dialog.name());
+	}
+	if (new_data != old_data) {
+		new changeElementDataCommand(m_elmt_scene, old_data, new_data, undo);
+	}
+
+	if (undo->childCount()) {
+		m_elmt_scene->undoStack().push(undo);
+	} else {
+		delete undo;
+	}
+}
+
+/**
+	@brief QETElementEditor::showPartLibrary
+	Choose a ready made piece; the user then clicks where it goes
+*/
+void QETElementEditor::showPartLibrary()
+{
+	PartLibraryDialog dialog(this);
+	if (dialog.exec() == QDialog::Accepted)
+		copyAndPasteXml(dialog.drawing());
+}
+
+/**
+	@brief QETElementEditor::repeatSelection
+	Copy the parts selected count - 1 times, each copy step further than
+	the one before; the names of terminals ending in a number take
+	increment more on each copy (13 gives 23, 33... with 10), the other
+	names are kept. The copies are selected, in one undo.
+	@return the number of copies made
+*/
+int QETElementEditor::repeatSelection(int count, const QPointF &step, int increment)
+{
+	if (count < 2 || m_elmt_scene->selectedItems().isEmpty())
+		return 0;
+	const QDomDocument selection = m_elmt_scene->toXml(false);
+	const QRegularExpression numbered(QStringLiteral("^(.*?)(\\d+)$"));
+
+	auto undo = new QUndoCommand(tr("Repetir em série"));
+	ElementContent all;
+	for (int i = 1; i < count; ++i) {
+		ElementContent content;
+		m_elmt_scene->fromXml(selection, QPointF(), false, &content);
+		for (QGraphicsItem *item : content) {
+			item->setPos(item->pos() + step * i);
+			if (auto terminal = qgraphicsitem_cast<PartTerminal *>(item)) {
+				const QRegularExpressionMatch match = numbered.match(terminal->terminalName());
+				if (match.hasMatch() && increment)
+					terminal->setTerminalName(match.captured(1)
+								  + QString::number(match.captured(2).toLongLong() + qlonglong(increment) * i));
+			}
+		}
+		all << content;
+	}
+	if (all.isEmpty()) {
+		delete undo;
+		return 0;
+	}
+	m_elmt_scene->clearSelection();
+	new PastePartsCommand(m_view, all, undo);
+	m_elmt_scene->undoStack().push(undo);
+	return count - 1;
+}
+
+/**
+	@brief QETElementEditor::arrangeSelection
+	Align or distribute the parts selected (mode, an ElementAlign::Mode)
+	@return whether something moved
+*/
+bool QETElementEditor::arrangeSelection(int mode)
+{
+	if (m_read_only)
+		return false;
+	QList<QGraphicsItem *> parts;
+	for (QGraphicsItem *item : m_elmt_scene->selectedItems())
+		if (dynamic_cast<CustomElementPart *>(item))
+			parts << item;
+	QUndoCommand *undo = ElementAlign::arrange(m_elmt_scene, parts, ElementAlign::Mode(mode));
+	if (!undo) {
+		statusBar()->showMessage(mode >= ElementAlign::DistributeH
+					 ? tr("Escolha pelo menos três partes para distribuir.")
+					 : tr("Escolha pelo menos duas partes para alinhar."), 4000);
+		return false;
+	}
+	m_elmt_scene->undoStack().push(undo);
+	return true;
+}
+
+/**
+	@brief QETElementEditor::showRepeatSelection
+	Ask how many copies, how far apart and how to number the terminals
+*/
+void QETElementEditor::showRepeatSelection()
+{
+	const QList<QGraphicsItem *> selected = m_elmt_scene->selectedItems();
+	if (selected.isEmpty()) {
+		statusBar()->showMessage(tr("Escolha as partes a repetir."), 4000);
+		return;
+	}
+	QRectF bounds;
+	for (QGraphicsItem *item : selected)
+		bounds = bounds.united(item->sceneBoundingRect());
+
+	QSettings settings;
+	QDialog dialog(this);
+	dialog.setWindowTitle(tr("Repetir em série"));
+	auto layout = new QFormLayout(&dialog);
+	auto count = new QSpinBox(&dialog);
+	count->setRange(2, 200);
+	count->setValue(settings.value(QStringLiteral("elementeditor/repeat_count"), 3).toInt());
+	layout->addRow(tr("Quantidade (com o original)"), count);
+	auto dx = new QDoubleSpinBox(&dialog);
+	dx->setRange(-10000, 10000);
+	dx->setSingleStep(10);
+	dx->setDecimals(1);
+		//Next to the selection by default, on the diagrams' grid
+	dx->setValue(qCeil(bounds.width() / 10) * 10);
+	layout->addRow(tr("Passo horizontal"), dx);
+	auto dy = new QDoubleSpinBox(&dialog);
+	dy->setRange(-10000, 10000);
+	dy->setSingleStep(10);
+	dy->setDecimals(1);
+	dy->setValue(0);
+	layout->addRow(tr("Passo vertical"), dy);
+	auto increment = new QSpinBox(&dialog);
+	increment->setRange(-1000, 1000);
+	increment->setValue(settings.value(QStringLiteral("elementeditor/repeat_increment"), 10).toInt());
+	increment->setToolTip(tr("Soma ao número no fim do nome de cada borne, a cada cópia: com 10, 13/14 vira 23/24, 33/34... Zero mantém os nomes."));
+	layout->addRow(tr("Numeração dos bornes (+)"), increment);
+	auto buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
+	connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+	connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+	layout->addRow(buttons);
+	if (dialog.exec() != QDialog::Accepted)
+		return;
+	settings.setValue(QStringLiteral("elementeditor/repeat_count"), count->value());
+	settings.setValue(QStringLiteral("elementeditor/repeat_increment"), increment->value());
+	repeatSelection(count->value(), QPointF(dx->value(), dy->value()), increment->value());
+}
+
+/**
+	@brief QETElementEditor::showElementCheck
+	Show what is wrong with the element, kept up to date while it is edited
+*/
+void QETElementEditor::showElementCheck()
+{
+	if (!m_check_dialog) {
+		m_check_dialog = new ElementCheckDialog(m_elmt_scene, this);
+		m_check_dialog->setAttribute(Qt::WA_DeleteOnClose);
+	}
+	m_check_dialog->refresh();
+	m_check_dialog->show();
+	m_check_dialog->raise();
+	m_check_dialog->activateWindow();
+}
+
+/**
+	@brief QETElementEditor::fillTextStyles
+	List the element text styles in the combo of their toolbar, after a
+	first item standing for none
+*/
+void QETElementEditor::fillTextStyles()
+{
+	const QSignalBlocker blocker(m_text_style_combo);
+	m_text_style_combo->clear();
+	m_text_style_combo->addItem(tr("Estilo de texto"));
+	for (const TextStyles::Style &style : ElementTextStyles::load())
+		m_text_style_combo->addItem(style.name, style.name);
+	showTextStyle();
+}
+
+/**
+	@brief QETElementEditor::showTextStyle
+	Show in the combo the style of the texts chosen, when they all have
+	the same
+*/
+void QETElementEditor::showTextStyle()
+{
+	if (!m_text_style_combo)
+		return;
+	QString name;
+	const QList<QGraphicsObject *> texts = ElementTextStyles::texts(m_elmt_scene->selectedItems());
+	for (int i = 0; i < texts.size(); ++i) {
+		const QString style = texts.at(i)->property("elementStyle").toString();
+		if (i && style != name) {
+			name.clear();
+			break;
+		}
+		name = style;
+	}
+	const QSignalBlocker blocker(m_text_style_combo);
+	m_text_style_combo->setCurrentIndex(name.isEmpty() ? 0 : qMax(0, m_text_style_combo->findData(name)));
+}
+
+/**
+	@brief QETElementEditor::applyTextStyle
+	Give the texts chosen the style at index of the combo
+*/
+void QETElementEditor::applyTextStyle(int index)
+{
+	if (index <= 0)
+		return;
+	const QList<QGraphicsObject *> texts = ElementTextStyles::texts(m_elmt_scene->selectedItems());
+	if (texts.isEmpty()) {
+		statusBar()->showMessage(tr("Escolha os textos que vão receber o estilo."), 4000);
+		showTextStyle();
+		return;
+	}
+	const QList<TextStyles::Style> styles = ElementTextStyles::load();
+	if (const TextStyles::Style *style = TextStyles::find(styles, m_text_style_combo->itemData(index).toString()))
+		if (QUndoCommand *undo = ElementTextStyles::apply(*style, texts))
+			m_elmt_scene->undoStack().push(undo);
+}
+
+/**
+	@brief QETElementEditor::editTextStyles
+	Edit the element text styles; the texts of the element naming a style
+	take its new font and colour.
+*/
+void QETElementEditor::editTextStyles()
+{
+	TextStylesDialog dialog(ElementTextStyles::load(), this);
+	dialog.setForElements(ElementTextStyles::examples());
+	if (dialog.exec() != QDialog::Accepted)
+		return;
+	ElementTextStyles::save(dialog.styles());
+	fillTextStyles();
+	if (m_read_only)
+		return;
+	QList<QGraphicsItem *> items;
+	for (CustomElementPart *part : m_elmt_scene->primitives())
+		items << part->toItem();
+	if (QUndoCommand *undo = ElementTextStyles::update(dialog.styles(), dialog.renames(),
+							   ElementTextStyles::texts(items)))
+		m_elmt_scene->undoStack().push(undo);
+}
+
+/**
+	@brief QETElementEditor::showPictureComponent
+	Make the element from a picture of the component
+	(PictureComponentDialog): its drawing and information, applied as
+	one undo step.
+*/
+void QETElementEditor::showPictureComponent()
+{
+	PictureComponentDialog dialog(m_elmt_scene->elementData(), !m_elmt_scene->primitives().isEmpty(), this);
+	if (dialog.exec() != QDialog::Accepted) {
+		return;
+	}
+	auto undo = new QUndoCommand(tr("Componente a partir de imagem"));
+
+		//The parts to replace, taken before fromXml() adds the new ones
+	QVector<QGraphicsItem *> old_parts;
+	if (dialog.replaceDrawing()) {
+		for (CustomElementPart *part : m_elmt_scene->primitives()) {
+			old_parts << part->toItem();
+		}
+	}
+	ElementContent content;
+	m_elmt_scene->fromXml(dialog.drawing(), QPointF(), false, &content);
+	if (!content.isEmpty()) {
+		if (!old_parts.isEmpty()) {
+			new DeletePartsCommand(m_elmt_scene, old_parts, undo);
+		}
+		m_elmt_scene->clearSelection();
+		new PastePartsCommand(m_view, content, undo);
+	}
+
+	const ElementData old_data = m_elmt_scene->elementData();
+	ElementData new_data = old_data;
+	const QMap<QString, QString> information = dialog.information();
+	for (auto it = information.cbegin(); it != information.cend(); ++it) {
+		new_data.m_informations.addValue(it.key(), it.value());
+	}
+	if (!dialog.name().isEmpty()) {
+		new_data.m_names_list.addName(QETApp::langFromSetting().left(2), dialog.name());
+	}
+	if (new_data != old_data) {
+		new changeElementDataCommand(m_elmt_scene, old_data, new_data, undo);
+	}
+
+	if (undo->childCount()) {
+		m_elmt_scene->undoStack().push(undo);
+	} else {
+		delete undo;
+	}
+}
+
+/**
+	@brief QETElementEditor::showTerminalTable
+	Edit every terminal of the element in a table, applied as one undo
+	step.
+*/
+void QETElementEditor::showTerminalTable()
+{
+	TerminalTableDialog dialog(m_elmt_scene, this);
+	if (dialog.exec() != QDialog::Accepted) {
+		return;
+	}
+	if (QUndoCommand *undo = dialog.undoCommand()) {
+		m_elmt_scene->undoStack().push(undo);
+	}
 }
 
 void QETElementEditor::on_m_import_scaled_element_triggered()

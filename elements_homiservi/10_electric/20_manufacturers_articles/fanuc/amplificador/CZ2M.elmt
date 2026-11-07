@@ -1,0 +1,45 @@
+<definition height="70" hotspot_x="10" hotspot_y="18" link_type="simple" type="element" version="0.200.1" width="50">
+    <uuid uuid="{6545156e-e570-5b39-806c-276de5f16ffb}"/>
+    <names>
+        <name lang="en">CZ2M</name>
+        <name lang="fr">CZ2M</name>
+        <name lang="pt">CZ2M – potência do motor (cabos por cima)</name>
+        <name lang="pt_BR">CZ2M – potência do motor (cabos por cima)</name>
+    </names>
+    <elementInformations>
+        <elementInformation name="manufacturer" show="1">FANUC</elementInformation>
+        <elementInformation name="designation" show="1">CZ2M</elementInformation>
+        <elementInformation name="description" show="1">CZ2M – potência do motor (cabos por cima)</elementInformation>
+    </elementInformations>
+    <informations>Homiservi-SCH: gerado pelo gerador de conectores (estilo FANUC). Pinagem tirada do manual FANUC B-65412EN (αi-B, Descriptions), capítulos 9 e 13.</informations>
+    <description>
+        <line antialias="false" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" uuid="{2df3aaa6-ea74-4f72-9efd-07b03a919686}" x1="0" x2="0" y1="0" y2="-10"/>
+        <dynamic_text Halignment="AlignLeft" Valignment="AlignTop" element_style="Rótulo" font="Liberation Sans,9,-1,0,50,0,0,0,0,0,Regular" frame="false" keep_visual_rotation="true" rotation="0" rotation_point_center="false" text_from="ElementInfo" text_width="-1" uuid="{e5084388-f66e-48e5-8427-e9bad40bbc37}" x="-40" y="2" z="1">
+            <text/>
+            <info_name>label</info_name>
+        </dynamic_text>
+        <rect antialias="false" height="2.5" rx="0" ry="0" style="line-style:normal;line-weight:thin;filling:black;color:black" uuid="{8f522f82-b61c-4966-ab2c-ca5825afdd1e}" width="2.4" x="-1.2" y="-2.5"/>
+        <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="(B1)" uuid="{47db3f9d-941d-4e04-bbc7-959a31946973}" x="3.09" y="20"/>
+        <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="U" uuid="{d06ba089-ddbd-4a71-a8a2-82601aac5681}" x="3.09" y="44"/>
+        <line antialias="false" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" uuid="{ab2b906a-272b-4875-8da5-cb2c2be279e6}" x1="10" x2="10" y1="0" y2="-10"/>
+        <rect antialias="false" height="2.5" rx="0" ry="0" style="line-style:normal;line-weight:thin;filling:black;color:black" uuid="{6db780f5-76ed-4ed6-954a-d6138ec0343c}" width="2.4" x="8.8" y="-2.5"/>
+        <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="(A1)" uuid="{8b4e4828-1ec5-464c-ada1-5d194c903a9d}" x="13.09" y="20"/>
+        <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="V" uuid="{baf5bd63-09eb-4be1-aa47-8560c0a6ae04}" x="13.09" y="44"/>
+        <line antialias="false" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" uuid="{96e21433-05cd-4624-8ddb-c48f349cf4a4}" x1="20" x2="20" y1="0" y2="-10"/>
+        <rect antialias="false" height="2.5" rx="0" ry="0" style="line-style:normal;line-weight:thin;filling:black;color:black" uuid="{59b75775-099b-4f62-a97b-e0b17d0ba65e}" width="2.4" x="18.8" y="-2.5"/>
+        <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="(B2)" uuid="{2d6e17ba-0ac0-4fe4-a0f8-b574a8d7ce60}" x="23.09" y="20"/>
+        <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="W" uuid="{7e213aee-3778-4be4-bf38-e3ccb276daf1}" x="23.09" y="44"/>
+        <line antialias="false" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" uuid="{5b0be263-f9da-4f66-919e-67ba08f13900}" x1="30" x2="30" y1="0" y2="-10"/>
+        <rect antialias="false" height="2.5" rx="0" ry="0" style="line-style:normal;line-weight:thin;filling:black;color:black" uuid="{c962242f-7854-4473-8b3f-101df2768682}" width="2.4" x="28.8" y="-2.5"/>
+        <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="(A2)" uuid="{d67d9246-0b7d-48c7-a2c5-5b2e57ecb1a1}" x="33.09" y="20"/>
+        <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="GND" uuid="{0ee86877-af38-40c4-b3b2-7442f8808f2c}" x="33.09" y="44"/>
+        <line antialias="false" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:thin;filling:none;color:black" uuid="{49161b67-572d-4a06-8d4f-e3c6713cf4d2}" x1="-4" x2="34" y1="47" y2="47"/>
+        <line antialias="false" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:thin;filling:none;color:black" uuid="{479c7d40-85ee-4d04-874e-d576c17455b5}" x1="-4" x2="-4" y1="47" y2="45"/>
+        <line antialias="false" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:thin;filling:none;color:black" uuid="{c3a5be31-9cfb-4347-9a0d-9751287ae4e4}" x1="34" x2="34" y1="47" y2="45"/>
+        <text color="#000000" element_style="Texto da caixa" font="Liberation Sans,9,-1,0,50,0,0,0,0,0,Regular" rotation="0" text="CZ2M" uuid="{8419c6f7-94c2-4464-b7ca-875def515b2b}" x="-1.5" y="58.25"/>
+        <terminal name="B1" orientation="n" type="Generic" uuid="{d511f073-0219-49cd-a92b-78fa3f25e9b1}" x="0" y="-10"/>
+        <terminal name="A1" orientation="n" type="Generic" uuid="{bb1b3bfe-400f-49de-8665-1860d1eb7da9}" x="10" y="-10"/>
+        <terminal name="B2" orientation="n" type="Generic" uuid="{57bb320e-6d3a-40af-9c24-6076f4ad087b}" x="20" y="-10"/>
+        <terminal name="A2" orientation="n" type="Generic" uuid="{1af80b12-997a-43c5-bf10-01775ffdbad5}" x="30" y="-10"/>
+    </description>
+</definition>

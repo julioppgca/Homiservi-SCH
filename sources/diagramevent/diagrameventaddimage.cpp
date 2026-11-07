@@ -24,6 +24,11 @@
 #include "../undocommand/addgraphicsobjectcommand.h"
 #include "../qetgraphicsitem/diagramimageitem.h"
 
+#include <QApplication>
+#include <QClipboard>
+#include <QFileInfo>
+#include <QImageReader>
+#include <QMimeData>
 #include <QStatusBar>
 #include <QTimer>
 
@@ -48,6 +53,126 @@ DiagramEventAddImage::DiagramEventAddImage(Diagram *diagram) :
 		// later by that cleanup.
 		QTimer::singleShot(0, this, [this]() { showHint(); });
 	}
+}
+
+/**
+	@brief DiagramEventAddImage::DiagramEventAddImage
+	Place an image that is already loaded, e.g. pasted from the
+	clipboard, instead of asking for a file. It shows up at once under
+	the cursor, sized by createItem().
+	@param diagram : diagram where operate this event
+	@param image : the image to place
+	@param start_pos : where the image first appears, in scene coordinates
+*/
+DiagramEventAddImage::DiagramEventAddImage(Diagram *diagram, const QImage &image,
+					   const QPointF &start_pos) :
+	DiagramEventInterface(diagram),
+	m_image (nullptr),
+	m_is_added (false)
+{
+	if (m_diagram->isReadOnly() || image.isNull()) return;
+
+		//DiagramEventInterface::init() is called by Diagram::setEventInterface
+		//only when it is replacing an earlier interface, as DiagramEventAddPaste.
+	init();
+
+	m_image = createItem(image);
+	m_running = true;
+
+	for (QGraphicsView *view : m_diagram->views()) {
+		view->setContextMenuPolicy((Qt::NoContextMenu));
+	}
+	m_diagram->addItem(m_image);
+	m_is_added = true;
+	m_image->setPos(start_pos - m_image->boundingRect().center());
+	QTimer::singleShot(0, this, [this]() { showHint(); });
+}
+
+namespace {
+		///The local files of mime_data whose extension is an image format
+	QStringList imageFiles(const QMimeData *mime_data)
+	{
+		QStringList files;
+		if (!mime_data->hasUrls()) return files;
+		const QList<QByteArray> formats = QImageReader::supportedImageFormats();
+		for (const QUrl &url : mime_data->urls())
+		{
+			if (!url.isLocalFile()) continue;
+			const QString suffix = QFileInfo(url.toLocalFile()).suffix().toLower();
+			if (formats.contains(suffix.toLatin1())) files << url.toLocalFile();
+		}
+		return files;
+	}
+}
+
+/**
+	@brief DiagramEventAddImage::imageFromMimeData
+	@return the picture held by mime_data: an image copied from a program
+	or a browser, or else the first image file copied in the file manager.
+	A null image when there is none.
+*/
+QImage DiagramEventAddImage::imageFromMimeData(const QMimeData *mime_data)
+{
+	if (!mime_data) return QImage();
+
+	if (mime_data->hasImage())
+	{
+		const QImage image = qvariant_cast<QImage>(mime_data->imageData());
+		if (!image.isNull()) return image;
+	}
+
+	for (const QString &path : imageFiles(mime_data))
+	{
+		const QImage image(path);
+		if (!image.isNull()) return image;
+	}
+	return QImage();
+}
+
+/**
+	@brief DiagramEventAddImage::imageFromClipboard
+	@return the picture of the clipboard, see imageFromMimeData()
+*/
+QImage DiagramEventAddImage::imageFromClipboard()
+{
+	return imageFromMimeData(QApplication::clipboard()->mimeData());
+}
+
+/**
+	@brief DiagramEventAddImage::clipboardHasImage
+	@return true if the clipboard seems to hold a picture, without
+	decoding it: cheap enough to follow every change of the clipboard.
+*/
+bool DiagramEventAddImage::clipboardHasImage()
+{
+	return hasImage(QApplication::clipboard()->mimeData());
+}
+
+/**
+	@brief DiagramEventAddImage::hasImage
+	@return true if mime_data seems to hold a picture, see clipboardHasImage()
+*/
+bool DiagramEventAddImage::hasImage(const QMimeData *mime_data)
+{
+	return mime_data && (mime_data->hasImage() || !imageFiles(mime_data).isEmpty());
+}
+
+/**
+	@brief DiagramEventAddImage::createItem
+	@return a new image item for a pasted or dropped picture. A screenshot
+	keeps all its pixels but starts at most 400 px wide or high, to stay
+	readable on a folio.
+*/
+DiagramImageItem *DiagramEventAddImage::createItem(const QImage &image)
+{
+	auto *item = new DiagramImageItem (QPixmap::fromImage(image));
+	const qreal largest = qMax(image.width(), image.height());
+	if (largest > 400)
+	{
+		item->setScaleFactorX(400 / largest);
+		item->setScaleFactorY(400 / largest);
+	}
+	return item;
 }
 
 /**

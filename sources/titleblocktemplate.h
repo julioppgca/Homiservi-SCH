@@ -178,6 +178,7 @@ class TitleBlockTemplate : public QObject {
 			QString &,
 			int,
 			const QTransform & = QTransform()) const;
+	static QRectF logoRect(const QRect &, const QSizeF &);
 	void renderCell(QPainter &,
 			const TitleBlockCell &,
 			const DiagramContext &,

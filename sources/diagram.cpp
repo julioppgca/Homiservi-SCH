@@ -2055,6 +2055,7 @@ void Diagram::addItem(QGraphicsItem *item)
 		{
 			m_project->dataBase()->addElement(
 						static_cast<Element *>(item));
+			m_project->scheduleTextStyles();
 			break;
 		}
 		case Conductor::Type:
@@ -2071,6 +2072,8 @@ void Diagram::addItem(QGraphicsItem *item)
 		case DiagramImageItem::Type:
 		{
 			m_project->dataBase()->addDrawingItem(item);
+			if (item->type() == IndependentTextItem::Type)
+				m_project->scheduleTextStyles();
 			break;
 		}
 		default: {break;}

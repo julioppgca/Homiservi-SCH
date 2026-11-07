@@ -38,6 +38,11 @@
 #include "../dataBase/projectdatabase.h"
 #include "../qetapp.h"
 #include "../qetproject.h"
+#include "../terminalsheet.h"
+#include "../iomap.h"
+#include "../editor/datasheetreader.h"
+#include "../editor/picturecomponent.h"
+#include "../editor/connectorgenerator.h"
 #include "../qetresult.h"
 #include "../qetgraphicsitem/conductor.h"
 #include "../qetgraphicsitem/conductortextitem.h"
@@ -90,6 +95,23 @@
 #include "../undocommand/linkelementcommand.h"
 #include "../undocommand/removediagramcommand.h"
 #include "../utils/conductorcreator.h"
+
+#include "../editor/elementscene.h"
+#include "../editor/elementtextstyles.h"
+#include "../editor/elementchecker.h"
+#include "../editor/elementcontent.h"
+#include "../editor/partlibrary.h"
+#include "../editor/elementalign.h"
+#include "../editor/esevent/eseventmeasure.h"
+#include "../editor/graphicspart/partarc.h"
+#include "../editor/graphicspart/partdynamictextfield.h"
+#include "../editor/graphicspart/partellipse.h"
+#include "../editor/graphicspart/partline.h"
+#include "../editor/graphicspart/partpolygon.h"
+#include "../editor/graphicspart/partrectangle.h"
+#include "../editor/graphicspart/partterminal.h"
+#include "../editor/graphicspart/parttext.h"
+#include "../editor/ui/qetelementeditor.h"
 
 #include <QSqlError>
 #include <QSqlQuery>
@@ -2426,6 +2448,62 @@ bool QetScriptApi::setShapeClosed(int folioIndex, int shapeIndex, bool closed)
 }
 
 /**
+	@brief QetScriptApi::shapeCable
+	The cable data of a polyline: enabled, name, code, formation, length,
+	cores, shielded, shield_ground (0 none, 1 start, 2 end, 3 both) --
+	enabled is false for a plain polyline.
+*/
+QVariantMap QetScriptApi::shapeCable(int folioIndex, int shapeIndex) const
+{
+	const QList<QetShapeItem *> list = sortedShapes(folioIndex);
+	if (shapeIndex < 0 || shapeIndex >= list.count()) return {};
+	return list.at(shapeIndex)->cableMap();
+}
+
+/**
+	@brief QetScriptApi::setShapeCable
+	Makes an open polyline a cable, or changes its data.  data takes the
+	keys shapeCable() returns; enabled defaults to true, so {name: "W1"}
+	is enough to make a cable, and {enabled: false} makes it a polyline
+	again. Its wires are the conductors whose "cable" property is its name.
+*/
+bool QetScriptApi::setShapeCable(int folioIndex, int shapeIndex, const QVariantMap &data)
+{
+	if (!m_project) return false;
+	if (m_project->isReadOnly()) {
+		log(QStringLiteral("qet.setShapeCable: project is read-only"));
+		return false;
+	}
+	const QList<QetShapeItem *> list = sortedShapes(folioIndex);
+	if (shapeIndex < 0 || shapeIndex >= list.count()) {
+		log(QStringLiteral("qet.setShapeCable: folio %1 has %2 shape(s), no index %3")
+			.arg(folioIndex).arg(list.count()).arg(shapeIndex));
+		return false;
+	}
+	QetShapeItem *shape = list.at(shapeIndex);
+	if (shape->shapeType() != QetShapeItem::Polygon || shape->isClosed()) {
+		log(QStringLiteral("qet.setShapeCable: only an open polyline can be a cable"));
+		return false;
+	}
+	QVariantMap map = shape->cableMap();
+	for (auto it = data.cbegin(); it != data.cend(); ++it)
+		map.insert(it.key(), it.value());
+	if (!data.contains(QStringLiteral("enabled")))
+		map.insert(QStringLiteral("enabled"), true);
+	const CableData cable = CableData::fromMap(map);
+	if (cable.enabled && cable.name.isEmpty()) {
+		log(QStringLiteral("qet.setShapeCable: a cable needs a name"));
+		return false;
+	}
+	if (cable == shape->cable()) return true;
+
+	auto *cmd = new QPropertyUndoCommand(shape, "cableData", shape->cableMap(), cable.toMap());
+	cmd->setText(QObject::tr("Modificar o cabo %1").arg(cable.name));
+	m_project->undoStack()->push(cmd);
+	return true;
+}
+
+/**
 	@brief QetScriptApi::tables
 	The tables and views the project database holds, as "name (type)".
 
@@ -2922,6 +3000,228 @@ bool QetScriptApi::sortTerminalStrip(int stripIndex)
 	}
 	m_project->undoStack()->push(new SortTerminalStripCommand(strips.at(stripIndex)));
 	return true;
+}
+
+/**
+	Draw the terminal sheets of the project (TerminalSheet), replacing the
+	folios drawn by an earlier call or by Project > Generate terminal
+	sheets. Returns the number of folios added, -1 on failure.
+*/
+int QetScriptApi::generateTerminalSheets()
+{
+	if (!m_project) return -1;
+	if (m_project->isReadOnly()) {
+		log(QStringLiteral("qet.generateTerminalSheets: project is read-only"));
+		return -1;
+	}
+	for (Diagram *diagram : TerminalSheet::generatedFolios(m_project))
+		m_project->removeDiagram(diagram);
+	return TerminalSheet::createFolios(m_project, TerminalSheet::collect(m_project));
+}
+
+/**
+	Draw the input/output map of each PLC of the project (IoMap), replacing
+	the folios drawn before. Returns the number of folios added, -1 on
+	failure.
+*/
+int QetScriptApi::generateIoMaps()
+{
+	if (!m_project) return -1;
+	if (m_project->isReadOnly()) {
+		log(QStringLiteral("qet.generateIoMaps: project is read-only"));
+		return -1;
+	}
+	for (Diagram *diagram : IoMap::generatedFolios(m_project))
+		m_project->removeDiagram(diagram);
+	return IoMap::createFolios(m_project, IoMap::collect(m_project));
+}
+
+/**
+	Read the datasheet pdfFile by rules (DatasheetReader, offline):
+	{name, info: {key: value}, pins: [{name, function, side}]}, or an
+	empty map when the PDF can not be read.
+*/
+QVariantMap QetScriptApi::readDatasheet(const QString &pdfFile)
+{
+	QString error;
+	const QString text = DatasheetReader::pdfText(pdfFile, &error);
+	if (!error.isEmpty()) {
+		log(QStringLiteral("qet.readDatasheet: ") + error);
+		return {};
+	}
+	const DatasheetReader::Result result = DatasheetReader::readByRules(text);
+	QVariantMap info;
+	for (auto it = result.info.cbegin(); it != result.info.cend(); ++it)
+		info.insert(it.key(), it.value());
+	const char *sides[] = {"left", "right", "top", "bottom"};
+	QVariantList pins;
+	for (const DatasheetReader::Pin &pin : result.pins)
+		pins << QVariantMap {{"name", pin.name}, {"function", pin.function},
+				     {"side", QString::fromLatin1(sides[pin.side])}};
+	return {{"name", result.name}, {"info", info}, {"pins", pins}};
+}
+
+/**
+	The element a picture of a component gives (PictureComponent), from
+	its terminals pins: [{name, side: left|right|top|bottom, position}].
+	The contacts are guessed from the names. Returns {parts: [{kind,
+	pinA, pinB, drawn}], definition: the element definition as XML}.
+*/
+QVariantMap QetScriptApi::pictureComponent(const QVariantList &pins, bool drawParts,
+					   const QString &bodyText)
+{
+	const QStringList sides {"left", "right", "top", "bottom"};
+	PictureComponent::Result result;
+	for (const QVariant &value : pins) {
+		const QVariantMap map = value.toMap();
+		PictureComponent::Pin pin;
+		pin.name = map.value("name").toString();
+		pin.side = ModuleGenerator::Side(std::max<qsizetype>(0, sides.indexOf(map.value("side").toString())));
+		pin.position = map.value("position").toInt();
+		result.pins << pin;
+	}
+	result.parts = PictureComponent::guessParts(result.pins);
+	result.body_text = bodyText;
+	const QStringList kinds {"normally_open", "normally_closed", "coil"};
+	QVariantList parts;
+	for (const PictureComponent::Part &part : result.parts)
+		parts << QVariantMap {{"kind", kinds.at(part.kind)}, {"pinA", part.pin_a}, {"pinB", part.pin_b},
+				      {"drawn", PictureComponent::canDraw(part, result.pins)}};
+	return {{"parts", parts},
+		{"definition", PictureComponent::build(result, drawParts).toString(1)}};
+}
+
+/**
+	Check the snapping and text styles of the element editor on the
+	element definition (XML), in an editor not shown, step by step:
+	{op: "cursor", x, y} where a point drawn goes; {op: "move", type:
+	"terminal"|"text"|"line"|..., index, dx, dy} the movement a part
+	moved by the mouse gets; {op: "offGrid"} the terminals off the
+	diagrams' grid; {op: "fixTerminals"} put them on it; {op: "style",
+	index} give every text the element text style at index;
+	{op: "definition"} the element as it is now. Returns one result
+	per step.
+*/
+QVariantList QetScriptApi::elementEditorSnap(const QString &definition, const QVariantList &steps)
+{
+	QDomDocument document;
+	if (!document.setContent(definition))
+		return {QStringLiteral("invalid definition")};
+	QETElementEditor editor;
+	ElementScene *scene = editor.elementScene();
+	scene->fromXml(document);
+
+	const QMap<QString, int> types {{"line", PartLine::Type}, {"rect", PartRectangle::Type},
+					{"ellipse", PartEllipse::Type}, {"arc", PartArc::Type},
+					{"polygon", PartPolygon::Type}, {"terminal", PartTerminal::Type},
+					{"text", PartText::Type}, {"field", PartDynamicTextField::Type}};
+	auto point = [](const QPointF &p) { return QVariantList {p.x(), p.y()}; };
+	QVariantList results;
+	for (const QVariant &value : steps) {
+		const QVariantMap step = value.toMap();
+		const QString op = step.value("op").toString();
+		if (op == "cursor") {
+			results << QVariant(point(scene->snapCursor(QPointF(step.value("x").toDouble(), step.value("y").toDouble()),
+								    Qt::NoModifier)));
+		} else if (op == "move") {
+			QList<QGraphicsItem *> found;
+			for (CustomElementPart *part : scene->primitives())
+				if (part->toItem()->type() == types.value(step.value("type").toString(), -1))
+					found << part->toItem();
+			const int index = step.value("index").toInt();
+			if (index < 0 || index >= found.size()) {
+				results << QStringLiteral("no such part");
+				continue;
+			}
+			QGraphicsItem *item = found.at(index);
+			const QPointF movement = scene->snapTranslation({item}, QPointF(step.value("dx").toDouble(), step.value("dy").toDouble()),
+								       Qt::NoModifier);
+			item->setPos(item->pos() + movement);
+			results << QVariant(point(movement));
+		} else if (op == "offGrid") {
+			QVariantList list;
+			for (PartTerminal *terminal : scene->terminalsOffGrid())
+				list << QVariant(point(terminal->scenePos()));
+			results << QVariant(list);
+		} else if (op == "fixTerminals") {
+			for (PartTerminal *terminal : scene->terminalsOffGrid())
+				terminal->setPos(scene->snapTerminal(terminal->pos(), Qt::NoModifier));
+			results << scene->terminalsOffGrid().size();
+		} else if (op == "style") {
+			const QList<TextStyles::Style> styles = ElementTextStyles::examples();
+			const int index = step.value("index").toInt();
+			QList<QGraphicsItem *> items;
+			for (CustomElementPart *part : scene->primitives())
+				items << part->toItem();
+			QUndoCommand *undo = index >= 0 && index < styles.size()
+					? ElementTextStyles::apply(styles.at(index), ElementTextStyles::texts(items)) : nullptr;
+			if (undo) {
+				undo->redo();
+				delete undo;
+			}
+			results << bool(undo);
+		} else if (op == "check") {
+			QVariantList list;
+			for (const ElementChecker::Issue &issue : ElementChecker::check(scene))
+				list << QVariantMap {{"id", issue.id}, {"severity", int(issue.severity)},
+						     {"detail", issue.detail}, {"parts", issue.items.size()},
+						     {"fix", ElementChecker::fixName(issue.fix)}};
+			results << QVariant(list);
+		} else if (op == "fix") {
+			bool fixed = false;
+			for (const ElementChecker::Issue &issue : ElementChecker::check(scene)) {
+				if (issue.id != step.value("id").toString())
+					continue;
+				if (QUndoCommand *undo = ElementChecker::fix(scene, issue)) {
+					scene->undoStack().push(undo);
+					fixed = true;
+				}
+			}
+			results << fixed;
+		} else if (op == "connector") {
+				//Replace the drawing by a connector; give its pins and signals
+			const ConnectorGenerator::Settings settings =
+				ConnectorGenerator::Settings::fromJson(QJsonObject::fromVariantMap(step.value("settings").toMap()));
+			for (CustomElementPart *part : scene->primitives())
+				delete part->toItem();
+			scene->fromXml(ConnectorGenerator::build(settings), QPointF(), false);
+			QVariantList pins;
+			const QStringList names = ConnectorGenerator::presetSignals(settings);
+			const QList<ConnectorGenerator::Pin> list = ConnectorGenerator::pins(settings);
+			for (int i = 0; i < list.size(); ++i)
+				pins << list.at(i).id + QLatin1Char('=') + names.value(i);
+			results << QVariantMap {{"name", ConnectorGenerator::defaultName(settings)}, {"pins", pins},
+						{"parts", scene->primitives().size()}};
+		} else if (op == "insert") {
+			const QDomDocument piece = PartLibrary::build(step.value("id").toString(), step.value("values").toMap());
+			ElementContent content;
+			scene->fromXml(piece, QPointF(), false, &content);
+			for (QGraphicsItem *item : content)
+				item->setPos(item->pos() + QPointF(step.value("x").toDouble(), step.value("y").toDouble()));
+			results << int(content.size());
+		} else if (op == "selectAll") {
+			for (CustomElementPart *part : scene->primitives())
+				part->toItem()->setSelected(true);
+			results << int(scene->selectedItems().size());
+		} else if (op == "repeat") {
+			results << editor.repeatSelection(step.value("count").toInt(),
+							  QPointF(step.value("dx").toDouble(), step.value("dy").toDouble()),
+							  step.value("increment").toInt());
+		} else if (op == "align") {
+			results << editor.arrangeSelection(step.value("mode").toInt());
+		} else if (op == "geometry") {
+			const QRectF rect = ElementAlign::geometry(scene, scene->selectedItems());
+			results << QVariant(QVariantList {rect.x(), rect.y(), rect.width(), rect.height()});
+		} else if (op == "measure") {
+			results << ESEventMeasure::describe(QPointF(step.value("x1").toDouble(), step.value("y1").toDouble()),
+							    QPointF(step.value("x2").toDouble(), step.value("y2").toDouble()));
+		} else if (op == "definition") {
+			results << scene->toXml().toString(1);
+		} else {
+			results << QStringLiteral("unknown op");
+		}
+	}
+	return results;
 }
 
 QList<QetGraphicsTableItem *> QetScriptApi::sortedTables(int folioIndex) const

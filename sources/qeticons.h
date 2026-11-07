@@ -81,6 +81,7 @@ namespace QET {
 		extern QIcon EditDelete;
 		extern QIcon EditOpacity;
 		extern QIcon EditPaste;
+		extern QIcon FormatPainter;
 		extern QIcon EditRedo;
 		extern QIcon EditRename;
 		extern QIcon EditSelectAll;

@@ -52,7 +52,7 @@ bool ESEventAddArc::mousePressEvent(QGraphicsSceneMouseEvent *event)
 	if (event -> button() == Qt::LeftButton)
 	{
 		if(!m_running) m_running = true;
-		QPointF pos = m_scene->snapToGrid(event -> scenePos());
+		QPointF pos = snappedPos(event, m_arc);
 
 			//create new arc
 		if (!m_arc)
@@ -86,10 +86,10 @@ bool ESEventAddArc::mousePressEvent(QGraphicsSceneMouseEvent *event)
 	@return
 */
 bool ESEventAddArc::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
-	updateHelpCross(event -> scenePos());
+	updateHelpCross(snappedPos(event, m_arc));
 	if (!m_arc) return false;
 
-	m_mouse_pos = m_scene -> snapToGrid(event -> scenePos());
+	m_mouse_pos = snappedPos(event, m_arc);
 	updateArc();
 
 	return true;

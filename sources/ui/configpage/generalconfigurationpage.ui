@@ -365,6 +365,32 @@
         </widget>
        </item>
        <item row="7" column="0">
+        <widget class="QLabel" name="m_history_label">
+         <property name="text">
+          <string>Histórico de versões: versões anteriores guardadas a cada salvamento (Projeto &gt; Histórico de versões)</string>
+         </property>
+         <property name="wordWrap">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item row="7" column="2">
+        <widget class="QSpinBox" name="m_history_sb">
+         <property name="specialValueText">
+          <string>Desativado</string>
+         </property>
+         <property name="suffix">
+          <string> versões</string>
+         </property>
+         <property name="maximum">
+          <number>200</number>
+         </property>
+         <property name="value">
+          <number>20</number>
+         </property>
+        </widget>
+       </item>
+       <item row="8" column="0">
         <spacer name="verticalSpacer_2">
          <property name="orientation">
           <enum>Qt::Vertical</enum>
@@ -1387,6 +1413,7 @@ Vous pouvez spécifier ici la valeur par défaut de ce champ pour les éléments
   <tabstop>m_use_folio_label</tabstop>
   <tabstop>m_border_0</tabstop>
   <tabstop>m_autosave_sb</tabstop>
+  <tabstop>m_history_sb</tabstop>
   <tabstop>m_common_elmt_path_cb</tabstop>
   <tabstop>m_custom_elmt_path_cb</tabstop>
   <tabstop>m_custom_tbt_path_cb</tabstop>

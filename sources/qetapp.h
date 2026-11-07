@@ -70,6 +70,8 @@ class QETApp : public QObject
 		// methods
 	public:
 		static QETApp *instance();
+			/// Pick the icon theme for  palette and the icon setting
+		static void applyIconTheme(const QPalette &);
 		void setLanguage(const QString &);
 		static QString interfaceLanguage() { return m_interface_language; }
 		static QString langFromSetting ();
@@ -314,7 +316,6 @@ class QETApp : public QObject
 		void initLanguage();
 		void initFonts();
 		void initIconTheme();
-		static void applyIconTheme(const QPalette &);
 		void initStyle();
 		void initConfiguration();
 		void initSystemTray();

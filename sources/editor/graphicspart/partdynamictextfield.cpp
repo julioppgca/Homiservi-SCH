@@ -150,6 +150,8 @@ const QDomElement PartDynamicTextField::toXml(QDomDocument &dom_doc) const
 	root_element.setAttribute("text_width", QString::number(m_text_width));
 	root_element.setAttribute("keep_visual_rotation", m_keep_visual_rotation ? "true" : "false");
 	root_element.setAttribute("rotation_point_center", m_rotation_point_center ? "true" : "false");
+	if (!m_element_style.isEmpty())
+		root_element.setAttribute("element_style", m_element_style);
 
 	QMetaEnum me = DynamicElementTextItem::textFromMetaEnum();
 	root_element.setAttribute("text_from", me.valueToKey(m_text_from));
@@ -215,6 +217,7 @@ void PartDynamicTextField::fromXml(const QDomElement &dom_elmt) {
 	QGraphicsObject::setRotation(QET::correctAngle(dom_elmt.attribute("rotation", QString::number(0)).toDouble()));
 	setKeepVisualRotation(dom_elmt.attribute("keep_visual_rotation", "true") == "true"? true : false);
 	setRotationPointCenter(dom_elmt.attribute("rotation_point_center", "false") == "true"? true : false);
+	m_element_style = dom_elmt.attribute("element_style");
 
 	if (dom_elmt.hasAttribute("font")) {
 		QFont font_;
@@ -572,7 +575,7 @@ void PartDynamicTextField::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
 		if (d.manhattanLength() < QApplication::startDragDistance())
 			return;
 		QPointF pos = event->scenePos() + (m_origin_pos - event->buttonDownScenePos(Qt::LeftButton));
-		event->modifiers() == Qt::ControlModifier ? setPos(pos) : setPos(elementScene()->snapToGrid(pos));
+		setPos(scenePos() + elementScene()->snapTranslation({this}, pos - scenePos(), event->modifiers()));
 	} else {
 		QGraphicsObject::mouseMoveEvent(event);
 	}

@@ -119,10 +119,25 @@ class QETDiagramEditor : public QETMainWindow
 		void save();
 		void saveAs();
 		bool newProject();
+		void newHomiserviProject();
+		void showHomiserviData();
+		void showProjectRevisions();
+		void addComponentList();
+		void generateTerminalSheets();
+		void generateIoMaps();
 		bool openProject();
 		bool openRecentFile(const QString &);
 		bool closeProject(ProjectView *);
 		bool closeProject(QETProject *);
+		void showProjectHistory();
+		void compareProjectWithFile();
+		void showPotentialRules();
+		void showTextStyles();
+		void fillTextStyleMenu();
+		void applyTextStyle(const QString &style);
+		void applyVariant(const QString &code);
+		void startPaintStyle();
+		void compareProject(QETProject *project, const QString &reference_path, const QString &reference_label);
 		void zoomGroupTriggered      (QAction *action);
 		void selectGroupTriggered    (QAction *action);
 		void addItemGroupTriggered   (QAction *action);
@@ -203,6 +218,7 @@ class QETDiagramEditor : public QETMainWindow
 		*m_cut,                     ///< Cut selection to clipboard
 		*m_copy,                    ///< Copy selection to clipboard
 		*m_paste_element_info,      ///< Copy the information of the copied element onto the selected elements (#1375)
+		*m_paint_style = nullptr,   ///< Format painter: copy the look of the selected item to others
 		*m_insert_last_element = nullptr; ///< Place the last placed element again
 		
 		QActionGroup
@@ -214,6 +230,8 @@ class QETDiagramEditor : public QETMainWindow
 		QMenu
 		*m_add_item_menu = nullptr,   ///< Submenu of m_add_item_actions_group
 		*m_align_menu = nullptr,      ///< Submenu of m_align_actions_group
+		*m_text_style_menu = nullptr, ///< Gives the selected texts a text style
+		*m_variant_menu = nullptr,    ///< Marks the selected elements, or the folio, X/O/V/E
 		*m_row_column_menu = nullptr; ///< Submenu of m_row_column_actions_group
 	
 	private:
@@ -260,6 +278,17 @@ class QETDiagramEditor : public QETMainWindow
 		*m_project_export_wiring_list, ///< Action to export the wiring list
 		*m_project_print_wire_tags,	///< Action to print the wire-end (ferrule) tag list
 		*m_project_export_wire_tags_csv, ///< Action to export a minimal tag-only CSV for label-printer software
+		*m_project_history,            ///< Action to list, open or restore the previous versions of the project file
+		*m_project_compare,            ///< Action to list the differences with another version of the project file
+		*m_wiring_editor,              ///< Action to show the editable wiring list of the project
+		*m_potential_rules,            ///< Action to edit the colour and section rules of the wires
+		*m_text_styles,                ///< Action to edit the text styles of the project
+		*m_new_homiservi_project,      ///< Action to create a project from the Homiservi template
+		*m_homiservi_data,             ///< Action to edit the Homiservi data of the project and apply it to every folio
+		*m_project_revisions,          ///< Action to edit the revisions shown by the title block
+		*m_add_component_list,         ///< Action to add a folio with the component list
+		*m_terminal_sheets,            ///< Action to draw the terminal sheets of the project
+		*m_io_maps,                    ///< Action to draw the input/output maps of the PLCs
 		*m_project_wiring_list_view,   ///< Action to show the wiring list read from the project database
 		*m_terminal_numbering,         ///< Action to launch terminal numbering
 		*m_reload_element_drawings,    ///< Action to redraw every placed element from its current definition
@@ -356,6 +385,8 @@ class QETDiagramEditor : public QETMainWindow
 		
 		QUndoGroup undo_group;
 		AutoNumberingDockWidget *m_autonumbering_dock;
+		class ProjectDiffDock *m_project_diff_dock = nullptr;
+		class WiringEditorDock *m_wiring_editor_dock = nullptr;
 		int activeSubWindowIndex;
 		SearchAndReplaceWidget m_search_and_replace_widget;
 };

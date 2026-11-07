@@ -146,6 +146,7 @@ void PartText::fromXml(const QDomElement &xml_element) {
 	}
 
 	setDefaultTextColor(QColor(xml_element.attribute("color", "#000000")));
+	m_element_style = xml_element.attribute("element_style");
 	setPlainText(xml_element.attribute("text"));
 
 		// Optional alignment (absent = historical behaviour: top-left anchor,
@@ -185,6 +186,8 @@ const QDomElement PartText::toXml(QDomDocument &xml_document) const
 	xml_element.setAttribute("rotation", QString::number(rot));
 	xml_element.setAttribute("color", defaultTextColor().name());
 	xml_element.setAttribute("uuid", m_uuid.toString());
+	if (!m_element_style.isEmpty())
+		xml_element.setAttribute("element_style", m_element_style);
 
 		// Only written when different from the historical behaviour, so
 		// existing .elmt files round-trip byte-identical.
@@ -475,7 +478,7 @@ void PartText::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
 		if (d.manhattanLength() < QApplication::startDragDistance())
 			return;
 		QPointF pos = event->scenePos() + (m_origin_pos - event->buttonDownScenePos(Qt::LeftButton));
-		event->modifiers() == Qt::ControlModifier ? setPos(pos) : setPos(elementScene()->snapToGrid(pos));
+		setPos(scenePos() + elementScene()->snapTranslation({this}, pos - scenePos(), event->modifiers()));
 	} else {
 		QGraphicsObject::mouseMoveEvent(event);
 	}

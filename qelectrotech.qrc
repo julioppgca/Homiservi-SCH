@@ -2,6 +2,17 @@
     <qresource prefix="/">
         <file>ico/256x256/qet.png</file>
         <file>ico/splash.png</file>
+        <file>ico/homiservi/splash.png</file>
+        <file>ico/homiservi/Homiservi_Legenda.titleblock</file>
+        <file>ico/homiservi/Homiservi_Legenda_Revisoes.titleblock</file>
+        <file>ico/homiservi/homiservi-logo.png</file>
+        <file>ico/homiservi/homiservi-16.png</file>
+        <file>ico/homiservi/homiservi-24.png</file>
+        <file>ico/homiservi/homiservi-32.png</file>
+        <file>ico/homiservi/homiservi-48.png</file>
+        <file>ico/homiservi/homiservi-64.png</file>
+        <file>ico/homiservi/homiservi-128.png</file>
+        <file>ico/homiservi/homiservi-256.png</file>
         <file>titleblocks/default.titleblock</file>
         <file>ico/flags/ar.png</file>
         <file>ico/flags/cs.png</file>

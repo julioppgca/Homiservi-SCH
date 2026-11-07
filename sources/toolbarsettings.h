@@ -37,6 +37,9 @@ class ToolbarSettings
 		static Qt::ToolButtonStyle buttonStyle();
 		static bool locked();
 		static void save(int icon_size, Qt::ToolButtonStyle style, bool locked);
+			/// Whether the Homiservi line icons replace QET's (the default)
+		static bool homiserviIcons();
+		static void setHomiserviIcons(bool homiservi);
 
 		static void applyTo(QMainWindow *window);
 		static void applyToAll();

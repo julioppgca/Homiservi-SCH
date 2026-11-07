@@ -1448,6 +1448,43 @@ void QETProject::setWiringRules(const WiringRules::Settings &rules)
 }
 
 /**
+	@brief QETProject::setPotentialRules
+	Set the colour and section rules of the wires of this project. No wire
+	changes: see PotentialRules::apply().
+*/
+void QETProject::setPotentialRules(const PotentialRules::Settings &rules)
+{
+	m_potential_rules = rules;
+}
+
+/**
+	@brief QETProject::setTextStyles
+	Set the text styles of this project and bring every text to them.
+*/
+void QETProject::setTextStyles(const QList<TextStyles::Style> &styles)
+{
+	m_text_styles = styles;
+	TextStyles::applyToProject(this);
+}
+
+/**
+	@brief QETProject::scheduleTextStyles
+	Bring every text to its style once the current work is over: called
+	for each text or element added to a folio, it runs once after a whole
+	project is loaded or a whole selection is pasted, when the texts have
+	read their own style.
+*/
+void QETProject::scheduleTextStyles()
+{
+	if (m_text_styles.isEmpty() || m_text_styles_scheduled) return;
+	m_text_styles_scheduled = true;
+	QTimer::singleShot(0, this, [this]() {
+		m_text_styles_scheduled = false;
+		TextStyles::applyToProject(this);
+	});
+}
+
+/**
 	@brief QETProject::autoBreakConductor
 	@return true if use of auto break conductor is authorized.
 	See also Q_PROPERTY autoBreakConductor
@@ -1559,6 +1596,8 @@ QDomDocument QETProject::toXml()
 	writeWireHopsXml(project_root);
 	writeSymbolTextsXml(project_root);
 	writeWiringRulesXml(project_root);
+	writePotentialRulesXml(project_root);
+	writeTextStylesXml(project_root);
 
 	// Properties for news diagrams
 	QDomElement new_diagrams_properties = xml_doc.createElement("newdiagrams");
@@ -2071,6 +2110,8 @@ void QETProject::readProjectXml(QDomDocument &xml_project)
 	readWireHopsXml(xml_project);
 	readSymbolTextsXml(xml_project);
 	readWiringRulesXml(xml_project);
+	readPotentialRulesXml(xml_project);
+	readTextStylesXml(xml_project);
 
 		//Load the default properties for the new diagrams
 	readDefaultPropertiesXml(xml_project);
@@ -2294,6 +2335,26 @@ void QETProject::readWiringRulesXml(QDomDocument &xml_project)
 }
 
 /**
+	@brief QETProject::readTextStylesXml
+	Read the text styles (<text_styles>).
+	@param xml_project : the xml description of the project
+*/
+void QETProject::readTextStylesXml(QDomDocument &xml_project)
+{
+	m_text_styles = TextStyles::fromXml(xml_project.documentElement());
+}
+
+/**
+	@brief QETProject::readPotentialRulesXml
+	Read the colour and section rules of the wires (<potential_rules>).
+	@param xml_project : the xml description of the project
+*/
+void QETProject::readPotentialRulesXml(QDomDocument &xml_project)
+{
+	m_potential_rules = PotentialRules::fromXml(xml_project.documentElement());
+}
+
+/**
 	@brief QETProject::readDefaultPropertiesXml
 	load default properties for new diagram, found in the xml of this project
 	or by default find in the QElectroTech global conf
@@ -2498,6 +2559,26 @@ void QETProject::writeSymbolTextsXml(QDomElement &xml_element)
 void QETProject::writeWiringRulesXml(QDomElement &xml_element)
 {
 	WiringRules::toXml(m_wiring_rules, xml_element);
+}
+
+/**
+	@brief QETProject::writeTextStylesXml
+	Export the text styles as a <text_styles> child of xml_element, only
+	when there is one.
+*/
+void QETProject::writeTextStylesXml(QDomElement &xml_element)
+{
+	TextStyles::toXml(m_text_styles, xml_element);
+}
+
+/**
+	@brief QETProject::writePotentialRulesXml
+	Export the colour and section rules of the wires as a
+	<potential_rules> child of  xml_element, only when there is one.
+*/
+void QETProject::writePotentialRulesXml(QDomElement &xml_element)
+{
+	PotentialRules::toXml(m_potential_rules, xml_element);
 }
 
 /**

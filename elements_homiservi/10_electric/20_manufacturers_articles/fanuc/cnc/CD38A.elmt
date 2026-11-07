@@ -1,0 +1,45 @@
+<definition height="60" hotspot_x="10" hotspot_y="18" link_type="simple" type="element" version="0.200.1" width="50">
+    <uuid uuid="{ccec305b-ea13-5e44-804f-330fa5fb143a}"/>
+    <names>
+        <name lang="en">CD38A</name>
+        <name lang="fr">CD38A</name>
+        <name lang="pt">CD38A – Ethernet (cabos por cima)</name>
+        <name lang="pt_BR">CD38A – Ethernet (cabos por cima)</name>
+    </names>
+    <elementInformations>
+        <elementInformation name="manufacturer" show="1">FANUC</elementInformation>
+        <elementInformation name="designation" show="1">CD38A</elementInformation>
+        <elementInformation name="description" show="1">CD38A – Ethernet (cabos por cima)</elementInformation>
+    </elementInformations>
+    <informations>Homiservi-SCH: gerado pelo gerador de conectores (estilo FANUC). Pinagem conferida em diagrama de máquina com CNC FANUC 0i e amplificador βi SVSP; confira no manual FANUC da sua unidade.</informations>
+    <description>
+        <line antialias="false" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" uuid="{68141c95-d5d4-4ee3-ae88-bd82ce0f292a}" x1="0" x2="0" y1="0" y2="-10"/>
+        <dynamic_text Halignment="AlignLeft" Valignment="AlignTop" element_style="Rótulo" font="Liberation Sans,9,-1,0,50,0,0,0,0,0,Regular" frame="false" keep_visual_rotation="true" rotation="0" rotation_point_center="false" text_from="ElementInfo" text_width="-1" uuid="{86cce567-c033-471d-ac67-36bfc7e84f33}" x="-40" y="2" z="1">
+            <text/>
+            <info_name>label</info_name>
+        </dynamic_text>
+        <rect antialias="false" height="2.5" rx="0" ry="0" style="line-style:normal;line-weight:thin;filling:black;color:black" uuid="{66df09ec-5f49-4070-9105-0e9e10ec62b8}" width="2.4" x="-1.2" y="-2.5"/>
+        <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="(1)" uuid="{15e435de-5003-4225-addd-cee1a23345eb}" x="3.09" y="14"/>
+        <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="TX+" uuid="{3c16e48f-416f-4637-ac5c-f689417c3b72}" x="3.09" y="35"/>
+        <line antialias="false" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" uuid="{69501d4f-930f-4c58-bd08-a21f896267c0}" x1="10" x2="10" y1="0" y2="-10"/>
+        <rect antialias="false" height="2.5" rx="0" ry="0" style="line-style:normal;line-weight:thin;filling:black;color:black" uuid="{01996db1-6a50-42f3-bd95-c58e913a7edf}" width="2.4" x="8.8" y="-2.5"/>
+        <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="(2)" uuid="{006875f7-2314-47ac-900d-b1fdd491c605}" x="13.09" y="14"/>
+        <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="TX-" uuid="{191f7250-5367-468e-bcf6-eb5cff3f00d0}" x="13.09" y="35"/>
+        <line antialias="false" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" uuid="{55619a28-ca98-4074-ae00-a40d77a06ed4}" x1="20" x2="20" y1="0" y2="-10"/>
+        <rect antialias="false" height="2.5" rx="0" ry="0" style="line-style:normal;line-weight:thin;filling:black;color:black" uuid="{3f699418-9256-4b1f-8cb8-000b9c0c3f67}" width="2.4" x="18.8" y="-2.5"/>
+        <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="(3)" uuid="{3598bad1-32c6-47e1-8da5-e8907792bcb4}" x="23.09" y="14"/>
+        <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="RX+" uuid="{68e09d3e-5bb5-4858-b4b0-6870b5f78624}" x="23.09" y="35"/>
+        <line antialias="false" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" uuid="{623c9a79-bc4d-481a-a51c-49d96d4afcd1}" x1="30" x2="30" y1="0" y2="-10"/>
+        <rect antialias="false" height="2.5" rx="0" ry="0" style="line-style:normal;line-weight:thin;filling:black;color:black" uuid="{a2f1088c-e11a-4ad4-ac16-76b972fb71b9}" width="2.4" x="28.8" y="-2.5"/>
+        <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="(6)" uuid="{f8bc6b80-2beb-4488-ad57-01be39f93b13}" x="33.09" y="14"/>
+        <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="RX-" uuid="{e3d9d18d-f643-4556-8846-bad763054bb8}" x="33.09" y="35"/>
+        <line antialias="false" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:thin;filling:none;color:black" uuid="{2668e3d5-3ddb-495e-b52a-a4a3205b13f1}" x1="-4" x2="34" y1="38" y2="38"/>
+        <line antialias="false" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:thin;filling:none;color:black" uuid="{cc426048-0642-419e-8611-c120ce00b01a}" x1="-4" x2="-4" y1="38" y2="36"/>
+        <line antialias="false" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:thin;filling:none;color:black" uuid="{9e56e09f-11a2-4671-87f5-2bba437f874d}" x1="34" x2="34" y1="38" y2="36"/>
+        <text color="#000000" element_style="Texto da caixa" font="Liberation Sans,9,-1,0,50,0,0,0,0,0,Regular" rotation="0" text="CD38A" uuid="{177a47c8-cd93-435a-a11e-545a36886280}" x="-5" y="49.25"/>
+        <terminal name="1" orientation="n" type="Generic" uuid="{0d5703ca-0e19-45a0-868c-b538c704c787}" x="0" y="-10"/>
+        <terminal name="2" orientation="n" type="Generic" uuid="{5c72585f-3793-490b-9091-c9b723baa5ea}" x="10" y="-10"/>
+        <terminal name="3" orientation="n" type="Generic" uuid="{03a41243-2b59-4a31-8ff9-3fcfbd724b84}" x="20" y="-10"/>
+        <terminal name="6" orientation="n" type="Generic" uuid="{72627070-2b86-4d3b-9412-b32c60be805d}" x="30" y="-10"/>
+    </description>
+</definition>

@@ -42,6 +42,7 @@ class ElementQueryWidget : public QWidget
 		~ElementQueryWidget();
 
 		void setQuery(const QString &query);
+		void setCustomQuery(const QString &query);
 		QString queryStr() const;
 		void setGroupBy(QString text, bool set = true);
 		void setCount(QString text, bool set = true);

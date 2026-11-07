@@ -43,6 +43,7 @@
 
 #include <QKeyEvent>
 #include <algorithm>
+#include <QtMath>
 #include <cmath>
 
 /**
@@ -221,6 +222,7 @@ void ElementScene::mousePressEvent(QGraphicsSceneMouseEvent *e)
 */
 void ElementScene::mouseReleaseEvent(QGraphicsSceneMouseEvent *e)
 {
+	clearSnapMarker();
 	if (m_event_interface) {
 		if (m_event_interface -> mouseReleaseEvent(e)) {
 			if (m_event_interface->isFinish()) {
@@ -322,6 +324,9 @@ void ElementScene::keyPressEvent(QKeyEvent *event)
 				p.ry() -= 1;
 			else if (k == Qt::Key_Down)
 				p.ry() += 1;
+				//A terminal steps from a point of the diagrams' grid to the next
+			if (qgo->type() == PartTerminal::Type && p != original_pos)
+				p = snapTerminal(original_pos + (p - original_pos) * terminal_grid, Qt::NoModifier);
 			}
 
 			qgo->setPos(p);
@@ -363,6 +368,20 @@ void ElementScene::contextMenuEvent(QGraphicsSceneContextMenuEvent *event)
 */
 void ElementScene::drawForeground(QPainter *p, const QRectF &)
 {
+	if (m_snap_marker_visible) {
+			//The point the cursor or the parts moved snapped to: a square
+			//of 10 pixels of the view whatever the zoom
+		p -> save();
+		const qreal half = snapTolerance() * 5 / 8;
+		QPen pen(QColor(0, 74, 158));
+		pen.setCosmetic(true);
+		pen.setWidth(2);
+		p -> setPen(pen);
+		p -> setBrush(Qt::NoBrush);
+		p -> drawRect(QRectF(m_snap_marker - QPointF(half, half), QSizeF(2 * half, 2 * half)));
+		p -> restore();
+	}
+
 	if (!m_hotspot_visible) {
 		return;
 	}
@@ -1421,6 +1440,220 @@ QPointF ElementScene::snapToGrid(QPointF point)
 	point.rx() = qRound(point.x() / m_x_grid) * m_x_grid;
 	point.ry() = qRound(point.y() / m_y_grid) * m_y_grid;
 	return point;
+}
+
+/**
+	@brief ElementScene::setPointSnap
+	Whether the cursor and the parts moved snap to the key points of the
+	other parts (ends, corners, centres, terminals) before the grid.
+*/
+void ElementScene::setPointSnap(bool snap)
+{
+	m_point_snap = snap;
+	if (!snap)
+		clearSnapMarker();
+}
+
+/**
+	@brief ElementScene::snapCursor
+	Where a point being drawn or dragged (pos) goes: as it is with Ctrl,
+	else on the nearest key point of a part within reach (marked on the
+	scene), else on the grid. The parts of ignore, usually the one being
+	drawn, are not snapped to.
+*/
+QPointF ElementScene::snapCursor(const QPointF &pos, Qt::KeyboardModifiers modifiers,
+				 const QList<QGraphicsItem *> &ignore)
+{
+	if (modifiers & Qt::ControlModifier) {
+		clearSnapMarker();
+		return pos;
+	}
+	QPointF moving = pos, target;
+	if (m_point_snap && nearestKeyPoint({pos}, ignore, &moving, &target)) {
+		setSnapMarker(target);
+		return target;
+	}
+	clearSnapMarker();
+	return snapToGrid(pos);
+}
+
+/**
+	@return where a terminal placed at pos goes: on the diagrams' grid,
+	or as it is with Ctrl
+*/
+QPointF ElementScene::snapTerminal(const QPointF &pos, Qt::KeyboardModifiers modifiers) const
+{
+	if (modifiers & Qt::ControlModifier)
+		return pos;
+	return QPointF(qRound(pos.x() / terminal_grid) * terminal_grid,
+		       qRound(pos.y() / terminal_grid) * terminal_grid);
+}
+
+/**
+	@brief ElementScene::snapTranslation
+	The movement to give items when the mouse moved them by movement.
+	With a terminal among them, the first one lands on the diagrams' grid
+	(terminal_grid), the others keep their place relative to it. Else a
+	key point of the items lands on a key point of the other parts within
+	reach, else the first item lands on the grid. Ctrl keeps the movement.
+*/
+QPointF ElementScene::snapTranslation(const QList<QGraphicsItem *> &items, const QPointF &movement,
+				      Qt::KeyboardModifiers modifiers)
+{
+	clearSnapMarker();
+	if (items.isEmpty() || (modifiers & Qt::ControlModifier))
+		return movement;
+
+	for (QGraphicsItem *item : items) {
+		if (item->type() == PartTerminal::Type) {
+			const QPointF now = item->scenePos();
+			return snapTerminal(now + movement, modifiers) - now;
+		}
+	}
+
+	if (m_point_snap) {
+		QList<QPointF> points;
+		for (QGraphicsItem *item : items)
+			for (const QPointF &point : keyPoints(item))
+				points << point + movement;
+		QPointF moving, target;
+		if (nearestKeyPoint(points, items, &moving, &target)) {
+			setSnapMarker(target);
+			return movement + (target - moving);
+		}
+	}
+	const QPointF now = items.first()->scenePos();
+	return snapToGrid(now + movement) - now;
+}
+
+/**
+	@return the points of item that others snap to, in scene coordinates:
+	the ends and middle of a line, the corners, middles of the sides and
+	centre of a rectangle, the centre and quadrant points of an ellipse
+	(the ends of an arc), the vertices of a polygon, the connection point
+	of a terminal, and the anchor point and centre of a text.
+*/
+QList<QPointF> ElementScene::keyPoints(const QGraphicsItem *item) const
+{
+	QList<QPointF> points;
+	if (auto line = qgraphicsitem_cast<const PartLine *>(item)) {
+		const QLineF l = line->line();
+		points << l.p1() << l.p2() << (l.p1() + l.p2()) / 2;
+	} else if (auto rect = qgraphicsitem_cast<const PartRectangle *>(item)) {
+		const QRectF r = rect->rect();
+		points << r.topLeft() << r.topRight() << r.bottomLeft() << r.bottomRight()
+		       << QPointF(r.center().x(), r.top()) << QPointF(r.center().x(), r.bottom())
+		       << QPointF(r.left(), r.center().y()) << QPointF(r.right(), r.center().y())
+		       << r.center();
+	} else if (auto arc = qgraphicsitem_cast<const PartArc *>(item)) {
+		const QRectF r = arc->rect();
+		points << r.center();
+		for (int angle : {arc->startAngle(), arc->startAngle() + arc->spanAngle()}) {
+			const qreal radians = qDegreesToRadians(angle / 16.0);
+			points << r.center() + QPointF(r.width() / 2 * std::cos(radians),
+						       -r.height() / 2 * std::sin(radians));
+		}
+	} else if (auto ellipse = qgraphicsitem_cast<const PartEllipse *>(item)) {
+		const QRectF r = ellipse->rect();
+		points << r.center()
+		       << QPointF(r.center().x(), r.top()) << QPointF(r.center().x(), r.bottom())
+		       << QPointF(r.left(), r.center().y()) << QPointF(r.right(), r.center().y());
+	} else if (auto polygon = qgraphicsitem_cast<const PartPolygon *>(item)) {
+		for (const QPointF &point : polygon->polygon())
+			points << point;
+	} else if (item->type() == PartTerminal::Type) {
+		points << QPointF();
+	} else if (item->type() == PartText::Type || item->type() == PartDynamicTextField::Type) {
+			//The point the text is anchored by (see the alignment of the
+			//texts), then its centre
+		const QRectF r = item->boundingRect();
+		Qt::Alignment alignment;
+		if (auto text = qgraphicsitem_cast<const PartText *>(item))
+			alignment = text->alignment();
+		else
+			alignment = qgraphicsitem_cast<const PartDynamicTextField *>(item)->alignment();
+		const qreal x = alignment & Qt::AlignRight ? r.right()
+			      : alignment & Qt::AlignHCenter ? r.center().x() : r.left();
+		const qreal y = alignment & Qt::AlignBottom ? r.bottom()
+			      : alignment & Qt::AlignVCenter ? r.center().y() : r.top();
+		points << QPointF(x, y) << r.center();
+	}
+	for (QPointF &point : points)
+		point = item->mapToScene(point);
+	return points;
+}
+
+/**
+	@return the terminals whose connection point is off the diagrams' grid
+*/
+QList<PartTerminal *> ElementScene::terminalsOffGrid() const
+{
+	QList<PartTerminal *> terminals;
+	for (QGraphicsItem *item : items()) {
+		if (auto terminal = qgraphicsitem_cast<PartTerminal *>(item)) {
+			const QPointF pos = terminal->scenePos();
+			if (pos != snapTerminal(pos, Qt::NoModifier))
+				terminals << terminal;
+		}
+	}
+	return terminals;
+}
+
+void ElementScene::clearSnapMarker()
+{
+	if (!m_snap_marker_visible)
+		return;
+	m_snap_marker_visible = false;
+	invalidate(sceneRect(), QGraphicsScene::ForegroundLayer);
+}
+
+void ElementScene::setSnapMarker(const QPointF &point)
+{
+	if (m_snap_marker_visible && m_snap_marker == point)
+		return;
+	m_snap_marker = point;
+	m_snap_marker_visible = true;
+	invalidate(sceneRect(), QGraphicsScene::ForegroundLayer);
+}
+
+	///The reach of the point snap: 8 pixels of the view, in scene units
+qreal ElementScene::snapTolerance() const
+{
+	const QList<QGraphicsView *> list = views();
+	const qreal zoom = list.isEmpty() ? 1.0 : list.first()->transform().m11();
+	return 8.0 / (zoom > 0 ? zoom : 1.0);
+}
+
+/**
+	@brief ElementScene::nearestKeyPoint
+	Find, among points, the one closest to a key point of a part (other
+	than those of ignore), within snapTolerance().
+	@return whether one was found; moving and target are then the two
+*/
+bool ElementScene::nearestKeyPoint(const QList<QPointF> &points, const QList<QGraphicsItem *> &ignore,
+				   QPointF *moving, QPointF *target) const
+{
+	const qreal tolerance = snapTolerance();
+	qreal best = tolerance * tolerance;
+	bool found = false;
+	for (CustomElementPart *part : primitives()) {
+		QGraphicsItem *item = part->toItem();
+		if (ignore.contains(item))
+			continue;
+		for (const QPointF &key : keyPoints(item)) {
+			for (const QPointF &point : points) {
+				const QPointF d = key - point;
+				const qreal distance = d.x() * d.x() + d.y() * d.y();
+				if (distance <= best) {
+					best = distance;
+					*moving = point;
+					*target = key;
+					found = true;
+				}
+			}
+		}
+	}
+	return found;
 }
 
 /**

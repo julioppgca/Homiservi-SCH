@@ -76,6 +76,12 @@ class DiagramTextItem : public QGraphicsTextItem
 		QColor color() const;
 
 		void setNoEditable(bool e = true) {m_no_editable = e;}
+
+			///The text style this text follows, see TextStyles
+		QString textStyle() const {return m_text_style;}
+		void setTextStyle(const QString &style);
+		void setStyledLook(const QFont &font, const QColor &color);
+		void setStyleBound(bool bound) {m_style_bound = bound;}
 		
 		void setAlignment(const Qt::Alignment &alignment);
 		Qt::Alignment alignment() const;
@@ -142,5 +148,10 @@ class DiagramTextItem : public QGraphicsTextItem
 		QRectF m_alignment_rect;
 		TextResizeHandles *m_resize_handles = nullptr;
 		Qt::Alignment m_alignment = (Qt::AlignTop | Qt::AlignLeft);
+		QString m_text_style;
+			///The font and colour come from a style: changing them by
+			///hand frees the text from it
+		bool m_style_bound = false;
+		bool m_applying_style = false;
 };
 #endif

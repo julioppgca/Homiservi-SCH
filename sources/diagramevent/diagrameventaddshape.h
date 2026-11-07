@@ -32,7 +32,7 @@ class DiagramEventAddShape : public DiagramEventInterface
 		Q_OBJECT
 
 	public:
-		DiagramEventAddShape(Diagram *diagram, QetShapeItem::ShapeType shape_type, bool half_arc = false);
+		DiagramEventAddShape(Diagram *diagram, QetShapeItem::ShapeType shape_type, bool half_arc = false, bool cable = false);
 
 		~DiagramEventAddShape() override;
 		void mousePressEvent       (QGraphicsSceneMouseEvent *event) override;
@@ -55,7 +55,8 @@ class DiagramEventAddShape : public DiagramEventInterface
 
 	protected:
 		QetShapeItem::ShapeType  m_shape_type;
-		bool                     m_half_arc = false;   // Ellipse only: draw a half arc whose chord is the first click's height (the Arc tool)
+		bool                     m_half_arc = false;
+		bool                     m_cable = false;   // Polygon only: the polyline drawn is a cable (the Cable tool)   // Ellipse only: draw a half arc whose chord is the first click's height (the Arc tool)
 		QetShapeItem            *m_shape_item;
 		QGraphicsLineItem       *m_help_horiz, *m_help_verti;
 		QPointF                  m_anchor_point;   // the shape's first-click point -- meaningful once m_shape_item exists

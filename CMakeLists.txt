@@ -158,11 +158,17 @@ if(WIN32)
         ${QM_FILES}
         ${QET_DIR}/qelectrotech.qrc
         ${QET_DIR}/ico/icon-themes.qrc
+        ${QET_DIR}/ico/homiservi-icons.qrc
     )
     # Our own manifest (it declares longPathAware). MSVC merges a .manifest
     # listed as a source; MinGW needs it embedded through a resource file,
     # and ld then keeps it ahead of the toolchain's default manifest.
     set(QET_MANIFEST_FILE ${QET_DIR}/build-aux/windows/qelectrotech.exe.manifest)
+    # Homiservi-SCH: the program icon
+    configure_file(${QET_DIR}/build-aux/windows/homiservi-icon.rc.in
+                   ${CMAKE_CURRENT_BINARY_DIR}/homiservi-icon.rc @ONLY)
+    target_sources(${PROJECT_NAME} PRIVATE
+                   ${CMAKE_CURRENT_BINARY_DIR}/homiservi-icon.rc)
     if(MSVC)
         target_sources(${PROJECT_NAME} PRIVATE ${QET_MANIFEST_FILE})
     else()
@@ -179,6 +185,7 @@ else()
         ${QM_FILES}
         ${QET_DIR}/qelectrotech.qrc
         ${QET_DIR}/ico/icon-themes.qrc
+        ${QET_DIR}/ico/homiservi-icons.qrc
     )
 endif()
 
@@ -368,6 +375,8 @@ if (NOT MINGW)
     install(DIRECTORY ico/breeze-icons/128x128 DESTINATION ${QET_ICONS_PATH})
     install(DIRECTORY ico/breeze-icons/256x256 DESTINATION ${QET_ICONS_PATH})
     install(DIRECTORY elements    DESTINATION share/qelectrotech)
+    # Elements of this fork (FANUC connectors...), merged into the collection
+    install(DIRECTORY elements_homiservi/ DESTINATION share/qelectrotech/elements)
     install(DIRECTORY examples    DESTINATION share/qelectrotech)
     install(DIRECTORY titleblocks DESTINATION share/qelectrotech)
     # The MCP server (misc/qet-mcp) finds this QElectroTech and its elements

@@ -49,7 +49,7 @@ ESEventAddTerminal::~ESEventAddTerminal()
 	@return
 */
 bool ESEventAddTerminal::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
-	QPointF pos = m_scene -> snapToGrid(event -> scenePos());
+	QPointF pos = m_scene->snapTerminal(event->scenePos(), event->modifiers());
 	updateHelpCross(pos);
 	m_terminal -> setPos(pos);
 	return true;
@@ -69,7 +69,7 @@ bool ESEventAddTerminal::mouseReleaseEvent(QGraphicsSceneMouseEvent *event) {
 		m_terminal = new PartTerminal(m_editor);
 		m_scene -> addItem(m_terminal);
 		m_terminal -> setOrientation(ori);
-		m_terminal -> setPos(m_scene -> snapToGrid(event -> scenePos()));
+		m_terminal -> setPos(m_scene->snapTerminal(event->scenePos(), event->modifiers()));
 
 		return true;
 	}

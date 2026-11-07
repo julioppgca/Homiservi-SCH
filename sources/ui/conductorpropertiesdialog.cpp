@@ -20,6 +20,8 @@
 
 #include "../QPropertyUndoCommand/qpropertyundocommand.h"
 #include "../diagram.h"
+#include "../potentialrules.h"
+#include "../qetproject.h"
 #include "../qetgraphicsitem/conductor.h"
 #include "conductorpropertieswidget.h"
 #include "ui_conductorpropertiesdialog.h"
@@ -70,9 +72,16 @@ void ConductorPropertiesDialog::PropertiesDialog(Conductor *conductor,
 	if (cpd.exec() == QDialog::Rejected
 			|| cpd.properties() == conductor->properties()) return;
 
+		//The project's colour and section rules, when the edit makes
+		//the wire match one
+	ConductorProperties edited = cpd.properties();
+	if (conductor->diagram() && conductor->diagram()->project())
+		PotentialRules::applyOnEdit(conductor->diagram()->project()->potentialRules(),
+					    conductor->properties(), edited);
+
 	QVariant old_value, new_value;
 	old_value.setValue(conductor->properties());
-	new_value.setValue(cpd.properties());
+	new_value.setValue(edited);
 
 	QPropertyUndoCommand *undo = new QPropertyUndoCommand(conductor, "properties", old_value, new_value);
 	undo->setText(tr("Modifier les propriétés d'un conducteur", "undo caption"));

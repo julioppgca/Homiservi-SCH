@@ -1,0 +1,35 @@
+<definition height="60" hotspot_x="10" hotspot_y="19" link_type="simple" type="element" version="0.200.1" width="30">
+    <uuid uuid="{a86db2b3-79f0-51d3-9183-124236fbe63d}"/>
+    <names>
+        <name lang="en">CP1A</name>
+        <name lang="fr">CP1A</name>
+        <name lang="pt">CP1A – 24 V (cabos por cima)</name>
+        <name lang="pt_BR">CP1A – 24 V (cabos por cima)</name>
+    </names>
+    <elementInformations>
+        <elementInformation name="manufacturer" show="1">FANUC</elementInformation>
+        <elementInformation name="designation" show="1">CP1A</elementInformation>
+        <elementInformation name="description" show="1">CP1A – 24 V (cabos por cima)</elementInformation>
+    </elementInformations>
+    <informations>Homiservi-SCH: gerado pelo gerador de conectores (estilo FANUC). Pinagem conferida em diagrama de máquina com CNC FANUC 0i e amplificador βi SVSP; confira no manual FANUC da sua unidade.</informations>
+    <description>
+        <line antialias="false" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" uuid="{97e01b7c-698b-4bbb-bd79-b23f439296bb}" x1="0" x2="0" y1="0" y2="-10"/>
+        <dynamic_text Halignment="AlignLeft" Valignment="AlignTop" element_style="Rótulo" font="Liberation Sans,9,-1,0,50,0,0,0,0,0,Regular" frame="false" keep_visual_rotation="true" rotation="0" rotation_point_center="false" text_from="ElementInfo" text_width="-1" uuid="{63724b36-00b8-41c3-8a48-b2743a47ba5c}" x="-40" y="2" z="1">
+            <text/>
+            <info_name>label</info_name>
+        </dynamic_text>
+        <rect antialias="false" height="2.5" rx="0" ry="0" style="line-style:normal;line-weight:thin;filling:black;color:black" uuid="{6e00022d-9252-46e3-b556-ca8997831166}" width="2.4" x="-1.2" y="-2.5"/>
+        <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="(1)" uuid="{ca893db8-2fd1-4733-ac5b-342cb98c3db6}" x="3.09" y="14"/>
+        <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="24V" uuid="{11b3ef16-4ae2-411b-adda-144c6bc878ce}" x="3.09" y="33"/>
+        <line antialias="false" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" uuid="{ee733ccf-d27c-4e5b-adbf-aafd2f3bd7c3}" x1="10" x2="10" y1="0" y2="-10"/>
+        <rect antialias="false" height="2.5" rx="0" ry="0" style="line-style:normal;line-weight:thin;filling:black;color:black" uuid="{78cdec03-f158-4d3c-aa7d-cea838d624e7}" width="2.4" x="8.8" y="-2.5"/>
+        <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="(2)" uuid="{185750f1-f479-49b6-ad81-e71164c299eb}" x="13.09" y="14"/>
+        <text color="#000000" element_style="Nome do borne" font="Liberation Sans,7,-1,0,50,0,0,0,0,0,Regular" rotation="270" text="0V" uuid="{bdaea27e-e166-4b64-82d0-15a48ea1ccbe}" x="13.09" y="33"/>
+        <line antialias="false" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:thin;filling:none;color:black" uuid="{4392d47e-e09d-4528-b1af-f9ed867ba027}" x1="-4" x2="14" y1="36" y2="36"/>
+        <line antialias="false" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:thin;filling:none;color:black" uuid="{b16d0f10-a122-4f70-a6d7-3f4999b1660d}" x1="-4" x2="-4" y1="36" y2="34"/>
+        <line antialias="false" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:thin;filling:none;color:black" uuid="{24831b9d-c64e-4327-abc3-4845a72ca811}" x1="14" x2="14" y1="36" y2="34"/>
+        <text color="#000000" element_style="Texto da caixa" font="Liberation Sans,9,-1,0,50,0,0,0,0,0,Regular" rotation="0" text="CP1A" uuid="{86f2f24c-83fc-4707-b35c-6646452b39f6}" x="-11" y="47.25"/>
+        <terminal name="1" orientation="n" type="Generic" uuid="{5ca7100d-ffac-4ea8-9481-9237686a560d}" x="0" y="-10"/>
+        <terminal name="2" orientation="n" type="Generic" uuid="{80988948-8350-437b-b705-af2c31d4e8e3}" x="10" y="-10"/>
+    </description>
+</definition>

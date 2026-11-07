@@ -28,6 +28,7 @@
 #include "qetdiagrameditor.h"
 #include "qeticons.h"
 #include "qetpalette.h"
+#include "toolbarsettings.h"
 #include "qetstyle.h"
 #include "utils/qetutils.h"
 #include "utils/configprofile.h"
@@ -2542,7 +2543,7 @@ void QETApp::parseArguments()
 void QETApp::initSplashScreen()
 {
 	if (non_interactive_execution_) return;
-	m_splash_screen = new QSplashScreen(QPixmap(":/ico/splash.png"));
+	m_splash_screen = new QSplashScreen(QPixmap(":/ico/homiservi/splash.png"));
 	m_splash_screen -> show();
 	setSplashScreenStep(tr("Chargement...", "splash screen caption"));
 }
@@ -2624,8 +2625,10 @@ void QETApp::initFonts()
 /**
 	@brief QETApp::initIconTheme
 	Register QET's two icon themes ("qet" and "qet-dark", see
-	misc/make_icon_themes.py and ico/icon-themes.qrc) and pick the one
-	matching the current palette. Must run before QET::Icons::initIcons(),
+	misc/make_icon_themes.py and ico/icon-themes.qrc) and the Homiservi
+	ones built on them ("homiservi" and "homiservi-dark", see
+	misc/make_homiservi_icons.py), and pick the one matching the current
+	palette. Must run before QET::Icons::initIcons(),
 	which looks icons up by name.
 */
 void QETApp::initIconTheme()
@@ -2638,15 +2641,20 @@ void QETApp::initIconTheme()
 
 /**
 	@brief QETApp::applyIconTheme
-	Select "qet-dark" for a dark palette, "qet" otherwise. Icons created
-	with QIcon::fromTheme() re-resolve on their next paint, so this can be
-	called again whenever the palette changes.
+	Select "qet-dark" for a dark palette, "qet" otherwise, or their
+	Homiservi versions when ToolbarSettings::homiserviIcons(). Icons
+	created with QIcon::fromTheme() re-resolve on their next paint, so this
+	can be called again whenever the palette or that setting changes.
 */
 void QETApp::applyIconTheme(const QPalette &palette)
 {
-	QIcon::setThemeName(QET::Palette::isDark(palette)
-	                    ? QStringLiteral("qet-dark")
-	                    : QStringLiteral("qet"));
+	const bool dark = QET::Palette::isDark(palette);
+	if (ToolbarSettings::homiserviIcons())
+		QIcon::setThemeName(dark ? QStringLiteral("homiservi-dark")
+		                         : QStringLiteral("homiservi"));
+	else
+		QIcon::setThemeName(dark ? QStringLiteral("qet-dark")
+		                         : QStringLiteral("qet"));
 }
 
 /**

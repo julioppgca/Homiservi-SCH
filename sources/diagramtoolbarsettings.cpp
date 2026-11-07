@@ -168,6 +168,7 @@ QStringList DiagramToolbarSettings::defaultIds(const QString &name)
 			QStringLiteral("diagrameditor.cut"),
 			QStringLiteral("diagrameditor.copy"),
 			QStringLiteral("diagrameditor.paste"),
+			QStringLiteral("diagrameditor.paint_style"),
 			QStringLiteral("diagrameditor.duplicate"),
 			sep,
 			QStringLiteral("diagrameditor.delete_selection"),

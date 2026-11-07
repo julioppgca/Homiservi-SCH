@@ -121,6 +121,7 @@ namespace QETInformation
 	static QString DIA_FILENAME           = "filename";
 	static QString DIA_FOLIO              = "folio";
 	static QString DIA_INDEX_REV          = "indexrev";
+	static QString DIA_VARIANT            = "variant";
 	static QString DIA_LOCMACH            = "locmach";
 	static QString DIA_PLANT              = "plant";
 	static QString DIA_POS                = "pos";
@@ -151,6 +152,11 @@ namespace QETInformation
 	static QString ELMT_PLC_FUNCTION    = "plc_function";
 	static QString ELMT_PLC_COMMENT     = "plc_comment";
 	static QString ELMT_PLC_CROSSREF    = "plc_crossref";
+		//X standard, O optional, V variant, E special (ProjectVariants)
+	static QString ELMT_VARIANT         = "variant";
+	static QString ELMT_APPLICATION     = "application";
+		///Path or link of the datasheet of the component (DatasheetReader)
+	static QString ELMT_DATASHEET       = "datasheet";
 	static QString ELMT_PLC_TC          = "plc_tc";
 	static QString ELMT_PLC_T1          = "plc_t1";
 	static QString ELMT_PLC_T2          = "plc_t2";

@@ -176,6 +176,28 @@ set(QET_SRC_FILES
   ${QET_DIR}/sources/conductorautonumerotation.h
   ${QET_DIR}/sources/conductorendlabeling.cpp
   ${QET_DIR}/sources/conductorendlabeling.h
+  ${QET_DIR}/sources/projectdiff.cpp
+  ${QET_DIR}/sources/projectdiff.h
+  ${QET_DIR}/sources/projecthistory.cpp
+  ${QET_DIR}/sources/projecthistory.h
+  ${QET_DIR}/sources/potentialrules.cpp
+  ${QET_DIR}/sources/potentialrules.h
+  ${QET_DIR}/sources/homiservitemplate.cpp
+  ${QET_DIR}/sources/homiservitemplate.h
+  ${QET_DIR}/sources/projectrevisions.cpp
+  ${QET_DIR}/sources/projectrevisions.h
+  ${QET_DIR}/sources/projectvariants.cpp
+  ${QET_DIR}/sources/projectvariants.h
+  ${QET_DIR}/sources/terminalsheet.cpp
+  ${QET_DIR}/sources/terminalsheet.h
+  ${QET_DIR}/sources/iomap.cpp
+  ${QET_DIR}/sources/iomap.h
+  ${QET_DIR}/sources/sheettable.cpp
+  ${QET_DIR}/sources/sheettable.h
+  ${QET_DIR}/sources/stylepainter.cpp
+  ${QET_DIR}/sources/stylepainter.h
+  ${QET_DIR}/sources/textstyles.cpp
+  ${QET_DIR}/sources/textstyles.h
   ${QET_DIR}/sources/conductornumexport.cpp
   ${QET_DIR}/sources/wiringlistexport.h
   ${QET_DIR}/sources/wiringlistexport.cpp
@@ -377,6 +399,8 @@ set(QET_SRC_FILES
   ${QET_DIR}/sources/diagramevent/diagrameventaddelement.h
   ${QET_DIR}/sources/diagramevent/diagrameventaddimage.cpp
   ${QET_DIR}/sources/diagramevent/diagrameventaddimage.h
+  ${QET_DIR}/sources/diagramevent/diagrameventpaintstyle.cpp
+  ${QET_DIR}/sources/diagramevent/diagrameventpaintstyle.h
   ${QET_DIR}/sources/diagramevent/diagrameventaddshape.cpp
   ${QET_DIR}/sources/diagramevent/diagrameventaddshape.h
   ${QET_DIR}/sources/diagramevent/diagrameventfillet.cpp
@@ -416,6 +440,26 @@ set(QET_SRC_FILES
   ${QET_DIR}/sources/editor/elementview.h
   ${QET_DIR}/sources/editor/styleeditor.cpp
   ${QET_DIR}/sources/editor/styleeditor.h
+  ${QET_DIR}/sources/editor/componentwizard.cpp
+  ${QET_DIR}/sources/editor/componentwizard.h
+  ${QET_DIR}/sources/editor/datasheetreader.cpp
+  ${QET_DIR}/sources/editor/datasheetreader.h
+  ${QET_DIR}/sources/editor/picturecomponent.cpp
+  ${QET_DIR}/sources/editor/picturecomponent.h
+  ${QET_DIR}/sources/editor/elementtextstyles.cpp
+  ${QET_DIR}/sources/editor/elementtextstyles.h
+  ${QET_DIR}/sources/editor/elementchecker.cpp
+  ${QET_DIR}/sources/editor/elementchecker.h
+  ${QET_DIR}/sources/editor/partlibrary.cpp
+  ${QET_DIR}/sources/editor/partlibrary.h
+  ${QET_DIR}/sources/editor/connectorgenerator.cpp
+  ${QET_DIR}/sources/editor/connectorgenerator.h
+  ${QET_DIR}/sources/editor/elementpreview.cpp
+  ${QET_DIR}/sources/editor/elementpreview.h
+  ${QET_DIR}/sources/editor/elementalign.cpp
+  ${QET_DIR}/sources/editor/elementalign.h
+  ${QET_DIR}/sources/editor/modulegenerator.cpp
+  ${QET_DIR}/sources/editor/modulegenerator.h
 
   ${QET_DIR}/sources/editor/esevent/eseventaddarc.cpp
   ${QET_DIR}/sources/editor/esevent/eseventaddarc.h
@@ -425,6 +469,8 @@ set(QET_SRC_FILES
   ${QET_DIR}/sources/editor/esevent/eseventaddellipse.h
   ${QET_DIR}/sources/editor/esevent/eseventaddline.cpp
   ${QET_DIR}/sources/editor/esevent/eseventaddline.h
+  ${QET_DIR}/sources/editor/esevent/eseventmeasure.cpp
+  ${QET_DIR}/sources/editor/esevent/eseventmeasure.h
   ${QET_DIR}/sources/editor/esevent/eseventaddpolygon.cpp
   ${QET_DIR}/sources/editor/esevent/eseventaddpolygon.h
   ${QET_DIR}/sources/editor/esevent/eseventaddrect.cpp
@@ -474,6 +520,24 @@ set(QET_SRC_FILES
   ${QET_DIR}/sources/editor/ui/rectangleeditor.h
   ${QET_DIR}/sources/editor/ui/scaleelementdialog.cpp
   ${QET_DIR}/sources/editor/ui/scaleelementdialog.h
+  ${QET_DIR}/sources/editor/ui/componentwizarddialog.cpp
+  ${QET_DIR}/sources/editor/ui/componentwizarddialog.h
+  ${QET_DIR}/sources/editor/ui/datasheetdialog.cpp
+  ${QET_DIR}/sources/editor/ui/datasheetdialog.h
+  ${QET_DIR}/sources/editor/ui/picturecomponentdialog.cpp
+  ${QET_DIR}/sources/editor/ui/picturecomponentdialog.h
+  ${QET_DIR}/sources/editor/ui/elementcheckdialog.cpp
+  ${QET_DIR}/sources/editor/ui/elementcheckdialog.h
+  ${QET_DIR}/sources/editor/ui/partlibrarydialog.cpp
+  ${QET_DIR}/sources/editor/ui/partlibrarydialog.h
+  ${QET_DIR}/sources/editor/ui/connectordialog.cpp
+  ${QET_DIR}/sources/editor/ui/connectordialog.h
+  ${QET_DIR}/sources/editor/ui/selectionpanel.cpp
+  ${QET_DIR}/sources/editor/ui/selectionpanel.h
+  ${QET_DIR}/sources/editor/ui/modulegeneratordialog.cpp
+  ${QET_DIR}/sources/editor/ui/modulegeneratordialog.h
+  ${QET_DIR}/sources/editor/ui/terminaltabledialog.cpp
+  ${QET_DIR}/sources/editor/ui/terminaltabledialog.h
   ${QET_DIR}/sources/editor/ui/terminaleditor.cpp
   ${QET_DIR}/sources/editor/ui/terminaleditor.h
   ${QET_DIR}/sources/editor/ui/texteditor.cpp
@@ -592,6 +656,8 @@ set(QET_SRC_FILES
   ${QET_DIR}/sources/qetgraphicsitem/qetgraphicsitem.cpp
   ${QET_DIR}/sources/qetgraphicsitem/qetgraphicsitem.h
   ${QET_DIR}/sources/qetgraphicsitem/qetshapeitem.cpp
+  ${QET_DIR}/sources/qetgraphicsitem/cabledata.cpp
+  ${QET_DIR}/sources/qetgraphicsitem/cabledata.h
   ${QET_DIR}/sources/qetgraphicsitem/qetshapeitem.h
   ${QET_DIR}/sources/qetgraphicsitem/shapetransform.cpp
   ${QET_DIR}/sources/qetgraphicsitem/shapetransform.h
@@ -791,6 +857,20 @@ set(QET_SRC_FILES
   ${QET_DIR}/sources/ui/backupdialog.h
   ${QET_DIR}/sources/ui/backuprestoredialog.cpp
   ${QET_DIR}/sources/ui/backuprestoredialog.h
+  ${QET_DIR}/sources/ui/projectdiffdock.cpp
+  ${QET_DIR}/sources/ui/projectdiffdock.h
+  ${QET_DIR}/sources/ui/projecthistorydialog.cpp
+  ${QET_DIR}/sources/ui/projecthistorydialog.h
+  ${QET_DIR}/sources/ui/wiringeditordock.cpp
+  ${QET_DIR}/sources/ui/wiringeditordock.h
+  ${QET_DIR}/sources/ui/potentialrulesdialog.cpp
+  ${QET_DIR}/sources/ui/potentialrulesdialog.h
+  ${QET_DIR}/sources/ui/homiserviprojectwizard.cpp
+  ${QET_DIR}/sources/ui/homiserviprojectwizard.h
+  ${QET_DIR}/sources/ui/projectrevisionsdialog.cpp
+  ${QET_DIR}/sources/ui/projectrevisionsdialog.h
+  ${QET_DIR}/sources/ui/textstylesdialog.cpp
+  ${QET_DIR}/sources/ui/textstylesdialog.h
   ${QET_DIR}/sources/ui/dialogwaiting.cpp
   ${QET_DIR}/sources/ui/dialogwaiting.h
   ${QET_DIR}/sources/ui/duplicateoffsetdialog.cpp
@@ -846,6 +926,8 @@ set(QET_SRC_FILES
   ${QET_DIR}/sources/ui/reportpropertiewidget.cpp
   ${QET_DIR}/sources/ui/reportpropertiewidget.h
   ${QET_DIR}/sources/ui/shapegraphicsitempropertieswidget.cpp
+  ${QET_DIR}/sources/ui/cabledialog.cpp
+  ${QET_DIR}/sources/ui/cabledialog.h
   ${QET_DIR}/sources/ui/shapegraphicsitempropertieswidget.h
   ${QET_DIR}/sources/ui/thirdpartybinaryinstalldialog.cpp
   ${QET_DIR}/sources/ui/thirdpartybinaryinstalldialog.h

@@ -20,11 +20,15 @@
 
 #include "../../ElementsCollection/elementslocation.h"
 
+#include <QPointer>
 #include <QCloseEvent>
 #include <QMainWindow>
 
 class ElementScene;
 class QActionGroup;
+class QComboBox;
+class ElementCheckDialog;
+class SelectionPanel;
 class ElementItemEditor;
 class ElementView;
 class QListWidget;
@@ -53,6 +57,8 @@ class QETElementEditor : public QMainWindow
 		QString fileName() const;
 		void setReadOnly(bool ro);
 		bool isReadOnly() const;
+		int repeatSelection(int count, const QPointF &step, int increment);
+		bool arrangeSelection(int mode);
 		void fromFile(const QString &filepath);
 		bool toFile(const QString &filepath);
 		void fromLocation(const ElementsLocation &location);
@@ -113,6 +119,19 @@ class QETElementEditor : public QMainWindow
 		void on_m_import_dxf_triggered();
 		void on_m_import_scaled_element_triggered();
 		void scaleElement();
+		void createComponent();
+		void generateModule();
+		void showConnectorGenerator();
+		void showTerminalTable();
+		void showDatasheet();
+		void showPictureComponent();
+		void placeTerminalsOnGrid();
+		void showElementCheck();
+		void showPartLibrary();
+		void showRepeatSelection();
+		void editTextStyles();
+		void applyTextStyle(int index);
+		void showTextStyle();
 
 	private:
 		bool canClose();
@@ -125,6 +144,7 @@ class QETElementEditor : public QMainWindow
 		void initGui();
 		QWidget *clearToolsDock();
 		void copyAndPasteXml(const QDomDocument &xml_document);
+		void fillTextStyles();
 
 	private:
 		Ui::QETElementEditor *ui;
@@ -141,9 +161,24 @@ class QETElementEditor : public QMainWindow
 			*m_depth_action_group  = nullptr;
 
 		QList<QAction *> m_context_menu_action_list;
+		QComboBox *m_text_style_combo = nullptr;
+		QPointer<ElementCheckDialog> m_check_dialog;
+		SelectionPanel *m_selection_panel = nullptr;
+		QList<QAction *> m_align_actions;
 
 		QAction
 			*m_scale_element_action = nullptr,
+			*m_component_wizard_action = nullptr,
+			*m_generate_module_action = nullptr,
+			*m_terminal_table_action = nullptr,
+			*m_datasheet_action = nullptr,
+			*m_picture_action = nullptr,
+			*m_terminals_grid_action = nullptr,
+			*m_text_styles_action = nullptr,
+			*m_check_action = nullptr,
+			*m_part_library_action = nullptr,
+			*m_connector_action = nullptr,
+			*m_repeat_action = nullptr,
 			*m_undo_action = nullptr,
 			*m_redo_action = nullptr;
 

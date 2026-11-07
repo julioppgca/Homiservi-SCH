@@ -47,6 +47,7 @@ class PartDynamicTextField : public QGraphicsTextItem, public CustomElementPart
 	Q_PROPERTY(QFont font READ font WRITE setFont NOTIFY fontChanged)
 	Q_PROPERTY(bool keepVisualRotation READ keepVisualRotation WRITE setKeepVisualRotation NOTIFY keepVisualRotationChanged)
 	Q_PROPERTY(bool rotationPointCenter READ rotationPointCenter WRITE setRotationPointCenter NOTIFY rotationPointCenterChanged)
+	Q_PROPERTY(QString elementStyle READ elementStyle WRITE setElementStyle)
 
 	public:
 			///PROPERTY
@@ -110,6 +111,9 @@ class PartDynamicTextField : public QGraphicsTextItem, public CustomElementPart
 		void setKeepVisualRotation(const bool &keep);
 		bool keepVisualRotation() const;
 		void setRotationPointCenter(const bool &center);
+			///The element text style the text follows (ElementTextStyles), empty for none
+		QString elementStyle() const {return m_element_style;}
+		void setElementStyle(const QString &style) {m_element_style = style;}
 		bool rotationPointCenter() const;
 
 		void setRotation(qreal angle);
@@ -142,6 +146,7 @@ class PartDynamicTextField : public QGraphicsTextItem, public CustomElementPart
 			 m_block_alignment = false,
 			 m_keep_visual_rotation = false,
 			 m_rotation_point_center = false;
+		QString m_element_style;
 		qreal m_text_width = -1;
 		Qt::Alignment m_alignment = Qt::AlignTop|Qt::AlignLeft;
 		QRectF m_alignment_rect;

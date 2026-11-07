@@ -26,6 +26,7 @@ namespace {
 	const QString ICON_SIZE    = QStringLiteral("toolbars/icon_size");
 	const QString BUTTON_STYLE = QStringLiteral("toolbars/button_style");
 	const QString LOCKED       = QStringLiteral("toolbars/locked");
+	const QString CLASSIC_ICONS = QStringLiteral("toolbars/classic_icons");
 		//Set on a window by applyTo()
 	const char *const APPLIED  = "qetToolbarSettings";
 }
@@ -65,6 +66,23 @@ void ToolbarSettings::save(int icon_size, Qt::ToolButtonStyle style, bool locked
 	else settings.remove(BUTTON_STYLE);
 	if (locked) settings.setValue(LOCKED, true);
 	else settings.remove(LOCKED);
+}
+
+bool ToolbarSettings::homiserviIcons()
+{
+	return !QSettings().value(CLASSIC_ICONS, false).toBool();
+}
+
+/**
+	@brief ToolbarSettings::setHomiserviIcons
+	Store the choice; the icon theme changes with
+	QETApp::applyIconTheme().
+*/
+void ToolbarSettings::setHomiserviIcons(bool homiservi)
+{
+	QSettings settings;
+	if (homiservi) settings.remove(CLASSIC_ICONS);
+	else settings.setValue(CLASSIC_ICONS, true);
 }
 
 /**

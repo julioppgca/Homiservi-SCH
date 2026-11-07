@@ -1765,6 +1765,8 @@ void projectDataBase::createElementNomenclatureView()
 					 "ei.plc_function AS plc_function,"
 					 "ei.plc_comment AS plc_comment,"
 					 "ei.plc_crossref AS plc_crossref,"
+					 "ei.variant AS variant,"
+					 "ei.application AS application,"
 					
 					 "d.pos AS diagram_position,"
 						 "e.type AS element_type,"
@@ -1816,6 +1818,7 @@ void projectDataBase::createSummaryView()
 						 "di.locmach AS locmach,"
 						 "di.indexrev AS indexrev,"
 						 "di.date AS date,"
+						 "di.variant AS variant,"
 						 "d.pos AS pos"
 						 " FROM diagram_info di, diagram d"
 						 " WHERE di.diagram_uuid = d.uuid");

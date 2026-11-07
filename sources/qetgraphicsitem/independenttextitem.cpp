@@ -98,6 +98,7 @@ void IndependentTextItem::fromXml(const QDomElement &e) {
 		//kind older versions know (they show such a text unwrapped).
 		//Read after the text, setHtml() sets a width of its own.
 	setTextWidth(e.attribute(QStringLiteral("text_width"), QStringLiteral("-1")).toDouble());
+	setTextStyle(e.attribute(QStringLiteral("text_style")));
 }
 
 /**
@@ -116,6 +117,8 @@ QDomElement IndependentTextItem::toXml(QDomDocument &document) const
 		//Only when set, so a text with the automatic width is saved as before
 	if (m_text_width > 0)
 		result.setAttribute("text_width", QString::number(m_text_width));
+	if (!textStyle().isEmpty())
+		result.setAttribute("text_style", textStyle());
 	
 	return(result);
 }

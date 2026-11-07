@@ -161,6 +161,8 @@ QDomElement DynamicElementTextItem::toXml(QDomDocument &dom_doc) const
 	root_element.setAttribute("font", QETUtils::fontToString(font()));
 	root_element.setAttribute("keep_visual_rotation", m_keep_visual_rotation ? "true" : "false");
 	root_element.setAttribute("rotation_point_center", m_rotation_point_center ? "true" : "false");
+	if (!textStyle().isEmpty())
+		root_element.setAttribute("text_style", textStyle());
 
 	QMetaEnum me = textFromMetaEnum();
 	root_element.setAttribute("text_from", me.valueToKey(m_text_from));
@@ -243,6 +245,7 @@ void DynamicElementTextItem::fromXml(const QDomElement &dom_elmt)
 	}
 
 	m_uuid = QUuid(dom_elmt.attribute("uuid", QUuid::createUuid().toString()));
+	setTextStyle(dom_elmt.attribute(QStringLiteral("text_style")));
 	setFrame(dom_elmt.attribute("frame", "false") == "true"? true : false);
 	setTextWidth(dom_elmt.attribute("text_width", QString::number(-1)).toDouble());
 	

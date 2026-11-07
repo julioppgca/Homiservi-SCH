@@ -51,7 +51,7 @@ bool ESEventAddRect::mousePressEvent(QGraphicsSceneMouseEvent *event)
 	if (event -> button() == Qt::LeftButton)
 	{
 		if(!m_running) m_running = true;
-		QPointF pos = m_scene->snapToGrid(event -> scenePos());
+		QPointF pos = snappedPos(event, m_rect);
 
 			//create new rectangle, pos isn't define,
 			//so m_rect.pos = 0,0 , that mean event.scenePos is in same coordinate of item
@@ -82,10 +82,10 @@ bool ESEventAddRect::mousePressEvent(QGraphicsSceneMouseEvent *event)
 	@return
 */
 bool ESEventAddRect::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
-	updateHelpCross(event -> scenePos());
+	updateHelpCross(snappedPos(event, m_rect));
 	if (!m_rect) return false;
 
-	QRectF rect(m_rect->rect().topLeft(), m_scene->snapToGrid(event -> scenePos()));
+	QRectF rect(m_rect->rect().topLeft(), snappedPos(event, m_rect));
 	m_rect -> setRect(rect);
 	return true;
 }

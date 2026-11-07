@@ -1351,7 +1351,7 @@ void CustomElementGraphicPart::mouseMoveEvent(QGraphicsSceneMouseEvent *event)
 
 	if ((event->buttons() & Qt::LeftButton) && (flags() & QGraphicsItem::ItemIsMovable)) {
 		QPointF pos = event->scenePos() + (m_origin_pos - event->buttonDownScenePos(Qt::LeftButton));
-		event->modifiers() == Qt::ControlModifier ? setPos(pos) : setPos(elementScene()->snapToGrid(pos));
+		setPos(scenePos() + elementScene()->snapTranslation({this}, pos - scenePos(), event->modifiers()));
 	} else {
 		QGraphicsObject::mouseMoveEvent(event);
 	}

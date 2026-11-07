@@ -1733,6 +1733,26 @@ void TitleBlockTemplate::renderDxf(QRectF &title_block_rect,
 
 
 /**
+	@brief TitleBlockTemplate::logoRect
+	@param cell_rect : rectangle of a logo cell
+	@param logo_size : natural size of the logo
+	@return the rectangle where to draw the logo: centred in cell_rect,
+	inside a margin keeping it off the borders, with the proportions
+	of logo_size
+*/
+QRectF TitleBlockTemplate::logoRect(const QRect &cell_rect, const QSizeF &logo_size)
+{
+	const qreal margin = qBound(1.5, qMin(cell_rect.width(), cell_rect.height()) * 0.12, 6.0);
+	const QRectF inside = QRectF(cell_rect).adjusted(margin, margin, -margin, -margin);
+	if (logo_size.isEmpty() || inside.isEmpty())
+		return inside;
+	const QSizeF size = logo_size.scaled(inside.size(), Qt::KeepAspectRatio);
+	QRectF rect(QPointF(), size);
+	rect.moveCenter(inside.center());
+	return rect;
+}
+
+/**
 	@brief TitleBlockTemplate::renderCell
 	Render a titleblock cell.
 	@param painter :
@@ -1767,12 +1787,13 @@ void TitleBlockTemplate::renderCell(QPainter &painter,
 			 *    (or, at least, not resolution-limited) rendering
 			 */
 			if (vector_logos_.contains(cell.logo_reference)) {
-				vector_logos_[cell.logo_reference] -> render(
-							&painter,
-							cell_rect);
+				QSvgRenderer *logo = vector_logos_[cell.logo_reference];
+				logo -> render(&painter,
+					       logoRect(cell_rect, logo -> defaultSize()));
 			} else if (bitmap_logos_.contains(cell.logo_reference)) {
-				painter.drawPixmap(cell_rect,
-						   bitmap_logos_[cell.logo_reference]);
+				const QPixmap &logo = bitmap_logos_[cell.logo_reference];
+				painter.drawPixmap(logoRect(cell_rect, logo.size()), logo,
+						   QRectF(logo.rect()));
 			}
 		}
 	} else if (cell.type() == TitleBlockCell::TextCell) {

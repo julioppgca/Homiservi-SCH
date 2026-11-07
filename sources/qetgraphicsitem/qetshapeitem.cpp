@@ -16,6 +16,9 @@
 	along with QElectroTech.  If not, see <http://www.gnu.org/licenses/>.
 */
 #include "qetshapeitem.h"
+#include "conductor.h"
+#include "../qetproject.h"
+#include "../ui/cabledialog.h"
 #include "../shownkinds.h"
 
 #include "../PropertiesEditor/propertieseditordialog.h"
@@ -36,6 +39,8 @@
 #include <QActionGroup>
 #include <algorithm>
 #include <QCursor>
+#include <QFontMetricsF>
+#include <QRegularExpression>
 #include <QMenu>
 #include <QStatusBar>
 #include <QTimer>
@@ -77,6 +82,12 @@ QetShapeItem::QetShapeItem(QPointF p1, QPointF p2, ShapeType type, QGraphicsItem
 	m_remove_point = new QAction(tr("Supprimer ce point"), this);
 	m_remove_point->setIcon(QET::Icons::Remove);
 	connect(m_remove_point, &QAction::triggered, this, &QetShapeItem::removePoint);
+		//The wires of a cable follow it
+	connect(this, &QetShapeItem::geometryChanged, this, [this]()
+	{
+		if (isCable())
+			updateCableMembers(m_cable.name, scene());
+	});
 }
 
 QetShapeItem::~QetShapeItem()
@@ -665,6 +676,8 @@ void QetShapeItem::setPos(const QPointF &p)
 */
 QPainterPath QetShapeItem::shape() const
 {
+	if (isCable())
+		return cableShape();
 	QPainterPathStroker pps;
 	pps.setWidth(m_hovered? m_pen.widthF()+10 : m_pen.widthF());
 	pps.setJoinStyle(Qt::RoundJoin);
@@ -685,6 +698,12 @@ void QetShapeItem::paint(
 {
 	Q_UNUSED(option)
 	Q_UNUSED(widget)
+
+	if (isCable())
+	{
+		paintCable(painter);
+		return;
+	}
 
 	painter->save();
 	painter->setRenderHint(QPainter::Antialiasing, true);
@@ -835,6 +854,22 @@ void QetShapeItem::mousePressEvent(QGraphicsSceneMouseEvent *event)
 	// -- so deciding "reshape vs. cycle" at press time would make it
 	// impossible to ever click onward to RotateSkew once in NodeEdit.
 	// Deferred to mouseMoveEvent/mouseReleaseEvent instead, below.
+		//The label of a cable is dragged on its own, the cable stays
+	if (isCable() && event->button() == Qt::LeftButton && cableLabelRect().contains(event->pos()))
+	{
+		if (!isSelected())
+		{
+			if (!(event->modifiers() & Qt::ControlModifier) && scene())
+				scene()->clearSelection();
+			setSelected(true);
+		}
+		m_label_drag = true;
+		m_label_drag_start = event->scenePos();
+		m_label_old_offset = m_cable.label_offset;
+		event->accept();
+		return;
+	}
+
 	if (m_shapeType == Path && m_handleMode == HandleMode::NodeEdit && event->button() == Qt::LeftButton)
 	{
 		const auto hit = nearestPathSegment(event->pos());
@@ -877,6 +912,20 @@ void QetShapeItem::mousePressEvent(QGraphicsSceneMouseEvent *event)
 */
 void QetShapeItem::mouseMoveEvent(QGraphicsSceneMouseEvent *event)
 {
+	if (m_label_drag)
+	{
+		QPointF offset = m_label_old_offset + mapFromScene(event->scenePos()) - mapFromScene(m_label_drag_start);
+		if (!(event->modifiers() & Qt::ControlModifier))
+			offset = QPointF(qRound(offset.x() / 5) * 5, qRound(offset.y() / 5) * 5);
+		if (offset != m_cable.label_offset)
+		{
+			prepareGeometryChange();
+			m_cable.label_offset = offset;
+			update();
+		}
+		event->accept();
+		return;
+	}
 	if (m_curveDragSegment >= 0)
 	{
 		if (!m_curveDragEngaged)
@@ -908,6 +957,20 @@ void QetShapeItem::mouseMoveEvent(QGraphicsSceneMouseEvent *event)
 */
 void QetShapeItem::mouseReleaseEvent(QGraphicsSceneMouseEvent *event)
 {
+	if (m_label_drag)
+	{
+		m_label_drag = false;
+		if (m_cable.label_offset != m_label_old_offset && diagram())
+		{
+			CableData old_data = m_cable;
+			old_data.label_offset = m_label_old_offset;
+			auto *undo = new QPropertyUndoCommand(this, "cableData", old_data.toMap(), m_cable.toMap());
+			undo->setText(tr("Mover a etiqueta do cabo %1").arg(m_cable.name));
+			diagram()->undoStack().push(undo);
+		}
+		event->accept();
+		return;
+	}
 	if (m_curveDragSegment >= 0)
 	{
 		if (m_curveDragEngaged)
@@ -973,6 +1036,8 @@ QVariant QetShapeItem::itemChange(QGraphicsItem::GraphicsItemChange change,
 	else if (change == ItemPositionHasChanged || change == ItemTransformHasChanged) {
 		if (!m_deferHandleReposition)
 			repositionHandles();
+		if (isCable())
+			updateCableMembers(m_cable.name, scene());
 	}
 	else if (change == ItemSceneHasChanged)
 	{
@@ -980,6 +1045,11 @@ QVariant QetShapeItem::itemChange(QGraphicsItem::GraphicsItemChange change,
 		{
 			setSelected(false);
 		}
+			//The wires of a cable go back to their whole path once it
+			//leaves the folio, and run into it again when it comes back
+		if (isCable())
+			updateCableMembers(m_cable.name, scene() ? scene() : m_cable_scene.data());
+		m_cable_scene = scene();
 	}
 
 	return QGraphicsItem::itemChange(change, value);
@@ -3054,6 +3124,16 @@ bool QetShapeItem::fromXml(const QDomElement &e)
 	m_closed = e.attribute("closed", "0").toInt();
 	m_pen = QETXML::penFromXml(e.firstChildElement("pen"));
 	m_brush = QETXML::brushFromXml(e.firstChildElement("brush"));
+	{
+		const CableData cable = CableData::fromXml(e);
+		if (cable != m_cable)
+		{
+			const QString old_name = m_cable.name;
+			m_cable = cable;
+			updateCableMembers(old_name, scene());
+			updateCableMembers(m_cable.name, scene());
+		}
+	}
 
 	QString type = e.attribute("type");
 	QMetaEnum me = metaObject()->enumerator(metaObject()->indexOfEnumerator("ShapeType"));
@@ -3176,6 +3256,8 @@ QDomElement QetShapeItem::toXml(QDomDocument &document) const
 	result.appendChild(QETXML::brushToXml(document, m_brush));
 	result.setAttribute("is_movable", bool(is_movable_));
 	result.setAttribute("closed", bool(m_closed));
+	if (m_cable.enabled)
+		result.appendChild(m_cable.toXml(document));
 
 	if (m_shapeType != Polygon && m_shapeType != Path)
 	{
@@ -3362,6 +3444,12 @@ void QetShapeItem::editProperty()
 {
 	if (diagram() -> isReadOnly()) return;
 
+	if (isCable())
+	{
+		CableDialog::edit(this, diagram()->views().at(0));
+		return;
+	}
+
 	PropertiesEditorDialog ped(new ShapeGraphicsItemPropertiesWidget(this), diagram()->views().at(0));
 	ped.exec();
 }
@@ -3372,6 +3460,8 @@ void QetShapeItem::editProperty()
 */
 QString QetShapeItem::name() const
 {
+	if (isCable())
+		return tr("um cabo");
 	switch (m_shapeType) {
 		case Line:	    return tr("une ligne");
 		case Rectangle:	return tr("un rectangle");
@@ -3380,4 +3470,278 @@ QString QetShapeItem::name() const
 		case Path:	    return tr("une courbe");
 		default:	    return tr("une shape");
 	}
+}
+
+/**
+	@brief QetShapeItem::setCable
+	Makes this polyline a cable, or a plain polyline again when \a cable
+	is not enabled. The wires of the old and of the new name are redrawn.
+*/
+void QetShapeItem::setCable(const CableData &cable)
+{
+	if (cable == m_cable)
+		return;
+	const QString old_name = m_cable.name;
+	prepareGeometryChange();
+	m_cable = cable;
+	update();
+	emit cableChanged();
+	updateCableMembers(old_name, scene());
+	updateCableMembers(m_cable.name, scene());
+}
+
+/**
+	@brief QetShapeItem::cableSceneLine
+	@return the line of the cable, in scene coordinates
+*/
+QPolygonF QetShapeItem::cableSceneLine() const
+{
+	return mapToScene(m_polygon);
+}
+
+/**
+	@brief QetShapeItem::cableMembers
+	@return the wires of this cable: the conductors of its folio whose
+	"cable" property is its name
+*/
+QList<Conductor *> QetShapeItem::cableMembers() const
+{
+	QList<Conductor *> members;
+	Diagram *d = diagram();
+	if (!d || !isCable() || m_cable.name.isEmpty())
+		return members;
+	const QList<Conductor *> conductors = d->conductors();
+	for (Conductor *c : conductors)
+		if (c->properties().m_cable == m_cable.name)
+			members << c;
+	return members;
+}
+
+/**
+	@brief QetShapeItem::findCable
+	@return the cable named \a name on \a scene, nullptr if there is none
+*/
+QetShapeItem *QetShapeItem::findCable(const QGraphicsScene *scene, const QString &name)
+{
+	if (!scene || name.isEmpty())
+		return nullptr;
+	const QList<QGraphicsItem *> items = scene->items();
+	for (QGraphicsItem *item : items)
+		if (QetShapeItem *shape = qgraphicsitem_cast<QetShapeItem *>(item))
+			if (shape->isCable() && shape->m_cable.name == name)
+				return shape;
+	return nullptr;
+}
+
+/**
+	@brief QetShapeItem::nextCableName
+	@return W1, W2... the first name after every cable of the project of
+	\a scene, so that two cables never share a name across its folios
+*/
+QString QetShapeItem::nextCableName(const QGraphicsScene *scene)
+{
+	QList<const QGraphicsScene *> scenes {scene};
+	if (const Diagram *d = qobject_cast<const Diagram *>(scene))
+		if (d->project())
+		{
+			scenes.clear();
+			const auto diagrams = d->project()->diagrams();
+			for (const Diagram *other : diagrams)
+				scenes << other;
+		}
+
+	static const QRegularExpression number(QStringLiteral("^W(\\d+)$"));
+	int highest = 0;
+	for (const QGraphicsScene *s : std::as_const(scenes))
+	{
+		if (!s)
+			continue;
+		const QList<QGraphicsItem *> items = s->items();
+		for (QGraphicsItem *item : items)
+			if (QetShapeItem *shape = qgraphicsitem_cast<QetShapeItem *>(item))
+				if (shape->isCable())
+				{
+					const auto match = number.match(shape->m_cable.name);
+					if (match.hasMatch())
+						highest = qMax(highest, match.captured(1).toInt());
+				}
+	}
+	return QStringLiteral("W%1").arg(highest + 1);
+}
+
+/**
+	@brief QetShapeItem::updateCableMembers
+	Redraws the conductors of \a scene that belong to the cable \a name
+*/
+void QetShapeItem::updateCableMembers(const QString &name, QGraphicsScene *scene) const
+{
+	Diagram *d = qobject_cast<Diagram *>(scene);
+	if (!d || name.isEmpty())
+		return;
+	const QList<Conductor *> conductors = d->conductors();
+	for (Conductor *c : conductors)
+		if (c->properties().m_cable == name)
+			c->updateCableStub();
+}
+
+/**
+	@brief QetShapeItem::cableLabelRect
+	@return where the name of the cable is written: beside the middle of
+	its longest segment, moved by where the user dragged it
+*/
+QRectF QetShapeItem::cableLabelRect() const
+{
+	int longest = 0;
+	qreal length = -1;
+	for (int i = 0; i + 1 < m_polygon.size(); ++i)
+	{
+		const qreal l = QLineF(m_polygon.at(i), m_polygon.at(i + 1)).length();
+		if (l > length)
+		{
+			length = l;
+			longest = i;
+		}
+	}
+	const QPointF a = m_polygon.value(longest), b = m_polygon.value(longest + 1, a);
+	const QPointF middle = (a + b) / 2;
+
+	const QFontMetricsF metrics(QETApp::diagramTextsFont(8));
+	const QSizeF size(metrics.horizontalAdvance(m_cable.label()) + 10, metrics.height() + 4);
+	if (qAbs(b.x() - a.x()) >= qAbs(b.y() - a.y()))
+		return QRectF(QPointF(middle.x() - size.width() / 2, middle.y() - 7 - size.height()) + m_cable.label_offset, size);
+	return QRectF(QPointF(middle.x() + 7, middle.y() - size.height() / 2) + m_cable.label_offset, size);
+}
+
+/**
+	@brief QetShapeItem::cableShieldMarks
+	@return one line per grounded end of the shield: from the middle of
+	the shield ring, one unit along the cable
+*/
+QList<QLineF> QetShapeItem::cableShieldMarks() const
+{
+	QList<QLineF> marks;
+	if (!m_cable.shielded || m_polygon.size() < 2)
+		return marks;
+	const auto mark = [](const QPointF &end, const QPointF &next) {
+		const qreal length = QLineF(end, next).length();
+		if (length <= 0)
+			return QLineF();
+		const QPointF direction = (next - end) / length;
+		const QPointF middle = end + direction * qMin(qreal(20), length / 2);
+		return QLineF(middle, middle + direction);
+	};
+	if (m_cable.shield_ground & CableData::GroundStart)
+		marks << mark(m_polygon.first(), m_polygon.at(1));
+	if (m_cable.shield_ground & CableData::GroundEnd)
+		marks << mark(m_polygon.last(), m_polygon.at(m_polygon.size() - 2));
+	marks.removeAll(QLineF());
+	return marks;
+}
+
+/**
+	@brief QetShapeItem::cableShape
+	@return the line, the label and the shield of the cable
+*/
+QPainterPath QetShapeItem::cableShape() const
+{
+	QPainterPath line;
+	line.addPolygon(m_polygon);
+	QPainterPathStroker pps;
+	pps.setWidth(m_hovered ? 14 : 8);
+	pps.setCapStyle(Qt::RoundCap);
+	pps.setJoinStyle(Qt::RoundJoin);
+	QPainterPath shape = pps.createStroke(line);
+	shape.addRect(cableLabelRect());
+	const QList<QLineF> marks = cableShieldMarks();
+	for (const QLineF &mark : marks)
+	{
+		const QPointF along = mark.p2() - mark.p1();
+		QPointF across(-along.y(), along.x());
+		if (across.y() < 0)
+			across = -across;
+		shape.addEllipse(mark.p1(), 12, 12);
+		shape.addEllipse(mark.p1() + across * 22, 8, 8);
+	}
+	return shape.simplified();
+}
+
+/**
+	@brief QetShapeItem::paintCable
+	Draws the cable: a thick line, its name and formation, and the ring
+	and ground of its shield. The label turns red when more wires run in
+	the cable than it has cores.
+*/
+void QetShapeItem::paintCable(QPainter *painter)
+{
+	painter->save();
+	painter->setRenderHint(QPainter::Antialiasing, true);
+
+	if (m_hovered)
+	{
+		QColor shadow(Qt::darkBlue);
+		shadow.setAlpha(50);
+		painter->setPen(Qt::NoPen);
+		painter->setBrush(shadow);
+		painter->drawPath(cableShape());
+	}
+
+	const QColor color = isSelected() ? QColor(Qt::red) : QColor(55, 138, 221);
+	painter->setPen(QPen(color, 5, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
+	painter->setBrush(Qt::NoBrush);
+	painter->drawPolyline(m_polygon);
+
+		//The shield: a dashed ring around the cable, and its ground
+	const QPen thin(Qt::black, 1);
+	const QList<QLineF> marks = cableShieldMarks();
+	for (const QLineF &mark : marks)
+	{
+		const QPointF along = mark.p2() - mark.p1();
+		QPointF across(-along.y(), along.x());
+		if (across.y() < 0)
+			across = -across;
+
+		painter->save();
+		painter->translate(mark.p1());
+		painter->rotate(qRadiansToDegrees(qAtan2(along.y(), along.x())));
+		QPen dashed = thin;
+		dashed.setStyle(Qt::DashLine);
+		painter->setPen(dashed);
+		painter->drawEllipse(QPointF(), 5, 10);
+		painter->restore();
+
+		painter->setPen(thin);
+		const QPointF foot = mark.p1() + across * 22;
+		painter->drawLine(mark.p1() + across * 10, foot);
+		for (int i = 0; i < 3; ++i)
+		{
+			const qreal half = 6 - 2 * i;
+			const QPointF base = foot + across * (3 * i);
+			painter->drawLine(base - along * half, base + along * half);
+		}
+	}
+
+		//The label
+	const QList<Conductor *> members = cableMembers();
+	const bool too_many = m_cable.cores > 0 && members.size() > m_cable.cores;
+	const QRectF label = cableLabelRect();
+		//Dragged away from the cable: a leader line back to it
+	const CableGeometry::Projection anchor = CableGeometry::project(m_polygon, label.center());
+	if (anchor.valid && !m_cable.label_offset.isNull())
+	{
+		const QPointF edge(qBound(label.left(), anchor.point.x(), label.right()),
+				   qBound(label.top(), anchor.point.y(), label.bottom()));
+		if (QLineF(edge, anchor.point).length() > 10)
+		{
+			painter->setPen(QPen(color, 1, Qt::DashLine));
+			painter->drawLine(edge, anchor.point);
+		}
+	}
+	painter->setPen(QPen(too_many ? QColor(Qt::red) : color, 1));
+	painter->setBrush(QColor(230, 241, 251));
+	painter->drawRect(label);
+	painter->setFont(QETApp::diagramTextsFont(8));
+	painter->setPen(too_many ? QColor(Qt::red) : QColor(12, 68, 124));
+	painter->drawText(label, Qt::AlignCenter, m_cable.label());
+
+	painter->restore();
 }
