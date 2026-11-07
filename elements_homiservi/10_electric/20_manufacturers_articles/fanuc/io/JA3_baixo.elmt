@@ -1,4 +1,4 @@
-<definition height="60" hotspot_x="10" hotspot_y="45" link_type="simple" type="element" version="0.200.1" width="130">
+<definition height="80" hotspot_x="10" hotspot_y="63" link_type="simple" type="element" version="0.200.1" width="130">
     <uuid uuid="{99622a3e-c049-5aa1-80f1-24b165c21dec}"/>
     <names>
         <name lang="en">JA3</name>

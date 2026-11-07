@@ -1,4 +1,4 @@
-<definition height="60" hotspot_x="10" hotspot_y="16" link_type="simple" type="element" version="0.200.1" width="50">
+<definition height="80" hotspot_x="10" hotspot_y="18" link_type="simple" type="element" version="0.200.1" width="50">
     <uuid uuid="{c631b953-a867-5a39-80ad-42baef862e6b}"/>
     <names>
         <name lang="en">CXA2D</name>

@@ -1,4 +1,4 @@
-<definition height="60" hotspot_x="10" hotspot_y="15" link_type="simple" type="element" version="0.200.1" width="90">
+<definition height="80" hotspot_x="10" hotspot_y="17" link_type="simple" type="element" version="0.200.1" width="90">
     <uuid uuid="{2c5afa21-8d8a-5c42-8e18-94d5f91aa39e}"/>
     <names>
         <name lang="en">JF2</name>

@@ -1,4 +1,4 @@
-<definition height="80" hotspot_x="10" hotspot_y="19" link_type="simple" type="element" version="0.200.1" width="90">
+<definition height="90" hotspot_x="10" hotspot_y="16" link_type="simple" type="element" version="0.200.1" width="90">
     <uuid uuid="{265933b6-c24f-584a-ac0e-f2befdf230cd}"/>
     <names>
         <name lang="en">JD1B</name>

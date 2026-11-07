@@ -1,4 +1,4 @@
-<definition height="90" hotspot_x="10" hotspot_y="19" link_type="simple" type="element" version="0.200.1" width="30">
+<definition height="100" hotspot_x="10" hotspot_y="16" link_type="simple" type="element" version="0.200.1" width="30">
     <uuid uuid="{fe6dc44b-3cc5-5261-8581-fbae09b5ae2b}"/>
     <names>
         <name lang="en">CX3</name>

@@ -1,4 +1,4 @@
-<definition height="50" hotspot_x="10" hotspot_y="34" link_type="simple" type="element" version="0.200.1" width="40">
+<definition height="70" hotspot_x="10" hotspot_y="51" link_type="simple" type="element" version="0.200.1" width="40">
     <uuid uuid="{46b24fdc-9410-5bee-89e3-2ef8442cc3c6}"/>
     <names>
         <name lang="en">CX48</name>

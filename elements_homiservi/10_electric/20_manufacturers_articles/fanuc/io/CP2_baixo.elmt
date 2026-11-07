@@ -1,4 +1,4 @@
-<definition height="60" hotspot_x="10" hotspot_y="42" link_type="simple" type="element" version="0.200.1" width="30">
+<definition height="70" hotspot_x="10" hotspot_y="54" link_type="simple" type="element" version="0.200.1" width="30">
     <uuid uuid="{b2a60929-f931-5041-96fe-a7195e4f5d95}"/>
     <names>
         <name lang="en">CP2</name>

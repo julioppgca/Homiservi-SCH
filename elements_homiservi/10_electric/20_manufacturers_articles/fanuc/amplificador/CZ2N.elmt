@@ -1,4 +1,4 @@
-<definition height="70" hotspot_x="10" hotspot_y="18" link_type="simple" type="element" version="0.200.1" width="50">
+<definition height="80" hotspot_x="10" hotspot_y="15" link_type="simple" type="element" version="0.200.1" width="50">
     <uuid uuid="{55eee272-2dd0-56c3-bfd6-bfb9339d258f}"/>
     <names>
         <name lang="en">CZ2N</name>
