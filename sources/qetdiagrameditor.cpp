@@ -1733,17 +1733,15 @@ void QETDiagramEditor::setUpMenu()
 		//Thirty entries in one column did not fit on a laptop screen: the
 		//families sit one level down, as in the Edit menu. Every action and
 		//its shortcut is unchanged.
+		//Homiservi-SCH: grouped by the order of the work: the data of the
+		//project, its folios, the rules it follows, then wiring and lists
 	menu_project -> addAction(m_project_edit_properties);
 	menu_project -> addAction(m_homiservi_data);
 	menu_project -> addAction(m_project_revisions);
-	QMenu *numbering_menu = menu_project -> addMenu(QET::Icons::TableOfContent, tr("Numeração"));
-	numbering_menu -> addAction(m_project_numbering);
-	numbering_menu -> addAction(m_project_renumber);
-	menu_project -> addSeparator();
-	menu_project -> addAction(m_project_add_diagram);
-	menu_project -> addAction(m_remove_diagram_from_project);
 	menu_project -> addSeparator();
 
+	menu_project -> addAction(m_project_add_diagram);
+	menu_project -> addAction(m_remove_diagram_from_project);
 	QMenu *generated_menu = menu_project -> addMenu(QET::Icons::TableOfContent, tr("Folhas automáticas"));
 	generated_menu -> addAction(m_add_summary);
 	generated_menu -> addAction(m_add_nomenclature);
@@ -1751,6 +1749,15 @@ void QETDiagramEditor::setUpMenu()
 	generated_menu -> addSeparator();
 	generated_menu -> addAction(m_terminal_sheets);
 	generated_menu -> addAction(m_io_maps);
+	menu_project -> addSeparator();
+
+	QMenu *numbering_menu = menu_project -> addMenu(QET::Icons::TableOfContent, tr("Numeração"));
+	numbering_menu -> addAction(m_project_numbering);
+	numbering_menu -> addAction(m_project_renumber);
+	QMenu *standards_menu = menu_project -> addMenu(tr("Padrões do projeto"));
+	standards_menu -> addAction(m_text_styles);
+	standards_menu -> addAction(m_potential_rules);
+	menu_project -> addSeparator();
 
 	QMenu *wiring_menu = menu_project -> addMenu(QET::Icons::Conductor, tr("Fiação e condutores"));
 	wiring_menu -> addAction(m_auto_conductor);
@@ -1760,7 +1767,6 @@ void QETDiagramEditor::setUpMenu()
 	wiring_menu -> addSeparator();
 	wiring_menu -> addAction(m_wiring_editor);
 	wiring_menu -> addAction(m_project_wiring_list_view);
-	wiring_menu -> addAction(m_potential_rules);
 
 	QMenu *terminal_menu = menu_project -> addMenu(QET::Icons::TerminalStrip, tr("Bornes"));
 	terminal_menu -> addAction(m_terminal_strip_dialog);
@@ -1778,7 +1784,6 @@ void QETDiagramEditor::setUpMenu()
 	export_menu -> addSeparator();
 	export_menu -> addAction(m_export_project_db);
 #endif
-	menu_project -> addAction(m_text_styles);
 	menu_project -> addSeparator();
 
 	QMenu *maintenance_menu = menu_project -> addMenu(QET::Icons::EditClear, tr("Manutenção"));
