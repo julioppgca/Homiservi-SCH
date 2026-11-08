@@ -28,7 +28,7 @@ class QDomElement;
 /**
 	@brief The ProjectNumbering namespace
 	Homiservi-SCH: the folios of a project grouped in sections ("02 -
-	Alimentação e distribuição") and numbered by section: 02.01, 02.02,
+	Distribuição de força") and numbered by section: 02.01, 02.02,
 	03.01... The settings are saved in the project, so the numbers are kept
 	up to date when a folio is added, moved or removed, and can be applied
 	again (ProjectNumberingDialog).
@@ -47,7 +47,7 @@ namespace ProjectNumbering
 	{
 			///The section number as shown: "02"
 		QString code;
-			///"Alimentação e distribuição"
+			///"Distribuição de força"
 		QString name;
 
 		bool operator==(const Section &other) const {

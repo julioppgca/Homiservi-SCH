@@ -356,7 +356,7 @@ ProjectNumbering::Settings ProjectNumbering::importFrom(const QList<FolioInfo> &
 		settings.sections << Section {first, QString()};
 	settings.starts = startsOf(folios, codes);
 
-		//"02 - Alimentação e distribuição", not the end of "01.02 - Índice"
+		//"02 - Distribuição de força", not the end of "01.02 - Índice"
 	static const QRegularExpression name_re(
 			QStringLiteral("(?<![\\d.\\-])(\\d{1,3})\\s*[\\x{2013}\\x{2014}\\-]\\s*([^|\\n\\x{2029}]+)"));
 	for (const QString &text : texts) {

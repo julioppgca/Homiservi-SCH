@@ -431,7 +431,7 @@ QWidget *ProjectNumberingDialog::sectionsPage()
 {
 	auto page = new QWidget;
 	const QString title = (tr("Seções"));
-	const QString subtitle = (tr("As seções agrupam as folhas: \"02 – Alimentação e distribuição\". "
+	const QString subtitle = (tr("As seções agrupam as folhas: \"02 – Distribuição de força\". "
 			     "O número da seção abre o número de cada folha dela: 02.01, 02.02..."));
 
 	m_sections_table = new QTableWidget(0, 2, page);

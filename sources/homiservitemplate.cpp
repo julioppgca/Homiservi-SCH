@@ -453,7 +453,7 @@ void HomiserviTemplate::createFolios(QETProject *project, const Data &data, cons
 	@brief HomiserviTemplate::numbering
 	@return the numbering of a Homiservi project, without sections: folios
 	02.01 by section, tags -KA21 (the second -KA of section 02... the
-	section without its zeros, then one digit, as the PV500 FANUC project),
+	section without its zeros, then one digit, as Homiservi projects do),
 	wires 02.01-01 by folio with their number near the component they
 	come from
 */

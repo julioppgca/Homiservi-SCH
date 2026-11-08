@@ -151,7 +151,7 @@ class tst_projectnumbering : public QObject
 		{
 			QCOMPARE(strippedTitle(QStringLiteral("02.04 – Fonte 24 Vcc")), QStringLiteral("Fonte 24 Vcc"));
 			QCOMPARE(strippedTitle(QStringLiteral("02-04 - Fonte")), QStringLiteral("Fonte"));
-			QCOMPARE(strippedTitle(QStringLiteral("12.05: Lista FANUC")), QStringLiteral("Lista FANUC"));
+			QCOMPARE(strippedTitle(QStringLiteral("12.05: Lista de materiais")), QStringLiteral("Lista de materiais"));
 			QCOMPARE(strippedTitle(QStringLiteral("Capa")), QStringLiteral("Capa"));
 			QCOMPARE(strippedTitle(QStringLiteral("02.04 – ")), QStringLiteral("02.04 – "));
 				//A voltage is not a folio number
@@ -160,14 +160,14 @@ class tst_projectnumbering : public QObject
 
 		void importsAProjectNumberedByHand()
 		{
-				//As the PV500 FANUC project: a cover without number, then
+				//As a Homiservi project numbered by hand: a cover without number, then
 				//numbers typed in the folio field and in the titles
 			const QList<FolioInfo> list = folios(
 					{"%id/%total", "01.02", "02.01", "02.02", "", "03.01"},
-					{"Capa", "01.02 – Índice", "02.01 – Entrada",
-					 "02.02 – Fonte", "02.03 – Transformador", "03.01 – CNC"});
+					{"Capa", "01.02 – Índice", "02.01 – Entrada de energia",
+					 "02.02 – Fonte 24 Vcc", "02.03 – Transformador", "03.01 – Comando"});
 			const QStringList texts {
-				QStringLiteral("01 – GERAL | 02 – ALIMENTAÇÃO E DISTRIBUIÇÃO | 03 – CNC E OPERAÇÃO"),
+				QStringLiteral("01 – GERAL | 02 – ALIMENTAÇÃO | 03 – COMANDO"),
 				QStringLiteral("01.02 – Índice")};
 			const Settings s = importFrom(list, texts);
 
@@ -176,8 +176,8 @@ class tst_projectnumbering : public QObject
 			QCOMPARE(s.page_digits, 2);
 			QCOMPARE(s.sections.size(), 3);
 			QCOMPARE(s.sections.at(0), (Section {"01", "GERAL"}));
-			QCOMPARE(s.sections.at(1), (Section {"02", "ALIMENTAÇÃO E DISTRIBUIÇÃO"}));
-			QCOMPARE(s.sections.at(2), (Section {"03", "CNC E OPERAÇÃO"}));
+			QCOMPARE(s.sections.at(1), (Section {"02", "ALIMENTAÇÃO"}));
+			QCOMPARE(s.sections.at(2), (Section {"03", "COMANDO"}));
 				//The cover joins the first section: the numbers stay
 			QCOMPARE(folioLabels(s, list),
 				 QStringList({"01.01", "01.02", "02.01", "02.02", "02.03", "03.01"}));
@@ -243,7 +243,7 @@ class tst_projectnumbering : public QObject
 
 		void tagsBySectionCompact()
 		{
-				//As the PV500 FANUC project: -KA62 is the 2nd -KA of section 06
+				//As Homiservi projects: -KA62 is the 2nd -KA of section 06
 			Settings s;
 			s.tag_mode = TagsBySectionCompact;
 			s.tag_digits = 1;
