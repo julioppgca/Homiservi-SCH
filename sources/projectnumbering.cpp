@@ -20,6 +20,7 @@
 #include <QDomDocument>
 #include <QDomElement>
 #include <QRegularExpression>
+#include <QSet>
 
 #include <algorithm>
 #include <numeric>
@@ -44,6 +45,38 @@ namespace
 	{
 		static const QRegularExpression re(QStringLiteral("^\\s*(\\d+)\\s*([.\\-])\\s*(\\d+)\\s*$"));
 		return re;
+	}
+
+		///A tag: "-KA12", or its prefix alone "-KA"
+	const QRegularExpression &tagPattern()
+	{
+		static const QRegularExpression re(QStringLiteral("^([-=+]?[A-Za-z]+)(\\d*)$"));
+		return re;
+	}
+
+		///A terminal of a strip: "-X1:12", or "-X1:" to number
+	const QRegularExpression &terminalPattern()
+	{
+		static const QRegularExpression re(QStringLiteral("^(.+):(\\d*)$"));
+		return re;
+	}
+
+		///"a", "b"... "z", "aa"...
+	QString letterSuffix(int index)
+	{
+		QString suffix;
+		for (++index; index > 0; index = (index - 1) / 26)
+			suffix.prepend(QChar(u'a' + (index - 1) % 26));
+		return suffix;
+	}
+
+		///"02.04" -> "0204"
+	QString compactFolio(const QString &folio)
+	{
+		QString compact;
+		for (const QChar c : folio)
+			if (c.isLetterOrNumber()) compact += c;
+		return compact;
 	}
 
 		///"02.04 - Title" at the start of a title
@@ -84,6 +117,13 @@ ProjectNumbering::Settings ProjectNumbering::fromXml(const QDomElement &project_
 	settings.page_digits = root.attribute(QStringLiteral("page_digits"), QStringLiteral("2")).toInt();
 	settings.strip_titles = root.attribute(QStringLiteral("strip_titles"), QStringLiteral("true"))
 			== QLatin1String("true");
+	const QString tags = root.attribute(QStringLiteral("tags"));
+	settings.tag_mode = tags == QLatin1String("sequential") ? TagsSequential
+			  : tags == QLatin1String("section") ? TagsBySection
+			  : tags == QLatin1String("section_compact") ? TagsBySectionCompact
+			  : tags == QLatin1String("position") ? TagsByPosition : TagsUnchanged;
+	settings.tag_digits = root.attribute(QStringLiteral("tag_digits"), QStringLiteral("2")).toInt();
+	settings.renumber_terminals = root.attribute(QStringLiteral("terminals")) == QLatin1String("true");
 
 	for (QDomElement e = root.firstChildElement(QStringLiteral("section")); !e.isNull();
 	     e = e.nextSiblingElement(QStringLiteral("section")))
@@ -111,6 +151,12 @@ void ProjectNumbering::toXml(const Settings &settings, QDomElement &project_root
 	root.setAttribute(QStringLiteral("section_digits"), settings.section_digits);
 	root.setAttribute(QStringLiteral("page_digits"), settings.page_digits);
 	root.setAttribute(QStringLiteral("strip_titles"), settings.strip_titles ? QStringLiteral("true") : QStringLiteral("false"));
+	static const QStringList tag_keys {QStringLiteral("unchanged"), QStringLiteral("sequential"),
+					   QStringLiteral("section"), QStringLiteral("section_compact"),
+					   QStringLiteral("position")};
+	root.setAttribute(QStringLiteral("tags"), tag_keys.value(settings.tag_mode));
+	root.setAttribute(QStringLiteral("tag_digits"), settings.tag_digits);
+	root.setAttribute(QStringLiteral("terminals"), settings.renumber_terminals ? QStringLiteral("true") : QStringLiteral("false"));
 	for (const Section &section : settings.sections) {
 		QDomElement e = document.createElement(QStringLiteral("section"));
 		e.setAttribute(QStringLiteral("code"), section.code);
@@ -309,4 +355,181 @@ ProjectNumbering::Settings ProjectNumbering::importFrom(const QList<FolioInfo> &
 		}
 	}
 	return settings;
+}
+
+/**
+	@brief ProjectNumbering::tagPrefix
+	@return the prefix of a tag: "-KA" for "-KA12" or "-KA", empty for a
+	label that is not a prefix followed by a number (X0.0, -A1-S1, -X1:3)
+*/
+QString ProjectNumbering::tagPrefix(const QString &label)
+{
+	const QRegularExpressionMatch match = tagPattern().match(label.trimmed());
+	return match.hasMatch() ? match.captured(1) : QString();
+}
+
+/**
+	@brief ProjectNumbering::componentLabels
+	Tag the components as settings say, in the reading order of the
+	project: folio after folio, column after column, top to bottom.
+	Only a label made of a prefix and a number ("-KA12") or of a prefix
+	alone ("-KA") is a tag; any other label (an I/O address X0.0, -A1-S1)
+	stays as it is. The terminals ("-X1:12") are numbered from 1 in each
+	strip when settings.renumber_terminals, their other names (-X1:PE)
+	kept.
+	@param scope : RenumberAll numbers every tag; CompleteOnly keeps the
+	numbered ones and gives the others the next free number
+	@return the new label of every component whose label changes, by id
+*/
+QHash<QString, QString> ProjectNumbering::componentLabels(const Settings &settings,
+							   const QList<ComponentInfo> &components,
+							   TagScope scope)
+{
+	QHash<QString, QString> result;
+	auto assign = [&result](const ComponentInfo &component, const QString &label) {
+		if (label != component.label)
+			result.insert(component.id, label);
+	};
+
+	QList<int> order(components.size());
+	std::iota(order.begin(), order.end(), 0);
+	std::stable_sort(order.begin(), order.end(), [&](int a, int b) {
+		const ComponentInfo &ca = components.at(a), &cb = components.at(b);
+		if (ca.folio != cb.folio) return ca.folio < cb.folio;
+		if (ca.column != cb.column) return ca.column < cb.column;
+		if (!qFuzzyCompare(ca.y, cb.y)) return ca.y < cb.y;
+		return ca.x < cb.x;
+	});
+	const bool complete_only = scope == CompleteOnly;
+
+	if (settings.renumber_terminals) {
+		QHash<QString, int> last;
+		if (complete_only)
+			for (const ComponentInfo &component : components) {
+				const QRegularExpressionMatch match = terminalPattern().match(component.label);
+				if (component.terminal && match.hasMatch() && !match.captured(2).isEmpty())
+					last[match.captured(1)] = qMax(last.value(match.captured(1)), match.captured(2).toInt());
+			}
+		for (int index : std::as_const(order)) {
+			const ComponentInfo &component = components.at(index);
+			const QRegularExpressionMatch match = terminalPattern().match(component.label);
+			if (!component.terminal || !match.hasMatch()) continue;
+			if (complete_only && !match.captured(2).isEmpty()) continue;
+			assign(component, match.captured(1) + QLatin1Char(':') + QString::number(++last[match.captured(1)]));
+		}
+	}
+	if (settings.tag_mode == TagsUnchanged) return result;
+
+	struct Tag { int index; QString prefix; QString number; };
+	QList<Tag> tags;
+	for (int index : std::as_const(order)) {
+		const ComponentInfo &component = components.at(index);
+		const QRegularExpressionMatch match = tagPattern().match(component.label.trimmed());
+		if (!component.terminal && match.hasMatch())
+			tags << Tag {index, match.captured(1), match.captured(2)};
+	}
+
+	if (settings.tag_mode == TagsByPosition) {
+		auto base = [&](const Tag &tag) {
+			const ComponentInfo &component = components.at(tag.index);
+			return tag.prefix + compactFolio(component.folio_label)
+					+ QLatin1Char('.') + QString::number(component.column);
+		};
+		if (complete_only) {
+			QSet<QString> taken;
+			for (const ComponentInfo &component : components)
+				taken.insert(component.label.trimmed());
+			for (const Tag &tag : std::as_const(tags)) {
+				if (!tag.number.isEmpty()) continue;
+				QString label = base(tag);
+				for (int i = 0; taken.contains(label); ++i)
+					label = base(tag) + letterSuffix(i);
+				taken.insert(label);
+				assign(components.at(tag.index), label);
+			}
+			return result;
+		}
+			//Two components of a prefix in a column: a, b... in order
+		QHash<QString, int> count, rank;
+		for (const Tag &tag : std::as_const(tags))
+			++count[base(tag)];
+		for (const Tag &tag : std::as_const(tags)) {
+			const QString b = base(tag);
+			assign(components.at(tag.index), count.value(b) > 1 ? b + letterSuffix(rank[b]++) : b);
+		}
+		return result;
+	}
+
+	const bool by_section = settings.tag_mode == TagsBySection
+				|| settings.tag_mode == TagsBySectionCompact;
+		//The section as it opens the number: "02", or "2" when compact
+	auto section_text = [&](const Tag &tag) {
+		const QString section = components.at(tag.index).section;
+		return settings.tag_mode == TagsBySectionCompact && isNumber(section)
+				? QString::number(section.toInt()) : section;
+	};
+	auto key = [&](const Tag &tag) {
+		return by_section ? tag.prefix + QLatin1Char('|') + section_text(tag) : tag.prefix;
+	};
+	auto head = [&](const Tag &tag) {
+		return by_section ? tag.prefix + section_text(tag) : tag.prefix;
+	};
+	QHash<QString, int> last;
+	if (complete_only)
+		for (const Tag &tag : std::as_const(tags)) {
+			if (tag.number.isEmpty()) continue;
+			const QString section = section_text(tag);
+			int number = tag.number.toInt();
+			if (by_section) {
+				if (!tag.number.startsWith(section) || tag.number.size() <= section.size()) continue;
+				number = tag.number.mid(section.size()).toInt();
+			}
+			last[key(tag)] = qMax(last.value(key(tag)), number);
+		}
+	for (const Tag &tag : std::as_const(tags)) {
+		if (complete_only && !tag.number.isEmpty()) continue;
+		assign(components.at(tag.index), head(tag) + padded(++last[key(tag)], settings.tag_digits));
+	}
+	return result;
+}
+
+/**
+	@brief ProjectNumbering::guessTagMode
+	@return how the tags of components seem to be numbered: by section
+	(compact, -KA62 in section 06, or not, -KA0602) when most of them start
+	with the number of their section, else one counter per prefix when
+	there are tags, else TagsUnchanged
+	@param digits : set to the usual number of digits after the section
+	(or of the whole number)
+*/
+ProjectNumbering::TagMode ProjectNumbering::guessTagMode(const QList<ComponentInfo> &components, int *digits)
+{
+	int tags = 0, compact = 0, padded_section = 0;
+	QHash<int, int> lengths;
+	for (const ComponentInfo &component : components) {
+		const QRegularExpressionMatch match = tagPattern().match(component.label.trimmed());
+		if (component.terminal || !match.hasMatch() || match.captured(2).isEmpty()) continue;
+		++tags;
+		const QString number = match.captured(2);
+		const QString section = component.section;
+		const QString short_section = isNumber(section) ? QString::number(section.toInt()) : section;
+		if (!section.isEmpty() && number.startsWith(section) && number.size() > section.size()) {
+			++padded_section;
+			++lengths[int(number.size() - section.size())];
+		} else if (!short_section.isEmpty() && number.startsWith(short_section)
+			   && number.size() > short_section.size()) {
+			++compact;
+			++lengths[int(number.size() - short_section.size())];
+		} else {
+			++lengths[int(number.size())];
+		}
+	}
+	int usual = 2, best = 0;
+	for (auto it = lengths.constBegin(); it != lengths.constEnd(); ++it)
+		if (it.value() > best) { best = it.value(); usual = it.key(); }
+	if (digits) *digits = usual;
+	if (!tags) return TagsUnchanged;
+	if (padded_section * 10 >= tags * 7) return TagsBySection;
+	if ((compact + padded_section) * 10 >= tags * 7) return TagsBySectionCompact;
+	return TagsSequential;
 }

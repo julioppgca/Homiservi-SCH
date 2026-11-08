@@ -22,9 +22,12 @@
 
 #include <QWizard>
 
+class Element;
 class QCheckBox;
 class QComboBox;
 class QLabel;
+class QRadioButton;
+class QTabWidget;
 class QSpinBox;
 class QTableWidget;
 class QETProject;
@@ -44,7 +47,7 @@ class ProjectNumberingWizard : public QWizard
 	Q_OBJECT
 
 	public:
-		enum Page { SectionsPage, FoliosPage, PreviewPage };
+		enum Page { SectionsPage, FoliosPage, ComponentsPage, PreviewPage };
 
 		ProjectNumberingWizard(QETProject *project, bool reapply, QWidget *parent = nullptr);
 
@@ -55,10 +58,13 @@ class ProjectNumberingWizard : public QWizard
 		QStringList titles() const;
 			///The new number of every folio, in the new order
 		QStringList labels() const;
+			///The components whose tag changes, and their new tag
+		QList<QPair<Element *, QString>> componentChanges() const;
 
 	private:
 		QWizardPage *sectionsPage();
 		QWizardPage *foliosPage();
+		QWizardPage *componentsPage();
 		QWizardPage *previewPage();
 
 		void importSections();
@@ -69,6 +75,10 @@ class ProjectNumberingWizard : public QWizard
 		void readFormat();
 		void setFolioSection(int row, const QString &code);
 		void fillPreview();
+		void readTagSettings();
+		void fillPrefixTable();
+		QList<ProjectNumbering::ComponentInfo> components() const;
+		ProjectNumbering::TagScope tagScope() const;
 		QStringList orderedCodes() const;
 		QString sectionText(const ProjectNumbering::Section &section) const;
 
@@ -78,6 +88,12 @@ class ProjectNumberingWizard : public QWizard
 		ProjectNumbering::Settings m_settings;
 			///The section of every folio, in the current order
 		QStringList m_codes;
+			///The components that can be tagged, with the index of their
+			///folio and what ProjectNumbering needs to know of them
+		struct Component { Element *element; int folio; ProjectNumbering::ComponentInfo info; };
+		QList<Component> m_components;
+		bool m_reapply = false;
+		bool m_has_revisions = false;
 
 		QTableWidget *m_sections_table = nullptr;
 		QTableWidget *m_folios_table = nullptr;
@@ -88,7 +104,17 @@ class ProjectNumberingWizard : public QWizard
 		QCheckBox *m_strip_titles = nullptr;
 		QCheckBox *m_group = nullptr;
 		QLabel *m_summary = nullptr;
+		QLabel *m_revision_warning = nullptr;
+		QTabWidget *m_preview_tabs = nullptr;
 		QTableWidget *m_preview_table = nullptr;
+		QTableWidget *m_components_table = nullptr;
+		QComboBox *m_tag_mode = nullptr;
+		QSpinBox *m_tag_digits = nullptr;
+		QCheckBox *m_terminals = nullptr;
+		QRadioButton *m_renumber_all = nullptr;
+		QRadioButton *m_complete_only = nullptr;
+		QTableWidget *m_prefix_table = nullptr;
+		QLabel *m_other_labels = nullptr;
 		bool m_filling = false;
 };
 

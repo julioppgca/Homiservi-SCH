@@ -2011,6 +2011,8 @@ void QETDiagramEditor::showProjectNumbering(bool reapply)
 	const QStringList titles = wizard.titles();
 	const QStringList labels = wizard.labels();
 	const ProjectNumbering::Settings settings = wizard.settings();
+		//Before the folios move: the tags are worked out in the new order
+	const QList<QPair<Element *, QString>> tags = wizard.componentChanges();
 
 	QUndoStack *undo = project->undoStack();
 	undo->beginMacro(tr("Numeração das folhas"));
@@ -2033,6 +2035,20 @@ void QETDiagramEditor::showProjectNumbering(bool reapply)
 			command->addTitleBlock(diagram, old_properties, new_properties);
 	}
 	undo->push(command);
+	if (!tags.isEmpty()) {
+		QMap<QPointer<Element>, QPair<DiagramContext, DiagramContext>> changes;
+		for (const auto &tag : tags) {
+			const DiagramContext old_info = tag.first->elementInformations();
+			DiagramContext new_info = old_info;
+			new_info.addValue(QStringLiteral("label"), tag.second);
+				//The tag typed in an element is kept as its formula too:
+				//the old formula would give it its old tag back
+			if (!old_info.value(QStringLiteral("formula")).toString().isEmpty())
+				new_info.addValue(QStringLiteral("formula"), tag.second);
+			changes.insert(tag.first, qMakePair(old_info, new_info));
+		}
+		undo->push(new ChangeElementInformationCommand(changes));
+	}
 	undo->endMacro();
 }
 

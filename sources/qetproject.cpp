@@ -17,6 +17,8 @@
 */
 
 #include "qetproject.h"
+#include "undocommand/changeelementinformationcommand.h"
+#include "diagramposition.h"
 
 #include "ElementsCollection/xmlelementcollection.h"
 #include "autoNum/assignvariables.h"
@@ -1491,6 +1493,81 @@ QList<ProjectNumbering::FolioInfo> QETProject::numberingFolios() const
 						     diagram->border_and_titleblock.folio(),
 						     diagram->title()};
 	return folios;
+}
+
+/**
+	@brief QETProject::numberingComponents
+	@return the components of this project that can get a tag, as
+	ProjectNumbering works on them, their folio as it is now. A contact
+	shows the tag of its coil and a report or a picture has none: only the
+	simple, master and terminal elements are listed, but not the ones whose
+	tag is frozen.
+	@param elements : filled with the element of every component listed
+*/
+QList<ProjectNumbering::ComponentInfo> QETProject::numberingComponents(QList<Element *> *elements) const
+{
+	QList<ProjectNumbering::ComponentInfo> components;
+	const QStringList sections = ProjectNumbering::sectionCodes(m_numbering, numberingFolios());
+	for (int folio = 0; folio < m_diagrams_list.size(); ++folio) {
+		Diagram *diagram = m_diagrams_list.at(folio);
+		for (Element *element : diagram->elements()) {
+			const auto type = element->elementData().m_type;
+			if (element->isFreezeLabel()
+			    || !(type == ElementData::Simple || type == ElementData::Master || type == ElementData::Terminal))
+				continue;
+			ProjectNumbering::ComponentInfo info;
+			info.id = QString::number(components.size());
+			info.label = element->elementInformations().value(QStringLiteral("label")).toString();
+			info.folio = folio;
+			info.folio_label = diagram->border_and_titleblock.finalfolio();
+			info.section = sections.value(folio);
+			info.column = int(diagram->convertPosition(element->scenePos()).number());
+			info.x = element->scenePos().x();
+			info.y = element->scenePos().y();
+			info.terminal = type == ElementData::Terminal;
+			components << info;
+			if (elements) *elements << element;
+		}
+	}
+	return components;
+}
+
+/**
+	@brief QETProject::completeComponentTag
+	When the project tags its components (ProjectNumbering::TagMode) and
+	element has a tag without number ("-KA", typed by hand), give it the
+	next free number of its prefix, as one more undo step of its folio:
+	called when the informations of an element change.
+*/
+void QETProject::completeComponentTag(Element *element)
+{
+	if (!element || !element->diagram() || m_state != Ok || isReadOnly()
+	    || m_numbering.tag_mode == ProjectNumbering::TagsUnchanged)
+		return;
+		//Something to redo: the change comes from an undo, and a new step
+		//would throw the redo away
+	if (m_undo_stack->canRedo())
+		return;
+	const QString label = element->elementInformations().value(QStringLiteral("label")).toString().trimmed();
+	if (ProjectNumbering::tagPrefix(label) != label || label.isEmpty())
+		return;	//Not a prefix alone
+
+	QList<Element *> elements;
+	const QList<ProjectNumbering::ComponentInfo> components = numberingComponents(&elements);
+	const int index = int(elements.indexOf(element));
+	if (index < 0) return;
+	ProjectNumbering::Settings tags_only = m_numbering;
+	tags_only.renumber_terminals = false;
+	const QString tag = ProjectNumbering::componentLabels(tags_only, components, ProjectNumbering::CompleteOnly)
+			.value(components.at(index).id);
+	if (tag.isEmpty()) return;
+
+	const DiagramContext old_info = element->elementInformations();
+	DiagramContext new_info = old_info;
+	new_info.addValue(QStringLiteral("label"), tag);
+	if (!old_info.value(QStringLiteral("formula")).toString().isEmpty())
+		new_info.addValue(QStringLiteral("formula"), tag);
+	element->diagram()->undoStack().push(new ChangeElementInformationCommand(element, old_info, new_info));
 }
 
 /**

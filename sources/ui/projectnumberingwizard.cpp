@@ -18,6 +18,8 @@
 #include "projectnumberingwizard.h"
 
 #include "../diagram.h"
+#include "../projectrevisions.h"
+#include "../qetgraphicsitem/element.h"
 #include "../qetgraphicsitem/independenttextitem.h"
 #include "../qetproject.h"
 
@@ -28,7 +30,10 @@
 #include <QHeaderView>
 #include <QLabel>
 #include <QMessageBox>
+#include <QGroupBox>
 #include <QPushButton>
+#include <QRadioButton>
+#include <QTabWidget>
 #include <QSpinBox>
 #include <QTableWidget>
 #include <QVBoxLayout>
@@ -72,6 +77,13 @@ ProjectNumberingWizard::ProjectNumberingWizard(QETProject *project, bool reapply
 			if (auto text = qgraphicsitem_cast<IndependentTextItem *>(item))
 				m_texts << text->toPlainText();
 
+	QList<Element *> elements;
+	const QList<ProjectNumbering::ComponentInfo> components = project->numberingComponents(&elements);
+	for (int i = 0; i < components.size(); ++i)
+		m_components << Component {elements.at(i), components.at(i).folio, components.at(i)};
+	m_has_revisions = !ProjectRevisions::read(project).isEmpty();
+	m_reapply = reapply;
+
 	m_settings = project->numbering();
 	if (m_settings.sections.isEmpty())
 		m_settings = ProjectNumbering::importFrom(m_folios, m_texts);
@@ -79,6 +91,7 @@ ProjectNumberingWizard::ProjectNumberingWizard(QETProject *project, bool reapply
 
 	setPage(SectionsPage, sectionsPage());
 	setPage(FoliosPage, foliosPage());
+	setPage(ComponentsPage, componentsPage());
 	setPage(PreviewPage, previewPage());
 
 	fillSectionsTable();
@@ -86,6 +99,9 @@ ProjectNumberingWizard::ProjectNumberingWizard(QETProject *project, bool reapply
 	connect(this, &QWizard::currentIdChanged, this, [this](int id) {
 		if (id == FoliosPage) {
 			fillFoliosTable();
+		} else if (id == ComponentsPage) {
+			readFormat();
+			fillPrefixTable();
 		} else if (id == PreviewPage) {
 			readFormat();
 			fillPreview();
@@ -286,6 +302,177 @@ QWizardPage *ProjectNumberingWizard::foliosPage()
 	return page;
 }
 
+/**
+	@return the components whose tag changes and their new tag, with the
+	folios in their new order and numbers
+*/
+QList<QPair<Element *, QString>> ProjectNumberingWizard::componentChanges() const
+{
+	const QHash<QString, QString> changes = ProjectNumbering::componentLabels(m_settings, components(), tagScope());
+	QList<QPair<Element *, QString>> list;
+	for (const Component &component : m_components)
+		if (changes.contains(component.info.id))
+			list << qMakePair(component.element, changes.value(component.info.id));
+	return list;
+}
+
+/**
+	@return the components as ProjectNumbering takes them: their folio in
+	its new place, with its new number and section
+*/
+QList<ProjectNumbering::ComponentInfo> ProjectNumberingWizard::components() const
+{
+	const QList<int> new_order = order();
+	const QStringList new_labels = labels();
+	const QStringList codes = orderedCodes();
+	QList<ProjectNumbering::ComponentInfo> list;
+	for (const Component &component : m_components) {
+		ProjectNumbering::ComponentInfo info = component.info;
+		info.folio = int(new_order.indexOf(component.folio));
+		info.folio_label = new_labels.value(info.folio);
+		info.section = codes.value(info.folio);
+		list << info;
+	}
+	return list;
+}
+
+ProjectNumbering::TagScope ProjectNumberingWizard::tagScope() const
+{
+	return m_complete_only && m_complete_only->isChecked() ? ProjectNumbering::CompleteOnly
+							       : ProjectNumbering::RenumberAll;
+}
+
+QWizardPage *ProjectNumberingWizard::componentsPage()
+{
+	auto page = new QWizardPage;
+	page->setTitle(tr("Componentes"));
+	page->setSubTitle(tr("A tag de um componente é o prefixo (-KA, -F, -Q...) seguido de um número. "
+			     "Os contatos mostram a tag da bobina e acompanham."));
+
+	m_tag_mode = new QComboBox(page);
+	m_tag_mode->addItem(tr("Não mexer nas tags"));
+	m_tag_mode->addItem(tr("Sequencial por tipo – -KA01, -KA02..."));
+	m_tag_mode->addItem(tr("Sequencial por tipo em cada seção – -KA0201 (seção 02)"));
+	m_tag_mode->addItem(tr("Sequencial por tipo em cada seção, compacto – -KA21 (seção 02)"));
+	m_tag_mode->addItem(tr("Pela posição – -KA0204.3 (folha 02.04, coluna 3)"));
+		//Never configured: the style the tags already follow
+	int digits = m_settings.tag_digits;
+	const ProjectNumbering::TagMode guessed = ProjectNumbering::guessTagMode(components(), &digits);
+	if (m_project->numbering().tag_mode == ProjectNumbering::TagsUnchanged
+	    && guessed != ProjectNumbering::TagsUnchanged) {
+		m_settings.tag_mode = guessed;
+		m_settings.tag_digits = digits;
+	}
+	m_tag_mode->setCurrentIndex(m_settings.tag_mode);
+	m_tag_digits = new QSpinBox(page);
+	m_tag_digits->setRange(1, 4);
+	m_tag_digits->setValue(m_settings.tag_digits);
+	m_terminals = new QCheckBox(tr("Numerar os bornes de cada régua na ordem do desenho "
+				       "(-X1:1, -X1:2...; -X1:PE e -X1:L1 ficam)"), page);
+	m_terminals->setChecked(m_settings.renumber_terminals);
+
+	auto scope = new QGroupBox(tr("Ao aplicar"), page);
+	m_renumber_all = new QRadioButton(tr("Renumerar todas as tags"), scope);
+	m_complete_only = new QRadioButton(tr("Só completar as tags sem número "
+					      "(um componente com \"-KA\" ganha o próximo número livre)"), scope);
+		//A project already tagged keeps its tags unless asked: some may be
+		//numbered on purpose out of the rule
+	(m_reapply || guessed != ProjectNumbering::TagsUnchanged ? m_complete_only : m_renumber_all)->setChecked(true);
+	auto scope_layout = new QVBoxLayout(scope);
+	scope_layout->addWidget(m_renumber_all);
+	scope_layout->addWidget(m_complete_only);
+
+	auto changed = [this]() { readTagSettings(); fillPrefixTable(); };
+	connect(m_tag_mode, &QComboBox::currentIndexChanged, this, changed);
+	connect(m_tag_digits, &QSpinBox::valueChanged, this, changed);
+	connect(m_terminals, &QCheckBox::toggled, this, changed);
+	connect(m_renumber_all, &QRadioButton::toggled, this, changed);
+
+	m_prefix_table = new QTableWidget(0, 4, page);
+	m_prefix_table->setHorizontalHeaderLabels({tr("Prefixo"), tr("Componentes"), tr("Hoje"), tr("Depois")});
+	m_prefix_table->horizontalHeader()->setSectionResizeMode(2, QHeaderView::Stretch);
+	m_prefix_table->horizontalHeader()->setSectionResizeMode(3, QHeaderView::Stretch);
+	m_prefix_table->verticalHeader()->hide();
+	m_prefix_table->setEditTriggers(QAbstractItemView::NoEditTriggers);
+	m_other_labels = new QLabel(page);
+	m_other_labels->setWordWrap(true);
+
+	auto form = new QFormLayout;
+	form->addRow(tr("Tags:"), m_tag_mode);
+	form->addRow(tr("Dígitos do número:"), m_tag_digits);
+	form->addRow(m_terminals);
+
+	auto layout = new QVBoxLayout(page);
+	layout->addLayout(form);
+	layout->addWidget(scope);
+	layout->addWidget(m_prefix_table, 1);
+	layout->addWidget(m_other_labels);
+	return page;
+}
+
+void ProjectNumberingWizard::readTagSettings()
+{
+	if (!m_tag_mode) return;
+	m_settings.tag_mode = ProjectNumbering::TagMode(m_tag_mode->currentIndex());
+	m_settings.tag_digits = m_tag_digits->value();
+	m_settings.renumber_terminals = m_terminals->isChecked();
+	m_tag_digits->setEnabled(m_settings.tag_mode != ProjectNumbering::TagsUnchanged
+				 && m_settings.tag_mode != ProjectNumbering::TagsByPosition);
+}
+
+/**
+	@brief ProjectNumberingWizard::fillPrefixTable
+	The prefixes of the project, how many components have each and a few
+	of their tags before and after
+*/
+void ProjectNumberingWizard::fillPrefixTable()
+{
+	readTagSettings();
+	const QList<ProjectNumbering::ComponentInfo> list = components();
+	const QHash<QString, QString> changes = ProjectNumbering::componentLabels(m_settings, list, tagScope());
+
+	QStringList prefixes;
+	QHash<QString, QStringList> before, after;
+	int others = 0;
+	QStringList other_examples;
+	for (const ProjectNumbering::ComponentInfo &info : list) {
+		QString prefix = info.terminal ? info.label.section(QLatin1Char(':'), 0, 0) + QLatin1Char(':')
+					       : ProjectNumbering::tagPrefix(info.label);
+		if (info.terminal && !info.label.contains(QLatin1Char(':'))) prefix.clear();
+		if (prefix.isEmpty()) {
+			if (!info.label.trimmed().isEmpty()) {
+				++others;
+				if (other_examples.size() < 4 && !other_examples.contains(info.label))
+					other_examples << info.label;
+			}
+			continue;
+		}
+		if (!prefixes.contains(prefix)) prefixes << prefix;
+		before[prefix] << info.label;
+		after[prefix] << changes.value(info.id, info.label);
+	}
+	prefixes.sort();
+
+	auto examples = [](const QStringList &labels) {
+		QStringList shown = labels.mid(0, 4);
+		return shown.join(QStringLiteral(", ")) + (labels.size() > 4 ? QStringLiteral("...") : QString());
+	};
+	m_prefix_table->setRowCount(int(prefixes.size()));
+	for (int row = 0; row < prefixes.size(); ++row) {
+		const QString &prefix = prefixes.at(row);
+		m_prefix_table->setItem(row, 0, readOnlyItem(prefix));
+		m_prefix_table->setItem(row, 1, readOnlyItem(QString::number(before.value(prefix).size())));
+		m_prefix_table->setItem(row, 2, readOnlyItem(examples(before.value(prefix))));
+		m_prefix_table->setItem(row, 3, readOnlyItem(examples(after.value(prefix))));
+	}
+	m_prefix_table->resizeColumnToContents(0);
+	m_prefix_table->resizeColumnToContents(1);
+	m_other_labels->setText(others
+				? tr("%1 componentes têm uma identificação que não é prefixo + número (%2) "
+				     "e ficam como estão.").arg(others).arg(other_examples.join(QStringLiteral(", ")))
+				: QString());
+}
+
 QWizardPage *ProjectNumberingWizard::previewPage()
 {
 	auto page = new QWizardPage;
@@ -298,6 +485,12 @@ QWizardPage *ProjectNumberingWizard::previewPage()
 	m_group->setChecked(true);
 	connect(m_group, &QCheckBox::toggled, this, &ProjectNumberingWizard::fillPreview);
 
+	m_revision_warning = new QLabel(page);
+	m_revision_warning->setWordWrap(true);
+	m_revision_warning->setStyleSheet(QStringLiteral("color: #b00020;"));
+	m_revision_warning->setText(tr("O projeto já tem revisões: renumerar tags muda identificações que podem "
+				       "já estar no painel montado e no programa do CLP. Prefira abrir uma nova revisão."));
+
 	m_preview_table = new QTableWidget(0, 5, page);
 	m_preview_table->setHorizontalHeaderLabels({tr("Posição"), tr("Número atual"), tr("Novo número"),
 						    tr("Título atual"), tr("Novo título")});
@@ -306,10 +499,21 @@ QWizardPage *ProjectNumberingWizard::previewPage()
 	m_preview_table->verticalHeader()->hide();
 	m_preview_table->setEditTriggers(QAbstractItemView::NoEditTriggers);
 
+	m_components_table = new QTableWidget(0, 3, page);
+	m_components_table->setHorizontalHeaderLabels({tr("Folha"), tr("Tag atual"), tr("Nova tag")});
+	m_components_table->horizontalHeader()->setStretchLastSection(true);
+	m_components_table->verticalHeader()->hide();
+	m_components_table->setEditTriggers(QAbstractItemView::NoEditTriggers);
+
+	m_preview_tabs = new QTabWidget(page);
+	m_preview_tabs->addTab(m_preview_table, tr("Folhas"));
+	m_preview_tabs->addTab(m_components_table, tr("Componentes"));
+
 	auto layout = new QVBoxLayout(page);
 	layout->addWidget(m_summary);
+	layout->addWidget(m_revision_warning);
 	layout->addWidget(m_group);
-	layout->addWidget(m_preview_table, 1);
+	layout->addWidget(m_preview_tabs, 1);
 	return page;
 }
 
@@ -495,13 +699,38 @@ void ProjectNumberingWizard::fillPreview()
 	}
 	m_preview_table->resizeColumnsToContents();
 
+	readTagSettings();
+	const QList<ProjectNumbering::ComponentInfo> list = components();
+	const QHash<QString, QString> changes = ProjectNumbering::componentLabels(m_settings, list, tagScope());
+	QList<int> changed;
+	for (int i = 0; i < list.size(); ++i)
+		if (changes.contains(list.at(i).id)) changed << i;
+	std::stable_sort(changed.begin(), changed.end(), [&list](int a, int b) {
+		return list.at(a).folio < list.at(b).folio;
+	});
+	m_components_table->setRowCount(int(changed.size()));
+	for (int row = 0; row < changed.size(); ++row) {
+		const ProjectNumbering::ComponentInfo &info = list.at(changed.at(row));
+		m_components_table->setItem(row, 0, readOnlyItem(info.folio_label));
+		m_components_table->setItem(row, 1, readOnlyItem(info.label));
+		m_components_table->setItem(row, 2, readOnlyItem(changes.value(info.id)));
+	}
+	m_components_table->resizeColumnsToContents();
+	m_preview_tabs->setTabText(1, tr("Componentes (%1)").arg(changed.size()));
+	m_preview_tabs->setTabText(0, tr("Folhas (%1)").arg(m_preview_table->rowCount()));
+	m_revision_warning->setVisible(m_has_revisions && tagScope() == ProjectNumbering::RenumberAll
+				       && !changed.isEmpty());
+	const QString tags_text = changed.isEmpty() ? QString()
+				  : tr(" %1 tags de componentes mudam.").arg(changed.size());
+
 	if (!m_settings.enabled)
-		m_summary->setText(tr("A numeração automática está desligada: as seções ficam guardadas "
-				      "no projeto e os números das folhas não mudam."));
-	else if (!numbers && !titles_changed && !moved)
-		m_summary->setText(tr("Nada muda: todas as %1 folhas já estão numeradas assim.")
+		m_summary->setText(tr("A numeração automática das folhas está desligada: as seções ficam guardadas "
+				      "no projeto e os números das folhas não mudam.") + tags_text);
+	else if (!numbers && !titles_changed && !moved && changed.isEmpty())
+		m_summary->setText(tr("Nada muda: as %1 folhas e os componentes já estão numerados assim.")
 				   .arg(new_order.size()));
 	else
 		m_summary->setText(tr("%1 folhas mudam de número, %2 títulos mudam e %3 folhas mudam de lugar, "
-				      "de %4 folhas.").arg(numbers).arg(titles_changed).arg(moved).arg(new_order.size()));
+				      "de %4 folhas.").arg(numbers).arg(titles_changed).arg(moved).arg(new_order.size())
+				   + tags_text);
 }

@@ -245,6 +245,8 @@ class QETProject : public QObject
 		ProjectNumbering::Settings numbering() const {return m_numbering;}
 		void setNumbering(const ProjectNumbering::Settings &numbering);
 		QList<ProjectNumbering::FolioInfo> numberingFolios() const;
+		QList<ProjectNumbering::ComponentInfo> numberingComponents(QList<Element *> *elements) const;
+		void completeComponentTag(Element *element);
 		void setAutoBreakConductor (bool abc);
 		void setAutoElement (bool ae);
 		void autoFolioNumberingNewFolios ();

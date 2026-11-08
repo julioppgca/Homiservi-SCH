@@ -35,6 +35,32 @@ class tst_projectnumbering : public QObject
 			return list;
 		}
 
+		static ComponentInfo component(const QString &label, int folio, int column, qreal y,
+					       const QString &section = QStringLiteral("02"),
+					       const QString &folio_label = QStringLiteral("02.04"), bool terminal = false)
+		{
+			static int n = 0;
+			ComponentInfo c;
+			c.id = QString::number(++n);
+			c.label = label;
+			c.folio = folio;
+			c.folio_label = folio_label;
+			c.section = section;
+			c.column = column;
+			c.x = column * 50;
+			c.y = y;
+			c.terminal = terminal;
+			return c;
+		}
+
+		static QStringList apply(const QList<ComponentInfo> &list, const QHash<QString, QString> &changes)
+		{
+			QStringList labels;
+			for (const ComponentInfo &c : list)
+				labels << changes.value(c.id, c.label);
+			return labels;
+		}
+
 		static Settings twoSections()
 		{
 			Settings s;
@@ -142,6 +168,118 @@ class tst_projectnumbering : public QObject
 			QCOMPARE(folioLabels(s, folios({"x", "y"})), QStringList({"01.01", "01.02"}));
 		}
 
+		void tagPrefixes()
+		{
+			QCOMPARE(tagPrefix(QStringLiteral("-KA12")), QStringLiteral("-KA"));
+			QCOMPARE(tagPrefix(QStringLiteral("-KA")), QStringLiteral("-KA"));
+			QCOMPARE(tagPrefix(QStringLiteral("X0.0")), QString());
+			QCOMPARE(tagPrefix(QStringLiteral("-A1-S1")), QString());
+			QCOMPARE(tagPrefix(QStringLiteral("-X1:3")), QString());
+		}
+
+		void sequentialTagsInReadingOrder()
+		{
+			Settings s;
+			s.tag_mode = TagsSequential;
+				//Folio 1 before folio 0 in the list, column 3 before column 1
+			const QList<ComponentInfo> list {
+				component("-KA7", 1, 1, 10), component("-KA30", 0, 3, 10), component("-KA2", 0, 1, 50),
+				component("-F12", 0, 1, 10), component("-KA", 0, 1, 20),
+				component("X0.0", 0, 1, 30), component("-A1-S1", 0, 2, 10)};
+			QCOMPARE(apply(list, componentLabels(s, list, RenumberAll)),
+				 QStringList({"-KA04", "-KA03", "-KA02", "-F01", "-KA01", "X0.0", "-A1-S1"}));
+		}
+
+		void completeOnlyKeepsTheNumberedTags()
+		{
+			Settings s;
+			s.tag_mode = TagsSequential;
+			s.tag_digits = 1;
+			const QList<ComponentInfo> list {
+				component("-KA", 0, 1, 10), component("-KA7", 0, 2, 10), component("-KA", 1, 1, 10),
+				component("-F", 0, 3, 10)};
+			QCOMPARE(apply(list, componentLabels(s, list, CompleteOnly)),
+				 QStringList({"-KA8", "-KA7", "-KA9", "-F1"}));
+		}
+
+		void tagsBySection()
+		{
+			Settings s;
+			s.tag_mode = TagsBySection;
+			const QList<ComponentInfo> list {
+				component("-KA9", 0, 1, 10, "02"), component("-KA3", 1, 1, 10, "03"),
+				component("-KA1", 1, 2, 10, "03"), component("-KA", 2, 1, 10, "03")};
+			QCOMPARE(apply(list, componentLabels(s, list, RenumberAll)),
+				 QStringList({"-KA0201", "-KA0301", "-KA0302", "-KA0303"}));
+			const QList<ComponentInfo> done {
+				component("-KA0301", 1, 1, 10, "03"), component("-KA0307", 1, 2, 10, "03"),
+				component("-KA", 2, 1, 10, "03"), component("-KA", 0, 1, 10, "02")};
+			QCOMPARE(apply(done, componentLabels(s, done, CompleteOnly)),
+				 QStringList({"-KA0301", "-KA0307", "-KA0308", "-KA0201"}));
+		}
+
+		void tagsBySectionCompact()
+		{
+				//As the PV500 FANUC project: -KA62 is the 2nd -KA of section 06
+			Settings s;
+			s.tag_mode = TagsBySectionCompact;
+			s.tag_digits = 1;
+			const QList<ComponentInfo> list {
+				component("-KA61", 0, 1, 10, "06"), component("-KA65", 0, 2, 10, "06"),
+				component("-KA", 1, 1, 10, "06"), component("-F", 2, 1, 10, "11"),
+					//Drawn in section 02 for section 08, on purpose
+				component("-F83", 3, 1, 10, "02")};
+			QCOMPARE(apply(list, componentLabels(s, list, CompleteOnly)),
+				 QStringList({"-KA61", "-KA65", "-KA66", "-F111", "-F83"}));
+			QCOMPARE(apply(list, componentLabels(s, list, RenumberAll)),
+				 QStringList({"-KA61", "-KA62", "-KA63", "-F111", "-F21"}));
+		}
+
+		void guessesTheTagStyle()
+		{
+			int digits = 0;
+			QCOMPARE(guessTagMode({component("-KA61", 0, 1, 1, "06"), component("-KA62", 0, 1, 2, "06"),
+					       component("-B101", 0, 1, 3, "10"), component("-F83", 0, 1, 4, "02"),
+					       component("X0.0", 0, 1, 5, "06")}, &digits), TagsBySectionCompact);
+			QCOMPARE(digits, 1);
+			QCOMPARE(guessTagMode({component("-KA0601", 0, 1, 1, "06"), component("-KA0602", 0, 1, 2, "06")},
+					      &digits), TagsBySection);
+			QCOMPARE(digits, 2);
+			QCOMPARE(guessTagMode({component("-KA1", 0, 1, 1, "06"), component("-KA12", 0, 1, 2, "06")}),
+				 TagsSequential);
+			QCOMPARE(guessTagMode({component("X0.0", 0, 1, 1, "06"), component("-KA", 0, 1, 2, "06")}),
+				 TagsUnchanged);
+		}
+
+		void tagsByPosition()
+		{
+			Settings s;
+			s.tag_mode = TagsByPosition;
+			const QList<ComponentInfo> list {
+				component("-KA1", 0, 3, 10), component("-KA2", 0, 3, 40), component("-F1", 0, 3, 20),
+				component("-Q1", 0, 5, 10, "02", "02.05")};
+			QCOMPARE(apply(list, componentLabels(s, list, RenumberAll)),
+				 QStringList({"-KA0204.3a", "-KA0204.3b", "-F0204.3", "-Q0205.5"}));
+			const QList<ComponentInfo> more {component("-KA0204.3", 0, 3, 10), component("-KA", 0, 3, 40)};
+			QCOMPARE(apply(more, componentLabels(s, more, CompleteOnly)),
+				 QStringList({"-KA0204.3", "-KA0204.3a"}));
+		}
+
+		void terminalsByStrip()
+		{
+			Settings s;
+			s.renumber_terminals = true;
+			const QList<ComponentInfo> list {
+				component("-X1:7", 0, 2, 10, "02", "02.04", true), component("-X1:3", 0, 1, 10, "02", "02.04", true),
+				component("-X1:PE", 0, 1, 5, "02", "02.04", true), component("-X2:9", 0, 1, 20, "02", "02.04", true),
+				component("-X1:", 1, 1, 10, "02", "02.04", true), component("-KA3", 0, 1, 10)};
+				//The tags stay: tag_mode is TagsUnchanged
+			QCOMPARE(apply(list, componentLabels(s, list, RenumberAll)),
+				 QStringList({"-X1:2", "-X1:1", "-X1:PE", "-X2:1", "-X1:3", "-KA3"}));
+			QCOMPARE(apply(list, componentLabels(s, list, CompleteOnly)),
+				 QStringList({"-X1:7", "-X1:3", "-X1:PE", "-X2:9", "-X1:8", "-KA3"}));
+		}
+
 		void xmlRoundTrip()
 		{
 			Settings s = twoSections();
@@ -150,6 +288,9 @@ class tst_projectnumbering : public QObject
 			s.section_digits = 1;
 			s.page_digits = 3;
 			s.strip_titles = false;
+			s.tag_mode = TagsByPosition;
+			s.tag_digits = 3;
+			s.renumber_terminals = true;
 			s.starts.insert(QStringLiteral("{b}"), QStringLiteral("02"));
 			s.starts.insert(QStringLiteral("{a}"), QStringLiteral("01"));
 

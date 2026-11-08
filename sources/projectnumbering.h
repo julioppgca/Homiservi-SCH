@@ -62,6 +62,28 @@ namespace ProjectNumbering
 		Sequential
 	};
 
+		///How the components are tagged: -KA01, -KA0201, -KA0204.3
+	enum TagMode {
+			///The tags stay as they are
+		TagsUnchanged,
+			///One counter per prefix through the project: -KA01, -KA02
+		TagsSequential,
+			///One counter per prefix in each section: -KA0201 (section 02)
+		TagsBySection,
+			///The same, the section without its zeros: -KA21 (section 02)
+		TagsBySectionCompact,
+			///The folio and the column of the component: -KA0204.3
+		TagsByPosition
+	};
+
+		///Which tags applying gives a number
+	enum TagScope {
+			///Every tag
+		RenumberAll,
+			///Only the tags without a number ("-KA"), after the others
+		CompleteOnly
+	};
+
 	struct Settings
 	{
 			///The folio numbers are computed and kept up to date
@@ -77,6 +99,11 @@ namespace ProjectNumbering
 		QList<Section> sections;
 			///Uuid of the folios starting a section -> its code
 		QHash<QString, QString> starts;
+		TagMode tag_mode = TagsUnchanged;
+			///Zero padding of the number of a tag
+		int tag_digits = 2;
+			///Number the terminals of each strip too: -X1:1, -X1:2...
+		bool renumber_terminals = false;
 
 		bool operator==(const Settings &other) const {
 			return enabled == other.enabled && format == other.format
@@ -84,11 +111,15 @@ namespace ProjectNumbering
 					&& section_digits == other.section_digits
 					&& page_digits == other.page_digits
 					&& strip_titles == other.strip_titles
-					&& sections == other.sections && starts == other.starts;
+					&& sections == other.sections && starts == other.starts
+					&& tag_mode == other.tag_mode && tag_digits == other.tag_digits
+					&& renumber_terminals == other.renumber_terminals;
 		}
 		bool operator!=(const Settings &other) const { return !(*this == other); }
 
-		bool isEmpty() const { return !enabled && sections.isEmpty(); }
+		bool isEmpty() const {
+			return !enabled && sections.isEmpty() && tag_mode == TagsUnchanged && !renumber_terminals;
+		}
 		int sectionIndex(const QString &code) const;
 	};
 
@@ -98,6 +129,25 @@ namespace ProjectNumbering
 			///The folio number in the title block
 		QString folio;
 		QString title;
+	};
+
+		///A component of a project to tag
+	struct ComponentInfo
+	{
+			///Any key unique in the list
+		QString id;
+		QString label;
+			///Rank of its folio in the project, from 0
+		int folio = 0;
+			///Number and section of its folio
+		QString folio_label;
+		QString section;
+			///Column of the folio it is in, and its place, for the order
+		int column = 0;
+		qreal x = 0;
+		qreal y = 0;
+			///A terminal: -X1:12
+		bool terminal = false;
 	};
 
 	Settings fromXml(const QDomElement &project_root);
@@ -113,6 +163,11 @@ namespace ProjectNumbering
 	bool isGrouped(const Settings &settings, const QStringList &codes);
 
 	QString strippedTitle(const QString &title);
+	QString tagPrefix(const QString &label);
+	TagMode guessTagMode(const QList<ComponentInfo> &components, int *digits = nullptr);
+	QHash<QString, QString> componentLabels(const Settings &settings,
+						 const QList<ComponentInfo> &components,
+						 TagScope scope);
 	Settings importFrom(const QList<FolioInfo> &folios, const QStringList &texts);
 }
 
