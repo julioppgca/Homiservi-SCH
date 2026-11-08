@@ -122,6 +122,9 @@ namespace ProjectNumbering
 		bool wire_compact_folio = false;
 			///Between the folio and the number of a wire
 		QString wire_separator = QStringLiteral("-");
+			///The number of a wire near the component it starts from,
+			///instead of the middle of the wire
+		bool wire_text_near_terminal = false;
 
 		bool operator==(const Settings &other) const {
 			return enabled == other.enabled && format == other.format
@@ -134,13 +137,14 @@ namespace ProjectNumbering
 					&& renumber_terminals == other.renumber_terminals
 					&& wire_mode == other.wire_mode && wire_digits == other.wire_digits
 					&& wire_compact_folio == other.wire_compact_folio
-					&& wire_separator == other.wire_separator;
+					&& wire_separator == other.wire_separator
+					&& wire_text_near_terminal == other.wire_text_near_terminal;
 		}
 		bool operator!=(const Settings &other) const { return !(*this == other); }
 
 		bool isEmpty() const {
 			return !enabled && sections.isEmpty() && tag_mode == TagsUnchanged && !renumber_terminals
-					&& wire_mode == WiresUnchanged;
+					&& wire_mode == WiresUnchanged && !wire_text_near_terminal;
 		}
 		int sectionIndex(const QString &code) const;
 	};
@@ -202,6 +206,11 @@ namespace ProjectNumbering
 	QString tagPrefix(const QString &label);
 	TagMode guessTagMode(const QList<ComponentInfo> &components, int *digits = nullptr);
 	bool isWireNumber(const QString &number);
+		///No number: empty, or "_", the text QElectroTech gives a new wire
+	inline bool isNoWireNumber(const QString &number) {
+		const QString trimmed = number.trimmed();
+		return trimmed.isEmpty() || trimmed == QLatin1String("_");
+	}
 	QHash<QString, QString> wireNumbers(const Settings &settings,
 					    const QList<PotentialInfo> &potentials,
 					    TagScope scope);

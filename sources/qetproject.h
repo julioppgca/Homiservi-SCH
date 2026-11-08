@@ -248,6 +248,9 @@ class QETProject : public QObject
 		QList<ProjectNumbering::ComponentInfo> numberingComponents(QList<Element *> *elements) const;
 		void completeComponentTag(Element *element);
 		QList<ProjectNumbering::PotentialInfo> numberingPotentials(QList<QList<Conductor *>> *wires) const;
+		QString newWireNumber(Diagram *diagram, const QPointF &start) const;
+		void completeWireNumber(Conductor *conductor);
+		bool wireTextNearTerminal() const {return m_numbering.wire_text_near_terminal;}
 		void setAutoBreakConductor (bool abc);
 		void setAutoElement (bool ae);
 		void autoFolioNumberingNewFolios ();

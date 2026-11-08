@@ -296,6 +296,7 @@ class tst_projectnumbering : public QObject
 			s.wire_digits = 3;
 			s.wire_compact_folio = true;
 			s.wire_separator = QStringLiteral(".");
+			s.wire_text_near_terminal = true;
 			const QList<ComponentInfo> list {
 				component("-X1:7", 0, 2, 10, "02", "02.04", true), component("-X1:3", 0, 1, 10, "02", "02.04", true),
 				component("-X1:PE", 0, 1, 5, "02", "02.04", true), component("-X2:9", 0, 1, 20, "02", "02.04", true),

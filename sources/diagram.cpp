@@ -2078,6 +2078,15 @@ void Diagram::addItem(QGraphicsItem *item)
 			Conductor *conductor = static_cast<Conductor *>(item);
 			conductor->terminal1->addConductor(conductor);
 			conductor->terminal2->addConductor(conductor);
+				//Homiservi-SCH: a potential left without number gets one,
+				//once the edit is over (QETProject::completeWireNumber())
+			if (m_project && m_project->state() == QETProject::Ok) {
+				QPointer<Conductor> watched(conductor);
+				QPointer<QETProject> project(m_project);
+				QTimer::singleShot(0, project, [watched, project]() {
+					if (watched && project) project->completeWireNumber(watched);
+				});
+			}
 			conductor->calculateTextItemPosition();
 			m_project->dataBase()->addConductor(conductor);
 			break;

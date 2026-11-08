@@ -523,7 +523,7 @@ QHash<QString, QString> ProjectNumberingWizard::wireNumbers(const QList<ProjectN
 		const ProjectNumbering::PotentialInfo &info = list.at(i);
 		if (changes.contains(info.id) || info.number.trimmed().isEmpty()) continue;
 		for (Conductor *wire : m_potentials.at(i).wires)
-			if (wire->properties().text.trimmed().isEmpty()) {
+			if (ProjectNumbering::isNoWireNumber(wire->properties().text)) {
 				changes.insert(info.id, info.number.trimmed());
 				break;
 			}
@@ -560,6 +560,11 @@ QWizardPage *ProjectNumberingWizard::wiresPage()
 	m_wire_separator->addItem(tr("ponto – 02.04.01"), QStringLiteral("."));
 	m_wire_separator->addItem(tr("nada – 02.0401"), QString());
 	m_wire_separator->setCurrentIndex(qMax(0, m_wire_separator->findData(m_settings.wire_separator)));
+	m_wire_text_near = new QCheckBox(tr("Mostrar o número perto do componente onde o fio começa, "
+					    "e não no meio do fio"), page);
+	m_wire_text_near->setToolTip(tr("No primeiro trecho do fio que tenha espaço para o número; "
+					"um número movido à mão fica onde está"));
+	m_wire_text_near->setChecked(m_settings.wire_text_near_terminal);
 
 	bool has_numbers = false;
 	for (const Potential &potential : std::as_const(m_potentials))
@@ -581,6 +586,7 @@ QWizardPage *ProjectNumberingWizard::wiresPage()
 	connect(m_wire_digits, &QSpinBox::valueChanged, this, changed);
 	connect(m_wire_compact, &QCheckBox::toggled, this, changed);
 	connect(m_wire_separator, &QComboBox::currentIndexChanged, this, changed);
+	connect(m_wire_text_near, &QCheckBox::toggled, this, changed);
 	connect(m_wires_all, &QRadioButton::toggled, this, changed);
 
 	auto form = new QFormLayout;
@@ -588,6 +594,7 @@ QWizardPage *ProjectNumberingWizard::wiresPage()
 	form->addRow(tr("Dígitos do número:"), m_wire_digits);
 	form->addRow(tr("Entre a folha e o número:"), m_wire_separator);
 	form->addRow(m_wire_compact);
+	form->addRow(m_wire_text_near);
 
 	auto layout = new QVBoxLayout(page);
 	layout->addLayout(form);
@@ -603,6 +610,7 @@ void ProjectNumberingWizard::readWireSettings()
 	m_settings.wire_digits = m_wire_digits->value();
 	m_settings.wire_compact_folio = m_wire_compact->isChecked();
 	m_settings.wire_separator = m_wire_separator->currentData().toString();
+	m_settings.wire_text_near_terminal = m_wire_text_near->isChecked();
 	const bool by_folio = m_settings.wire_mode == ProjectNumbering::WiresByFolio
 			|| m_settings.wire_mode == ProjectNumbering::WiresByColumn;
 	m_wire_digits->setEnabled(m_settings.wire_mode == ProjectNumbering::WiresSequential
@@ -929,11 +937,16 @@ void ProjectNumberingWizard::fillPreview()
 				  : tr(" %1 tags de componentes mudam.").arg(changed.size());
 	if (!wires_changed.isEmpty())
 		tags_text += tr(" %1 potenciais de fios mudam de número.").arg(wires_changed.size());
+	const bool text_moves = m_settings.wire_text_near_terminal != m_project->numbering().wire_text_near_terminal;
+	if (text_moves)
+		tags_text += m_settings.wire_text_near_terminal
+				? tr(" Os números dos fios vão para perto do componente onde o fio começa.")
+				: tr(" Os números dos fios voltam para o meio do fio.");
 
 	if (!m_settings.enabled)
 		m_summary->setText(tr("A numeração automática das folhas está desligada: as seções ficam guardadas "
 				      "no projeto e os números das folhas não mudam.") + tags_text);
-	else if (!numbers && !titles_changed && !moved && changed.isEmpty() && wires_changed.isEmpty())
+	else if (!numbers && !titles_changed && !moved && changed.isEmpty() && wires_changed.isEmpty() && !text_moves)
 		m_summary->setText(tr("Nada muda: as %1 folhas e os componentes já estão numerados assim.")
 				   .arg(new_order.size()));
 	else

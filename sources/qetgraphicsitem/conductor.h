@@ -106,6 +106,7 @@ class Conductor : public QGraphicsObject
 		qreal length() const;
 		ConductorSegment *middleSegment();
 		QPointF posForText(Qt::Orientations &flag);
+		QPointF posForTextNearTerminal(Qt::Orientations &flag, bool *found);
 		void refreshText();
 		void setPath(const QPainterPath &path);
 		QPainterPath path() const;

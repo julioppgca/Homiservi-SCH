@@ -130,6 +130,7 @@ class ProjectNumberingWizard : public QWizard
 		QSpinBox *m_wire_digits = nullptr;
 		QCheckBox *m_wire_compact = nullptr;
 		QComboBox *m_wire_separator = nullptr;
+		QCheckBox *m_wire_text_near = nullptr;
 		QRadioButton *m_wires_all = nullptr;
 		QRadioButton *m_wires_complete = nullptr;
 		QLabel *m_wires_summary = nullptr;

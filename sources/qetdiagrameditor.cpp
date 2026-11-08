@@ -2062,6 +2062,9 @@ void QETDiagramEditor::showProjectNumbering(bool reapply)
 				ConductorProperties properties = conductor->properties();
 				const QString old_text = properties.text;
 				if (old_text == potential.second) continue;
+					//A wire numbered otherwise in a mixed potential stays
+				if (!ProjectNumbering::isNoWireNumber(old_text) && ProjectNumbering::isNoWireNumber(potential.second))
+					continue;
 				properties.text = potential.second;
 					//As for a tag: the number typed is kept as the formula
 				if (!properties.m_formula.isEmpty() || !old_text.isEmpty())

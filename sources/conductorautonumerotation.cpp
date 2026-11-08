@@ -16,6 +16,7 @@
 	along with QElectroTech.  If not, see <http://www.gnu.org/licenses/>.
 */
 #include "conductorautonumerotation.h"
+#include "qetgraphicsitem/terminal.h"
 #include "qetproject.h"
 #include "QPropertyUndoCommand/qpropertyundocommand.h"
 #include "autoNum/assignvariables.h"
@@ -231,6 +232,21 @@ void ConductorAutoNumerotation::numeratePotential()
 void ConductorAutoNumerotation::numerateNewConductor()
 {
 	if (!m_conductor) {
+		return;
+	}
+
+		//Homiservi-SCH: the numbering of the project (ProjectNumbering)
+		//comes before the autonum rule, in the same undo step
+	if (QETProject *project = m_diagram->project();
+	    project && project->numbering().wire_mode != ProjectNumbering::WiresUnchanged)
+	{
+		const QString number = project->newWireNumber(m_diagram, m_conductor->terminal1->dockConductor());
+		if (!number.isEmpty()) {
+			ConductorProperties cp = m_conductor->properties();
+			cp.m_formula = number;
+			m_conductor->setProperties(cp);
+			applyText(number);
+		}
 		return;
 	}
 

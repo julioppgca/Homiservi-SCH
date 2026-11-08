@@ -131,6 +131,7 @@ ProjectNumbering::Settings ProjectNumbering::fromXml(const QDomElement &project_
 	settings.wire_digits = root.attribute(QStringLiteral("wire_digits"), QStringLiteral("2")).toInt();
 	settings.wire_compact_folio = root.attribute(QStringLiteral("wire_compact_folio")) == QLatin1String("true");
 	settings.wire_separator = root.attribute(QStringLiteral("wire_separator"), QStringLiteral("-"));
+	settings.wire_text_near_terminal = root.attribute(QStringLiteral("wire_text")) == QLatin1String("near_terminal");
 
 	for (QDomElement e = root.firstChildElement(QStringLiteral("section")); !e.isNull();
 	     e = e.nextSiblingElement(QStringLiteral("section")))
@@ -170,6 +171,8 @@ void ProjectNumbering::toXml(const Settings &settings, QDomElement &project_root
 	root.setAttribute(QStringLiteral("wire_digits"), settings.wire_digits);
 	root.setAttribute(QStringLiteral("wire_compact_folio"), settings.wire_compact_folio ? QStringLiteral("true") : QStringLiteral("false"));
 	root.setAttribute(QStringLiteral("wire_separator"), settings.wire_separator);
+	root.setAttribute(QStringLiteral("wire_text"), settings.wire_text_near_terminal
+			  ? QStringLiteral("near_terminal") : QStringLiteral("middle"));
 	for (const Section &section : settings.sections) {
 		QDomElement e = document.createElement(QStringLiteral("section"));
 		e.setAttribute(QStringLiteral("code"), section.code);

@@ -17,6 +17,7 @@
 */
 
 #include "qetproject.h"
+#include "QPropertyUndoCommand/qpropertyundocommand.h"
 
 #include <tuple>
 #include "undocommand/changeelementinformationcommand.h"
@@ -1480,8 +1481,13 @@ void QETProject::setTextStyles(const QList<TextStyles::Style> &styles)
 */
 void QETProject::setNumbering(const ProjectNumbering::Settings &numbering)
 {
+	const bool text_moves = numbering.wire_text_near_terminal != m_numbering.wire_text_near_terminal;
 	m_numbering = numbering;
 	updateDiagramsFolioData();
+	if (text_moves)
+		for (Diagram *diagram : std::as_const(m_diagrams_list))
+			for (Conductor *conductor : diagram->conductors())
+				conductor->calculateTextItemPosition();
 }
 
 /**
@@ -1567,7 +1573,7 @@ QList<ProjectNumbering::PotentialInfo> QETProject::numberingPotentials(QList<QLi
 			for (Conductor *wire : std::as_const(list)) {
 				frozen |= wire->isFreezeLabel();
 				const QString number = wire->properties().text.trimmed();
-				if (!number.isEmpty()) ++numbers[number];
+				if (!ProjectNumbering::isNoWireNumber(number)) ++numbers[number];
 				Diagram *wire_diagram = wire->diagram();
 				if (!wire_diagram || !wire->terminal1) continue;
 				const QPointF start = wire->terminal1->dockConductor();
@@ -1596,6 +1602,73 @@ QList<ProjectNumbering::PotentialInfo> QETProject::numberingPotentials(QList<QLi
 		}
 	}
 	return potentials;
+}
+
+/**
+	@brief QETProject::newWireNumber
+	@return the number the project numbering gives a wire drawn on diagram
+	from start that makes a potential of its own, empty when the project
+	does not number its wires
+*/
+QString QETProject::newWireNumber(Diagram *diagram, const QPointF &start) const
+{
+	if (m_numbering.wire_mode == ProjectNumbering::WiresUnchanged || !diagram)
+		return QString();
+	QList<ProjectNumbering::PotentialInfo> potentials = numberingPotentials(nullptr);
+	ProjectNumbering::PotentialInfo wire;
+	wire.id = QStringLiteral("new");
+	wire.folio = int(m_diagrams_list.indexOf(diagram));
+	wire.folio_label = diagram->border_and_titleblock.finalfolio();
+	wire.column = int(diagram->convertPosition(start).number());
+	wire.x = start.x();
+	wire.y = start.y();
+	potentials << wire;
+	return ProjectNumbering::wireNumbers(m_numbering, potentials, ProjectNumbering::CompleteOnly)
+			.value(wire.id);
+}
+
+/**
+	@brief QETProject::completeWireNumber
+	When the project numbers its wires and the potential of conductor has
+	no number (a wire drawn to a potential without number, pasted, split),
+	give it the next one; when some of its wires have one, give it to the
+	others. One more undo step; never while undoing.
+*/
+void QETProject::completeWireNumber(Conductor *conductor)
+{
+	if (!conductor || !conductor->diagram() || m_state != Ok || isReadOnly()
+	    || m_numbering.wire_mode == ProjectNumbering::WiresUnchanged || m_undo_stack->canRedo())
+		return;
+	QList<QList<Conductor *>> wires;
+	const QList<ProjectNumbering::PotentialInfo> potentials = numberingPotentials(&wires);
+	int index = -1;
+	for (int i = 0; i < wires.size() && index < 0; ++i)
+		if (wires.at(i).contains(conductor)) index = i;
+	if (index < 0) return;
+
+	QString number = potentials.at(index).number.trimmed();
+	if (number.isEmpty())
+		number = ProjectNumbering::wireNumbers(m_numbering, potentials, ProjectNumbering::CompleteOnly)
+				.value(potentials.at(index).id);
+	if (number.isEmpty()) return;
+
+	auto undo = new QUndoCommand(tr("Numerar os fios"));
+	for (Conductor *wire : wires.at(index)) {
+		ConductorProperties properties = wire->properties();
+		if (properties.text == number) continue;
+		if (!ProjectNumbering::isNoWireNumber(properties.text) && !potentials.at(index).number.trimmed().isEmpty())
+			continue;	//A wire numbered otherwise in a mixed potential stays
+		properties.text = number;
+		properties.m_formula = number;
+		QVariant old_value, new_value;
+		old_value.setValue(wire->properties());
+		new_value.setValue(properties);
+		new QPropertyUndoCommand(wire, "properties", old_value, new_value, undo);
+	}
+	if (undo->childCount())
+		m_undo_stack->push(undo);
+	else
+		delete undo;
 }
 
 /**
