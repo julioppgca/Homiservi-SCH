@@ -8131,13 +8131,13 @@ Régua de bornes</translation>
     </message>
     <message>
         <location filename="../sources/ui/homiserviprojectwizard.cpp" line="79"/>
-        <source>ex.: Torno 1 (GL240 – 016-014335)</source>
-        <translation>ex.: Torno 1 (GL240 – 016-014335)</translation>
+        <source>ex.: Painel de comando da máquina 01</source>
+        <translation>ex.: Painel de comando da máquina 01</translation>
     </message>
     <message>
         <location filename="../sources/ui/homiserviprojectwizard.cpp" line="80"/>
-        <source>ex.: Indumavi</source>
-        <translation>ex.: Indumavi</translation>
+        <source>ex.: Homiservi</source>
+        <translation>ex.: Homiservi</translation>
     </message>
     <message>
         <location filename="../sources/ui/homiserviprojectwizard.cpp" line="81"/>
@@ -8146,13 +8146,13 @@ Régua de bornes</translation>
     </message>
     <message>
         <location filename="../sources/ui/homiserviprojectwizard.cpp" line="82"/>
-        <source>ex.: T1 – GL240 016-014335</source>
-        <translation>ex.: T1 – GL240 016-014335</translation>
+        <source>ex.: Máquina 01 – Usinagem</source>
+        <translation>ex.: Máquina 01 – Usinagem</translation>
     </message>
     <message>
         <location filename="../sources/ui/homiserviprojectwizard.cpp" line="83"/>
-        <source>ex.: 092026</source>
-        <translation>ex.: 092026</translation>
+        <source>ex.: HS-0001</source>
+        <translation>ex.: HS-0001</translation>
     </message>
     <message>
         <location filename="../sources/ui/homiserviprojectwizard.cpp" line="84"/>
@@ -8221,8 +8221,8 @@ Régua de bornes</translation>
     </message>
     <message>
         <location filename="../sources/ui/homiserviprojectwizard.cpp" line="113"/>
-        <source>ex.: Eng. Júlio</source>
-        <translation>ex.: Eng. Júlio</translation>
+        <source>ex.: Eng. Responsável</source>
+        <translation>ex.: Eng. Responsável</translation>
     </message>
     <message>
         <location filename="../sources/ui/homiserviprojectwizard.cpp" line="120"/>

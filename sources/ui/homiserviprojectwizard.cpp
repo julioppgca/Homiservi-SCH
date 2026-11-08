@@ -76,11 +76,11 @@ QWizardPage *HomiserviProjectWizard::projectPage(const HomiserviTemplate::Data &
 	page->setTitle(tr("Dados do projeto"));
 	page->setSubTitle(tr("Aparecem na legenda de todas as folhas e na capa."));
 	auto form = new QFormLayout(page);
-	m_title = lineEdit(data.title, tr("ex.: Torno 1 (GL240 – 016-014335)"), page);
-	m_client = lineEdit(data.client, tr("ex.: Indumavi"), page);
+	m_title = lineEdit(data.title, tr("ex.: Painel de comando da máquina 01"), page);
+	m_client = lineEdit(data.client, tr("ex.: Homiservi"), page);
 	m_plant = lineEdit(data.plant, tr("ex.: Painel Elétrico"), page);
-	m_location = lineEdit(data.location, tr("ex.: T1 – GL240 016-014335"), page);
-	m_drawing_number = lineEdit(data.drawing_number, tr("ex.: 092026"), page);
+	m_location = lineEdit(data.location, tr("ex.: Máquina 01 – Usinagem"), page);
+	m_drawing_number = lineEdit(data.drawing_number, tr("ex.: HS-0001"), page);
 	m_filename = lineEdit(data.filename, tr("referência do documento (opcional)"), page);
 	m_layout = new QComboBox(page);
 	m_layout->addItem(tr("Simples"), HomiserviTemplate::Simple);
@@ -110,7 +110,7 @@ QWizardPage *HomiserviProjectWizard::peoplePage(const HomiserviTemplate::Data &d
 			      QString(), page);
 	m_author = lineEdit(data.author.isEmpty()
 			    ? settings.value(QStringLiteral("homiservi/author")).toString() : data.author,
-			    tr("ex.: Eng. Júlio"), page);
+			    tr("ex.: Eng. Responsável"), page);
 	m_checker = lineEdit(data.checker.isEmpty()
 			     ? settings.value(QStringLiteral("homiservi/checker")).toString() : data.checker,
 			     QString(), page);
