@@ -381,7 +381,8 @@ class QETProject : public QObject
 			/// File path this project is saved to
 		QString m_file_path;
 			/// Current state of the project
-		ProjectState m_state;
+			/// Ok for a project made from scratch: only opening a file sets it
+		ProjectState m_state = Ok;
 			/// Diagrams carried by the project
 		QList<Diagram *> m_diagrams_list;
 			/// Project title
