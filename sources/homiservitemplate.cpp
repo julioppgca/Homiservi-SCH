@@ -364,16 +364,30 @@ void HomiserviTemplate::apply(QETProject *project, const Data &data, bool use_ti
 */
 void HomiserviTemplate::createFolios(QETProject *project, const Data &data, const Folios &folios)
 {
+		//The section each new folio starts: "02" for the first folio of
+		//the second section
+	ProjectNumbering::Settings settings = numbering();
+	auto start_section = [&settings, project](const QString &name) {
+		const QString code = QString::number(settings.sections.size() + 1)
+				.rightJustified(settings.section_digits, QLatin1Char('0'));
+		settings.sections << ProjectNumbering::Section {code, name};
+		const QList<Diagram *> diagrams = project->diagrams();
+		settings.starts.insert(diagrams.last()->uuid().toString(), code);
+	};
+
 	if (folios.cover)
 	{
 		Diagram *diagram = project->addNewDiagram();
 		setTitle(diagram, tr("Capa"));
 		createCover(diagram, data);
+		start_section(tr("Geral"));
 	}
 	if (folios.contents)
 	{
 		Diagram *diagram = project->addNewDiagram();
 		setTitle(diagram, tr("Índice"));
+		if (!folios.cover)
+			start_section(tr("Geral"));
 		auto query = new SummaryQueryWidget();
 		if (data.layout == Revisions)
 		{
@@ -393,13 +407,27 @@ void HomiserviTemplate::createFolios(QETProject *project, const Data &data, cons
 	{
 		Diagram *diagram = project->addNewDiagram();
 		setTitle(diagram, title);
+		start_section(title);
 	}
 	if (folios.materials && data.layout == Revisions)
+	{
+		const int first = int(project->diagrams().size());
 		addComponentList(project);
+			//The component list may take several folios: the section
+			//starts at the first one
+		const QList<Diagram *> diagrams = project->diagrams();
+		if (diagrams.size() > first) {
+			const QString code = QString::number(settings.sections.size() + 1)
+					.rightJustified(settings.section_digits, QLatin1Char('0'));
+			settings.sections << ProjectNumbering::Section {code, tr("Listas")};
+			settings.starts.insert(diagrams.at(first)->uuid().toString(), code);
+		}
+	}
 	else if (folios.materials)
 	{
 		Diagram *diagram = project->addNewDiagram();
 		setTitle(diagram, tr("Lista de materiais"));
+		start_section(tr("Listas"));
 		auto query = new ElementQueryWidget();
 		query->setQuery(QStringLiteral("SELECT label, designation, description, manufacturer,"
 					       " manufacturer_reference, location"
@@ -411,9 +439,40 @@ void HomiserviTemplate::createFolios(QETProject *project, const Data &data, cons
 				     ElementData::typeToString(ElementData::Terminal)));
 		addTable(diagram, query, tr("Lista de materiais"));
 	}
-	if (project->diagrams().isEmpty())
+	if (project->diagrams().isEmpty()) {
 		project->addNewDiagram();
+		start_section(tr("Geral"));
+	}
 	apply(project, data);
+		//Last: it numbers every folio
+	if (folios.numbering)
+		project->setNumbering(settings);
+}
+
+/**
+	@brief HomiserviTemplate::numbering
+	@return the numbering of a Homiservi project, without sections: folios
+	02.01 by section, tags -KA21 (the second -KA of section 02... the
+	section without its zeros, then one digit, as the PV500 FANUC project),
+	wires 02.01-01 by folio with their number near the component they
+	come from
+*/
+ProjectNumbering::Settings HomiserviTemplate::numbering()
+{
+	ProjectNumbering::Settings settings;
+	settings.enabled = true;
+	settings.format = ProjectNumbering::SectionPage;
+	settings.separator = QStringLiteral(".");
+	settings.section_digits = 2;
+	settings.page_digits = 2;
+	settings.strip_titles = true;
+	settings.tag_mode = ProjectNumbering::TagsBySectionCompact;
+	settings.tag_digits = 1;
+	settings.wire_mode = ProjectNumbering::WiresByFolio;
+	settings.wire_digits = 2;
+	settings.wire_separator = QStringLiteral("-");
+	settings.wire_text_near_terminal = true;
+	return settings;
 }
 
 /**

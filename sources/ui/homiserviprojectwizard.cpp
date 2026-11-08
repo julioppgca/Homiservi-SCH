@@ -140,10 +140,17 @@ QWizardPage *HomiserviProjectWizard::foliosPage()
 		box->setChecked(true);
 	layout->addWidget(m_cover);
 	layout->addWidget(m_contents);
-	layout->addWidget(new QLabel(tr("Folhas de esquema, um título por linha:"), page));
+	layout->addWidget(new QLabel(tr("Seções de esquema, uma por linha (cada uma começa com uma folha"
+					 " com esse título):"), page));
 	m_schematics = new QPlainTextEdit(defaultSchematics(), page);
 	layout->addWidget(m_schematics, 1);
 	layout->addWidget(m_materials);
+	m_numbering = new QCheckBox(tr("Numerar no padrão Homiservi: folhas por seção (02.01), tags por seção"
+				       " (-KA21) e fios por folha (02.01-01), perto do componente"), page);
+	m_numbering->setToolTip(tr("A capa e o índice ficam na seção 01 – Geral e as listas na última."
+				   " Tudo pode ser mudado depois em Projeto > Numeração."));
+	m_numbering->setChecked(true);
+	layout->addWidget(m_numbering);
 	return page;
 }
 
@@ -192,6 +199,7 @@ HomiserviTemplate::Folios HomiserviProjectWizard::folios() const
 	folios.cover = m_cover->isChecked();
 	folios.contents = m_contents->isChecked();
 	folios.materials = m_materials->isChecked();
+	folios.numbering = m_numbering->isChecked();
 	for (const QString &line : m_schematics->toPlainText().split(QLatin1Char('\n')))
 		if (!line.trimmed().isEmpty())
 			folios.schematics << line.trimmed();
