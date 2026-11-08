@@ -25,6 +25,9 @@
 #include "ui/potentialrulesdialog.h"
 #include "ui/textstylesdialog.h"
 #include "ui/homiserviprojectwizard.h"
+#include "ui/projectnumberingwizard.h"
+#include "undocommand/movediagramcommand.h"
+#include "undocommand/projectnumberingcommand.h"
 #include "ui/projectrevisionsdialog.h"
 #include "projectvariants.h"
 #include "terminalsheet.h"
@@ -776,6 +779,15 @@ void QETDiagramEditor::setUpActions()
 	ShortcutManager::instance().registerAction(m_project_revisions, "diagrameditor.project_revisions", tr("Éditeur de schémas"), QKeySequence());
 	m_project_revisions->setStatusTip(tr("Edita as revisões mostradas no quadro de revisões da legenda", "status bar tip"));
 	connect(m_project_revisions, &QAction::triggered, this, &QETDiagramEditor::showProjectRevisions);
+
+	m_project_numbering = new QAction(tr("Configurar seções e numeração..."), this);
+	ShortcutManager::instance().registerAction(m_project_numbering, "diagrameditor.project_numbering", tr("Éditeur de schémas"), QKeySequence());
+	m_project_numbering->setStatusTip(tr("Define as seções do projeto e como as folhas são numeradas", "status bar tip"));
+	connect(m_project_numbering, &QAction::triggered, this, [this]() { showProjectNumbering(false); });
+	m_project_renumber = new QAction(tr("Reaplicar numeração"), this);
+	ShortcutManager::instance().registerAction(m_project_renumber, "diagrameditor.project_renumber", tr("Éditeur de schémas"), QKeySequence());
+	m_project_renumber->setStatusTip(tr("Mostra o que muda e aplica de novo a numeração do projeto", "status bar tip"));
+	connect(m_project_renumber, &QAction::triggered, this, [this]() { showProjectNumbering(true); });
 
 	m_add_component_list = new QAction(tr("Adicionar lista de componentes"), this);
 	ShortcutManager::instance().registerAction(m_add_component_list, "diagrameditor.add_component_list", tr("Éditeur de schémas"), QKeySequence());
@@ -1724,6 +1736,9 @@ void QETDiagramEditor::setUpMenu()
 	menu_project -> addAction(m_project_edit_properties);
 	menu_project -> addAction(m_homiservi_data);
 	menu_project -> addAction(m_project_revisions);
+	QMenu *numbering_menu = menu_project -> addMenu(QET::Icons::TableOfContent, tr("Numeração"));
+	numbering_menu -> addAction(m_project_numbering);
+	numbering_menu -> addAction(m_project_renumber);
 	menu_project -> addSeparator();
 	menu_project -> addAction(m_project_add_diagram);
 	menu_project -> addAction(m_remove_diagram_from_project);
@@ -1968,6 +1983,57 @@ void QETDiagramEditor::showHomiserviData()
 	}
 	HomiserviTemplate::apply(project, wizard.data(), wizard.useTitleBlock());
 	fillTextStyleMenu();
+}
+
+/**
+	@brief QETDiagramEditor::showProjectNumbering
+	Set the sections and the folio numbering of the current project with
+	ProjectNumberingWizard, then apply them as one undo step: the folios
+	moved to the order of the sections when asked, their numbers and their
+	titles.
+	@param reapply : open the wizard on what changes, to apply the settings
+	of the project again (from the start when the project has none)
+*/
+void QETDiagramEditor::showProjectNumbering(bool reapply)
+{
+	QETProject *project = currentProject();
+	ProjectView *project_view = currentProjectView();
+	if (!project || !project_view || project->isReadOnly()) {
+		return;
+	}
+	ProjectNumberingWizard wizard(project, reapply && !project->numbering().isEmpty(), this);
+	if (wizard.exec() != QDialog::Accepted) {
+		return;
+	}
+
+	const QList<Diagram *> diagrams = project->diagrams();
+	const QList<int> order = wizard.order();
+	const QStringList titles = wizard.titles();
+	const QStringList labels = wizard.labels();
+	const ProjectNumbering::Settings settings = wizard.settings();
+
+	QUndoStack *undo = project->undoStack();
+	undo->beginMacro(tr("Numeração das folhas"));
+		//The folios in their new order first: the numbers follow it
+	for (int position = 0; position < order.size(); ++position) {
+		Diagram *diagram = diagrams.at(order.at(position));
+		if (project->diagrams().indexOf(diagram) != position)
+			undo->push(new MoveDiagramCommand(project_view, diagram, position));
+	}
+	auto command = new ProjectNumberingCommand(project, project->numbering(), settings);
+	for (int position = 0; position < order.size(); ++position) {
+		const int index = order.at(position);
+		Diagram *diagram = diagrams.at(index);
+		const TitleBlockProperties old_properties = diagram->border_and_titleblock.exportTitleBlock();
+		TitleBlockProperties new_properties = old_properties;
+		new_properties.title = titles.value(index);
+		if (settings.enabled)
+			new_properties.folio = labels.value(position);
+		if (new_properties != old_properties)
+			command->addTitleBlock(diagram, old_properties, new_properties);
+	}
+	undo->push(command);
+	undo->endMacro();
 }
 
 /**
@@ -3297,6 +3363,8 @@ void QETDiagramEditor::slot_updateActions()
 	m_text_styles                 -> setEnabled(editable_project);
 	m_homiservi_data              -> setEnabled(editable_project);
 	m_project_revisions           -> setEnabled(editable_project);
+	m_project_numbering           -> setEnabled(editable_project);
+	m_project_renumber            -> setEnabled(editable_project);
 	m_add_component_list          -> setEnabled(editable_project);
 	m_terminal_sheets             -> setEnabled(editable_project);
 	m_io_maps                     -> setEnabled(editable_project);

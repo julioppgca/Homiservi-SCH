@@ -122,6 +122,7 @@ class QETDiagramEditor : public QETMainWindow
 		void newHomiserviProject();
 		void showHomiserviData();
 		void showProjectRevisions();
+		void showProjectNumbering(bool reapply = false);
 		void addComponentList();
 		void generateTerminalSheets();
 		void generateIoMaps();
@@ -286,6 +287,8 @@ class QETDiagramEditor : public QETMainWindow
 		*m_new_homiservi_project,      ///< Action to create a project from the Homiservi template
 		*m_homiservi_data,             ///< Action to edit the Homiservi data of the project and apply it to every folio
 		*m_project_revisions,          ///< Action to edit the revisions shown by the title block
+		*m_project_numbering,          ///< Action to set the sections and the folio numbering of the project
+		*m_project_renumber,           ///< Action to apply the numbering of the project again
 		*m_add_component_list,         ///< Action to add a folio with the component list
 		*m_terminal_sheets,            ///< Action to draw the terminal sheets of the project
 		*m_io_maps,                    ///< Action to draw the input/output maps of the PLCs

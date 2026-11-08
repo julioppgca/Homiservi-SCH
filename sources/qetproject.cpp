@@ -1468,6 +1468,48 @@ void QETProject::setTextStyles(const QList<TextStyles::Style> &styles)
 }
 
 /**
+	@brief QETProject::setNumbering
+	Set the sections and the folio numbering of this project; when enabled,
+	every folio gets its number at once (see applyFolioNumbering()).
+*/
+void QETProject::setNumbering(const ProjectNumbering::Settings &numbering)
+{
+	m_numbering = numbering;
+	updateDiagramsFolioData();
+}
+
+/**
+	@brief QETProject::numberingFolios
+	@return the folios of this project, in order, as ProjectNumbering
+	works on them
+*/
+QList<ProjectNumbering::FolioInfo> QETProject::numberingFolios() const
+{
+	QList<ProjectNumbering::FolioInfo> folios;
+	for (Diagram *diagram : m_diagrams_list)
+		folios << ProjectNumbering::FolioInfo {diagram->uuid().toString(),
+						     diagram->border_and_titleblock.folio(),
+						     diagram->title()};
+	return folios;
+}
+
+/**
+	@brief QETProject::applyFolioNumbering
+	When the numbering of the project is enabled, write its number in the
+	folio field of every folio whose number is not that one: called on
+	every change of the folios (added, moved, removed), before the folio
+	data, so the cross references follow.
+*/
+void QETProject::applyFolioNumbering()
+{
+	if (!m_numbering.enabled) return;
+	const QStringList labels = ProjectNumbering::folioLabels(m_numbering, numberingFolios());
+	for (int i = 0; i < m_diagrams_list.size() && i < labels.size(); ++i)
+		if (m_diagrams_list.at(i)->border_and_titleblock.folio() != labels.at(i))
+			m_diagrams_list.at(i)->border_and_titleblock.setFolio(labels.at(i));
+}
+
+/**
 	@brief QETProject::scheduleTextStyles
 	Bring every text to its style once the current work is over: called
 	for each text or element added to a folio, it runs once after a whole
@@ -1598,6 +1640,7 @@ QDomDocument QETProject::toXml()
 	writeWiringRulesXml(project_root);
 	writePotentialRulesXml(project_root);
 	writeTextStylesXml(project_root);
+	writeNumberingXml(project_root);
 
 	// Properties for news diagrams
 	QDomElement new_diagrams_properties = xml_doc.createElement("newdiagrams");
@@ -2112,6 +2155,7 @@ void QETProject::readProjectXml(QDomDocument &xml_project)
 	readWiringRulesXml(xml_project);
 	readPotentialRulesXml(xml_project);
 	readTextStylesXml(xml_project);
+	readNumberingXml(xml_project);
 
 		//Load the default properties for the new diagrams
 	readDefaultPropertiesXml(xml_project);
@@ -2345,6 +2389,16 @@ void QETProject::readTextStylesXml(QDomDocument &xml_project)
 }
 
 /**
+	@brief QETProject::readNumberingXml
+	Read the sections and the folio numbering (<project_numbering>).
+	@param xml_project : the xml description of the project
+*/
+void QETProject::readNumberingXml(QDomDocument &xml_project)
+{
+	m_numbering = ProjectNumbering::fromXml(xml_project.documentElement());
+}
+
+/**
 	@brief QETProject::readPotentialRulesXml
 	Read the colour and section rules of the wires (<potential_rules>).
 	@param xml_project : the xml description of the project
@@ -2569,6 +2623,16 @@ void QETProject::writeWiringRulesXml(QDomElement &xml_element)
 void QETProject::writeTextStylesXml(QDomElement &xml_element)
 {
 	TextStyles::toXml(m_text_styles, xml_element);
+}
+
+/**
+	@brief QETProject::writeNumberingXml
+	Export the sections and the folio numbering as a <project_numbering>
+	child of xml_element, only when there is one.
+*/
+void QETProject::writeNumberingXml(QDomElement &xml_element)
+{
+	ProjectNumbering::toXml(m_numbering, xml_element);
 }
 
 /**
@@ -2911,6 +2975,8 @@ DiagramContext QETProject::projectWideProperties()
 
 void QETProject::updateDiagramsFolioData()
 {
+	applyFolioNumbering();
+
 	int total_folio = m_diagrams_list.count();
 
 	const DiagramContext project_wide_properties = projectWideProperties();
