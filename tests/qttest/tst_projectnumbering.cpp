@@ -61,6 +61,29 @@ class tst_projectnumbering : public QObject
 			return labels;
 		}
 
+		static PotentialInfo potential(const QString &number, int folio, int column, qreal y,
+					       const QString &folio_label = QStringLiteral("02.04"))
+		{
+			static int n = 0;
+			PotentialInfo p;
+			p.id = QStringLiteral("p%1").arg(++n);
+			p.number = number;
+			p.folio = folio;
+			p.folio_label = folio_label;
+			p.column = column;
+			p.x = column * 50;
+			p.y = y;
+			return p;
+		}
+
+		static QStringList applyWires(const QList<PotentialInfo> &list, const QHash<QString, QString> &changes)
+		{
+			QStringList numbers;
+			for (const PotentialInfo &p : list)
+				numbers << changes.value(p.id, p.number);
+			return numbers;
+		}
+
 		static Settings twoSections()
 		{
 			Settings s;
@@ -269,6 +292,10 @@ class tst_projectnumbering : public QObject
 		{
 			Settings s;
 			s.renumber_terminals = true;
+			s.wire_mode = WiresByColumn;
+			s.wire_digits = 3;
+			s.wire_compact_folio = true;
+			s.wire_separator = QStringLiteral(".");
 			const QList<ComponentInfo> list {
 				component("-X1:7", 0, 2, 10, "02", "02.04", true), component("-X1:3", 0, 1, 10, "02", "02.04", true),
 				component("-X1:PE", 0, 1, 5, "02", "02.04", true), component("-X2:9", 0, 1, 20, "02", "02.04", true),
@@ -278,6 +305,58 @@ class tst_projectnumbering : public QObject
 				 QStringList({"-X1:2", "-X1:1", "-X1:PE", "-X2:1", "-X1:3", "-KA3"}));
 			QCOMPARE(apply(list, componentLabels(s, list, CompleteOnly)),
 				 QStringList({"-X1:7", "-X1:3", "-X1:PE", "-X2:9", "-X1:8", "-KA3"}));
+		}
+
+		void wireNumbersAndNames()
+		{
+			QVERIFY(isWireNumber(QStringLiteral("2000")));
+			QVERIFY(isWireNumber(QStringLiteral("54.1")));
+			QVERIFY(isWireNumber(QStringLiteral("02.04-01")));
+			QVERIFY(isWireNumber(QStringLiteral("0204-3a")));
+			QVERIFY(!isWireNumber(QStringLiteral("0V")));
+			QVERIFY(!isWireNumber(QStringLiteral("+24V-DI")));
+			QVERIFY(!isWireNumber(QStringLiteral("1L1")));
+			QVERIFY(!isWireNumber(QStringLiteral("X1.2")));
+			QVERIFY(!isWireNumber(QString()));
+		}
+
+		void wiresByFolio()
+		{
+			Settings s;
+			s.wire_mode = WiresByFolio;
+			const QList<PotentialInfo> list {
+				potential("", 0, 3, 10), potential("4301", 0, 1, 10), potential("0V", 0, 1, 5),
+				potential("+24V-DI", 0, 2, 10), potential("", 1, 1, 10, "02.05")};
+				//The names stay, the numbers are given again in reading order
+			QCOMPARE(applyWires(list, wireNumbers(s, list, RenumberAll)),
+				 QStringList({"02.04-02", "02.04-01", "0V", "+24V-DI", "02.05-01"}));
+				//Completing: the numbered ones stay
+			QCOMPARE(applyWires(list, wireNumbers(s, list, CompleteOnly)),
+				 QStringList({"02.04-01", "4301", "0V", "+24V-DI", "02.05-01"}));
+			s.wire_compact_folio = true;
+			s.wire_separator.clear();
+			s.wire_digits = 1;
+			const QList<PotentialInfo> more {potential("02041", 0, 1, 10), potential("", 0, 2, 10)};
+			QCOMPARE(applyWires(more, wireNumbers(s, more, CompleteOnly)), QStringList({"02041", "02042"}));
+		}
+
+		void wiresSequentialAndByColumn()
+		{
+			Settings s;
+			s.wire_mode = WiresSequential;
+			s.wire_digits = 3;
+			const QList<PotentialInfo> list {potential("", 1, 1, 10), potential("2000", 0, 1, 10),
+							 potential("", 0, 1, 20)};
+			QCOMPARE(applyWires(list, wireNumbers(s, list, CompleteOnly)), QStringList({"2002", "2000", "2001"}));
+			QCOMPARE(applyWires(list, wireNumbers(s, list, RenumberAll)), QStringList({"003", "001", "002"}));
+
+			s.wire_mode = WiresByColumn;
+			const QList<PotentialInfo> columns {potential("", 0, 3, 10), potential("", 0, 3, 30),
+							    potential("", 0, 4, 10), potential("02.04-4", 1, 4, 10)};
+			QCOMPARE(applyWires(columns, wireNumbers(s, columns, CompleteOnly)),
+				 QStringList({"02.04-3", "02.04-3a", "02.04-4a", "02.04-4"}));
+			QCOMPARE(applyWires(columns, wireNumbers(s, columns, RenumberAll)),
+				 QStringList({"02.04-3a", "02.04-3b", "02.04-4a", "02.04-4b"}));
 		}
 
 		void xmlRoundTrip()

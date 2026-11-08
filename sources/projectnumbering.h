@@ -76,6 +76,18 @@ namespace ProjectNumbering
 		TagsByPosition
 	};
 
+		///How the control wires are numbered (a potential at a time)
+	enum WireMode {
+			///The wire numbers stay as they are
+		WiresUnchanged,
+			///One number through the project: 001, 002...
+		WiresSequential,
+			///The folio and a number in it: 02.04-01
+		WiresByFolio,
+			///The folio and the column the potential starts in: 02.04-3
+		WiresByColumn
+	};
+
 		///Which tags applying gives a number
 	enum TagScope {
 			///Every tag
@@ -104,6 +116,12 @@ namespace ProjectNumbering
 		int tag_digits = 2;
 			///Number the terminals of each strip too: -X1:1, -X1:2...
 		bool renumber_terminals = false;
+		WireMode wire_mode = WiresUnchanged;
+		int wire_digits = 2;
+			///The folio in a wire number without its separator: 0204
+		bool wire_compact_folio = false;
+			///Between the folio and the number of a wire
+		QString wire_separator = QStringLiteral("-");
 
 		bool operator==(const Settings &other) const {
 			return enabled == other.enabled && format == other.format
@@ -113,12 +131,16 @@ namespace ProjectNumbering
 					&& strip_titles == other.strip_titles
 					&& sections == other.sections && starts == other.starts
 					&& tag_mode == other.tag_mode && tag_digits == other.tag_digits
-					&& renumber_terminals == other.renumber_terminals;
+					&& renumber_terminals == other.renumber_terminals
+					&& wire_mode == other.wire_mode && wire_digits == other.wire_digits
+					&& wire_compact_folio == other.wire_compact_folio
+					&& wire_separator == other.wire_separator;
 		}
 		bool operator!=(const Settings &other) const { return !(*this == other); }
 
 		bool isEmpty() const {
-			return !enabled && sections.isEmpty() && tag_mode == TagsUnchanged && !renumber_terminals;
+			return !enabled && sections.isEmpty() && tag_mode == TagsUnchanged && !renumber_terminals
+					&& wire_mode == WiresUnchanged;
 		}
 		int sectionIndex(const QString &code) const;
 	};
@@ -150,6 +172,20 @@ namespace ProjectNumbering
 		bool terminal = false;
 	};
 
+		///A potential of a project: the wires connected together, which
+		///share a number
+	struct PotentialInfo
+	{
+		QString id;
+		QString number;
+			///Where its first wire starts, in reading order
+		int folio = 0;
+		QString folio_label;
+		int column = 0;
+		qreal x = 0;
+		qreal y = 0;
+	};
+
 	Settings fromXml(const QDomElement &project_root);
 	void toXml(const Settings &settings, QDomElement &project_root);
 
@@ -165,6 +201,10 @@ namespace ProjectNumbering
 	QString strippedTitle(const QString &title);
 	QString tagPrefix(const QString &label);
 	TagMode guessTagMode(const QList<ComponentInfo> &components, int *digits = nullptr);
+	bool isWireNumber(const QString &number);
+	QHash<QString, QString> wireNumbers(const Settings &settings,
+					    const QList<PotentialInfo> &potentials,
+					    TagScope scope);
 	QHash<QString, QString> componentLabels(const Settings &settings,
 						 const QList<ComponentInfo> &components,
 						 TagScope scope);

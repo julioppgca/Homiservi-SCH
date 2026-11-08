@@ -17,6 +17,8 @@
 */
 
 #include "qetproject.h"
+
+#include <tuple>
 #include "undocommand/changeelementinformationcommand.h"
 #include "diagramposition.h"
 
@@ -28,6 +30,8 @@
 #include "autoNum/elementautonumschemecommand.h"
 #include "diagram.h"
 #include "qetgraphicsitem/element.h"
+#include "qetgraphicsitem/conductor.h"
+#include "qetgraphicsitem/terminal.h"
 #include "qetapp.h"
 #include "qetmessagebox.h"
 #include "qetresult.h"
@@ -1530,6 +1534,68 @@ QList<ProjectNumbering::ComponentInfo> QETProject::numberingComponents(QList<Ele
 		}
 	}
 	return components;
+}
+
+/**
+	@brief QETProject::numberingPotentials
+	@return the potentials of this project, the wires connected together
+	through the folios, as ProjectNumbering works on them: their number
+	(the most common one of their numbered wires) and where their first
+	wire starts.
+	A potential with a frozen wire number is left out.
+	@param wires : filled with the wires of every potential listed
+*/
+QList<ProjectNumbering::PotentialInfo> QETProject::numberingPotentials(QList<QList<Conductor *>> *wires) const
+{
+	QList<ProjectNumbering::PotentialInfo> potentials;
+	QHash<Diagram *, int> folios;
+	for (int i = 0; i < m_diagrams_list.size(); ++i)
+		folios.insert(m_diagrams_list.at(i), i);
+	QSet<Conductor *> done;
+	for (Diagram *diagram : m_diagrams_list) {
+		for (Conductor *conductor : diagram->conductors()) {
+			if (done.contains(conductor)) continue;
+			QSet<Conductor *> set = conductor->relatedPotentialConductors(true);
+			set.insert(conductor);
+			done.unite(set);
+
+			QList<Conductor *> list(set.begin(), set.end());
+			bool frozen = false;
+			QHash<QString, int> numbers;
+			ProjectNumbering::PotentialInfo info;
+			bool first = true;
+			for (Conductor *wire : std::as_const(list)) {
+				frozen |= wire->isFreezeLabel();
+				const QString number = wire->properties().text.trimmed();
+				if (!number.isEmpty()) ++numbers[number];
+				Diagram *wire_diagram = wire->diagram();
+				if (!wire_diagram || !wire->terminal1) continue;
+				const QPointF start = wire->terminal1->dockConductor();
+				const int folio = folios.value(wire_diagram, 0);
+				const int column = int(wire_diagram->convertPosition(start).number());
+				if (first || std::make_tuple(folio, column, start.y(), start.x())
+				    < std::make_tuple(info.folio, info.column, info.y, info.x)) {
+					info.folio = folio;
+					info.column = column;
+					info.x = start.x();
+					info.y = start.y();
+					info.folio_label = wire_diagram->border_and_titleblock.finalfolio();
+					first = false;
+				}
+			}
+			if (frozen) continue;
+			int best = -1;
+			for (auto it = numbers.constBegin(); it != numbers.constEnd(); ++it)
+				if (it.value() > best || (it.value() == best && it.key() < info.number)) {
+					best = it.value();
+					info.number = it.key();
+				}
+			info.id = QString::number(potentials.size());
+			potentials << info;
+			if (wires) *wires << list;
+		}
+	}
+	return potentials;
 }
 
 /**

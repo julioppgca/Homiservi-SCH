@@ -22,6 +22,7 @@
 
 #include <QWizard>
 
+class Conductor;
 class Element;
 class QCheckBox;
 class QComboBox;
@@ -47,7 +48,7 @@ class ProjectNumberingWizard : public QWizard
 	Q_OBJECT
 
 	public:
-		enum Page { SectionsPage, FoliosPage, ComponentsPage, PreviewPage };
+		enum Page { SectionsPage, FoliosPage, ComponentsPage, WiresPage, PreviewPage };
 
 		ProjectNumberingWizard(QETProject *project, bool reapply, QWidget *parent = nullptr);
 
@@ -60,11 +61,14 @@ class ProjectNumberingWizard : public QWizard
 		QStringList labels() const;
 			///The components whose tag changes, and their new tag
 		QList<QPair<Element *, QString>> componentChanges() const;
+			///The wires of every potential whose number changes, and its number
+		QList<QPair<QList<Conductor *>, QString>> wireChanges() const;
 
 	private:
 		QWizardPage *sectionsPage();
 		QWizardPage *foliosPage();
 		QWizardPage *componentsPage();
+		QWizardPage *wiresPage();
 		QWizardPage *previewPage();
 
 		void importSections();
@@ -79,6 +83,11 @@ class ProjectNumberingWizard : public QWizard
 		void fillPrefixTable();
 		QList<ProjectNumbering::ComponentInfo> components() const;
 		ProjectNumbering::TagScope tagScope() const;
+		void readWireSettings();
+		void fillWireSummary();
+		QList<ProjectNumbering::PotentialInfo> potentials() const;
+		ProjectNumbering::TagScope wireScope() const;
+		QHash<QString, QString> wireNumbers(const QList<ProjectNumbering::PotentialInfo> &list) const;
 		QStringList orderedCodes() const;
 		QString sectionText(const ProjectNumbering::Section &section) const;
 
@@ -92,6 +101,8 @@ class ProjectNumberingWizard : public QWizard
 			///folio and what ProjectNumbering needs to know of them
 		struct Component { Element *element; int folio; ProjectNumbering::ComponentInfo info; };
 		QList<Component> m_components;
+		struct Potential { QList<Conductor *> wires; int folio; ProjectNumbering::PotentialInfo info; };
+		QList<Potential> m_potentials;
 		bool m_reapply = false;
 		bool m_has_revisions = false;
 
@@ -115,6 +126,14 @@ class ProjectNumberingWizard : public QWizard
 		QRadioButton *m_complete_only = nullptr;
 		QTableWidget *m_prefix_table = nullptr;
 		QLabel *m_other_labels = nullptr;
+		QComboBox *m_wire_mode = nullptr;
+		QSpinBox *m_wire_digits = nullptr;
+		QCheckBox *m_wire_compact = nullptr;
+		QComboBox *m_wire_separator = nullptr;
+		QRadioButton *m_wires_all = nullptr;
+		QRadioButton *m_wires_complete = nullptr;
+		QLabel *m_wires_summary = nullptr;
+		QTableWidget *m_wires_table = nullptr;
 		bool m_filling = false;
 };
 

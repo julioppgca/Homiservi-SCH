@@ -2013,6 +2013,7 @@ void QETDiagramEditor::showProjectNumbering(bool reapply)
 	const ProjectNumbering::Settings settings = wizard.settings();
 		//Before the folios move: the tags are worked out in the new order
 	const QList<QPair<Element *, QString>> tags = wizard.componentChanges();
+	const QList<QPair<QList<Conductor *>, QString>> wires = wizard.wireChanges();
 
 	QUndoStack *undo = project->undoStack();
 	undo->beginMacro(tr("Numeração das folhas"));
@@ -2048,6 +2049,28 @@ void QETDiagramEditor::showProjectNumbering(bool reapply)
 			changes.insert(tag.first, qMakePair(old_info, new_info));
 		}
 		undo->push(new ChangeElementInformationCommand(changes));
+	}
+	if (!wires.isEmpty()) {
+		auto wire_undo = new QUndoCommand(tr("Numerar os fios"));
+		for (const auto &potential : wires) {
+			for (Conductor *conductor : potential.first) {
+				ConductorProperties properties = conductor->properties();
+				const QString old_text = properties.text;
+				if (old_text == potential.second) continue;
+				properties.text = potential.second;
+					//As for a tag: the number typed is kept as the formula
+				if (!properties.m_formula.isEmpty() || !old_text.isEmpty())
+					properties.m_formula = potential.second;
+				QVariant old_value, new_value;
+				old_value.setValue(conductor->properties());
+				new_value.setValue(properties);
+				new QPropertyUndoCommand(conductor, "properties", old_value, new_value, wire_undo);
+			}
+		}
+		if (wire_undo->childCount())
+			undo->push(wire_undo);
+		else
+			delete wire_undo;
 	}
 	undo->endMacro();
 }

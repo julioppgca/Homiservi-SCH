@@ -247,6 +247,7 @@ class QETProject : public QObject
 		QList<ProjectNumbering::FolioInfo> numberingFolios() const;
 		QList<ProjectNumbering::ComponentInfo> numberingComponents(QList<Element *> *elements) const;
 		void completeComponentTag(Element *element);
+		QList<ProjectNumbering::PotentialInfo> numberingPotentials(QList<QList<Conductor *>> *wires) const;
 		void setAutoBreakConductor (bool abc);
 		void setAutoElement (bool ae);
 		void autoFolioNumberingNewFolios ();

@@ -124,6 +124,13 @@ ProjectNumbering::Settings ProjectNumbering::fromXml(const QDomElement &project_
 			  : tags == QLatin1String("position") ? TagsByPosition : TagsUnchanged;
 	settings.tag_digits = root.attribute(QStringLiteral("tag_digits"), QStringLiteral("2")).toInt();
 	settings.renumber_terminals = root.attribute(QStringLiteral("terminals")) == QLatin1String("true");
+	const QString wires = root.attribute(QStringLiteral("wires"));
+	settings.wire_mode = wires == QLatin1String("sequential") ? WiresSequential
+			   : wires == QLatin1String("folio") ? WiresByFolio
+			   : wires == QLatin1String("column") ? WiresByColumn : WiresUnchanged;
+	settings.wire_digits = root.attribute(QStringLiteral("wire_digits"), QStringLiteral("2")).toInt();
+	settings.wire_compact_folio = root.attribute(QStringLiteral("wire_compact_folio")) == QLatin1String("true");
+	settings.wire_separator = root.attribute(QStringLiteral("wire_separator"), QStringLiteral("-"));
 
 	for (QDomElement e = root.firstChildElement(QStringLiteral("section")); !e.isNull();
 	     e = e.nextSiblingElement(QStringLiteral("section")))
@@ -157,6 +164,12 @@ void ProjectNumbering::toXml(const Settings &settings, QDomElement &project_root
 	root.setAttribute(QStringLiteral("tags"), tag_keys.value(settings.tag_mode));
 	root.setAttribute(QStringLiteral("tag_digits"), settings.tag_digits);
 	root.setAttribute(QStringLiteral("terminals"), settings.renumber_terminals ? QStringLiteral("true") : QStringLiteral("false"));
+	static const QStringList wire_keys {QStringLiteral("unchanged"), QStringLiteral("sequential"),
+					    QStringLiteral("folio"), QStringLiteral("column")};
+	root.setAttribute(QStringLiteral("wires"), wire_keys.value(settings.wire_mode));
+	root.setAttribute(QStringLiteral("wire_digits"), settings.wire_digits);
+	root.setAttribute(QStringLiteral("wire_compact_folio"), settings.wire_compact_folio ? QStringLiteral("true") : QStringLiteral("false"));
+	root.setAttribute(QStringLiteral("wire_separator"), settings.wire_separator);
 	for (const Section &section : settings.sections) {
 		QDomElement e = document.createElement(QStringLiteral("section"));
 		e.setAttribute(QStringLiteral("code"), section.code);
@@ -532,4 +545,111 @@ ProjectNumbering::TagMode ProjectNumbering::guessTagMode(const QList<ComponentIn
 	if (padded_section * 10 >= tags * 7) return TagsBySection;
 	if ((compact + padded_section) * 10 >= tags * 7) return TagsBySectionCompact;
 	return TagsSequential;
+}
+
+/**
+	@brief ProjectNumbering::isWireNumber
+	@return true if number is a wire number, which the numbering may give
+	again: digits with dots or dashes (2000, 54.1, 02.04-01), maybe ended
+	by a letter (02.04-3a). A name (0V, +24V-DI, 1L1, X1.2) is not.
+*/
+bool ProjectNumbering::isWireNumber(const QString &number)
+{
+	static const QRegularExpression re(QStringLiteral("^\\d[\\d.\\-]*[a-z]?$"));
+	return re.match(number.trimmed()).hasMatch();
+}
+
+/**
+	@brief ProjectNumbering::wireNumbers
+	Number the potentials as settings say, in reading order: folio after
+	folio, column after column, top to bottom. A potential with a name
+	(0V, +24V-DI, X1.2) keeps it; one without number, or with a wire number
+	(isWireNumber()) when scope is RenumberAll, gets one.
+	@return the new number of every potential whose number changes, by id
+*/
+QHash<QString, QString> ProjectNumbering::wireNumbers(const Settings &settings,
+						      const QList<PotentialInfo> &potentials,
+						      TagScope scope)
+{
+	QHash<QString, QString> result;
+	if (settings.wire_mode == WiresUnchanged) return result;
+
+	QList<int> order(potentials.size());
+	std::iota(order.begin(), order.end(), 0);
+	std::stable_sort(order.begin(), order.end(), [&](int a, int b) {
+		const PotentialInfo &pa = potentials.at(a), &pb = potentials.at(b);
+		if (pa.folio != pb.folio) return pa.folio < pb.folio;
+		if (pa.column != pb.column) return pa.column < pb.column;
+		if (!qFuzzyCompare(pa.y, pb.y)) return pa.y < pb.y;
+		return pa.x < pb.x;
+	});
+	const bool complete_only = scope == CompleteOnly;
+	auto numbered = [&](const PotentialInfo &potential) {
+		const QString number = potential.number.trimmed();
+		if (number.isEmpty()) return false;
+		return complete_only || !isWireNumber(number);	//kept
+	};
+	auto folio_text = [&](const PotentialInfo &potential) {
+		return settings.wire_compact_folio ? compactFolio(potential.folio_label) : potential.folio_label;
+	};
+	auto assign = [&result](const PotentialInfo &potential, const QString &number) {
+		if (number != potential.number.trimmed())
+			result.insert(potential.id, number);
+	};
+
+	if (settings.wire_mode == WiresByColumn) {
+		auto base = [&](const PotentialInfo &potential) {
+			return folio_text(potential) + settings.wire_separator + QString::number(potential.column);
+		};
+		QSet<QString> taken;
+		for (const PotentialInfo &potential : potentials)
+			if (numbered(potential)) taken.insert(potential.number.trimmed());
+		if (complete_only) {
+			for (int index : std::as_const(order)) {
+				const PotentialInfo &potential = potentials.at(index);
+				if (numbered(potential)) continue;
+				QString number = base(potential);
+				for (int i = 0; taken.contains(number); ++i)
+					number = base(potential) + letterSuffix(i);
+				taken.insert(number);
+				assign(potential, number);
+			}
+			return result;
+		}
+		QHash<QString, int> count, rank;
+		for (int index : std::as_const(order))
+			if (!numbered(potentials.at(index))) ++count[base(potentials.at(index))];
+		for (int index : std::as_const(order)) {
+			const PotentialInfo &potential = potentials.at(index);
+			if (numbered(potential)) continue;
+			const QString b = base(potential);
+			QString number = count.value(b) > 1 ? b + letterSuffix(rank[b]++) : b;
+			while (taken.contains(number)) number = b + letterSuffix(rank[b]++);
+			taken.insert(number);
+			assign(potential, number);
+		}
+		return result;
+	}
+
+	const bool by_folio = settings.wire_mode == WiresByFolio;
+	auto head = [&](const PotentialInfo &potential) {
+		return by_folio ? folio_text(potential) + settings.wire_separator : QString();
+	};
+	QHash<QString, int> last;
+	for (const PotentialInfo &potential : potentials) {
+		if (!numbered(potential)) continue;
+		const QString number = potential.number.trimmed();
+		const QString h = head(potential);
+		if (!number.startsWith(h)) continue;
+		bool ok = false;
+		const int n = number.mid(h.size()).toInt(&ok);
+		if (ok) last[h] = qMax(last.value(h), n);
+	}
+	for (int index : std::as_const(order)) {
+		const PotentialInfo &potential = potentials.at(index);
+		if (numbered(potential)) continue;
+		const QString h = head(potential);
+		assign(potential, h + padded(++last[h], settings.wire_digits));
+	}
+	return result;
 }

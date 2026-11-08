@@ -19,6 +19,7 @@
 
 #include "../diagram.h"
 #include "../projectrevisions.h"
+#include "../qetgraphicsitem/conductor.h"
 #include "../qetgraphicsitem/element.h"
 #include "../qetgraphicsitem/independenttextitem.h"
 #include "../qetproject.h"
@@ -81,6 +82,10 @@ ProjectNumberingWizard::ProjectNumberingWizard(QETProject *project, bool reapply
 	const QList<ProjectNumbering::ComponentInfo> components = project->numberingComponents(&elements);
 	for (int i = 0; i < components.size(); ++i)
 		m_components << Component {elements.at(i), components.at(i).folio, components.at(i)};
+	QList<QList<Conductor *>> wires;
+	const QList<ProjectNumbering::PotentialInfo> potentials = project->numberingPotentials(&wires);
+	for (int i = 0; i < potentials.size(); ++i)
+		m_potentials << Potential {wires.at(i), potentials.at(i).folio, potentials.at(i)};
 	m_has_revisions = !ProjectRevisions::read(project).isEmpty();
 	m_reapply = reapply;
 
@@ -92,6 +97,7 @@ ProjectNumberingWizard::ProjectNumberingWizard(QETProject *project, bool reapply
 	setPage(SectionsPage, sectionsPage());
 	setPage(FoliosPage, foliosPage());
 	setPage(ComponentsPage, componentsPage());
+	setPage(WiresPage, wiresPage());
 	setPage(PreviewPage, previewPage());
 
 	fillSectionsTable();
@@ -102,6 +108,9 @@ ProjectNumberingWizard::ProjectNumberingWizard(QETProject *project, bool reapply
 		} else if (id == ComponentsPage) {
 			readFormat();
 			fillPrefixTable();
+		} else if (id == WiresPage) {
+			readFormat();
+			fillWireSummary();
 		} else if (id == PreviewPage) {
 			readFormat();
 			fillPreview();
@@ -473,6 +482,171 @@ void ProjectNumberingWizard::fillPrefixTable()
 				: QString());
 }
 
+QList<QPair<QList<Conductor *>, QString>> ProjectNumberingWizard::wireChanges() const
+{
+	const QHash<QString, QString> changes = wireNumbers(potentials());
+	QList<QPair<QList<Conductor *>, QString>> list;
+	for (const Potential &potential : m_potentials)
+		if (changes.contains(potential.info.id))
+			list << qMakePair(potential.wires, changes.value(potential.info.id));
+	return list;
+}
+
+/**
+	@return the potentials as ProjectNumbering takes them: the folio of
+	their first wire in its new place, with its new number
+*/
+QList<ProjectNumbering::PotentialInfo> ProjectNumberingWizard::potentials() const
+{
+	const QList<int> new_order = order();
+	const QStringList new_labels = labels();
+	QList<ProjectNumbering::PotentialInfo> list;
+	for (const Potential &potential : m_potentials) {
+		ProjectNumbering::PotentialInfo info = potential.info;
+		info.folio = int(new_order.indexOf(potential.folio));
+		info.folio_label = new_labels.value(info.folio);
+		list << info;
+	}
+	return list;
+}
+
+/**
+	@return the new number of every potential whose wires change, by id:
+	ProjectNumbering::wireNumbers(), and a numbered potential with wires
+	left without number gets its number on all of them
+*/
+QHash<QString, QString> ProjectNumberingWizard::wireNumbers(const QList<ProjectNumbering::PotentialInfo> &list) const
+{
+	QHash<QString, QString> changes = ProjectNumbering::wireNumbers(m_settings, list, wireScope());
+	if (m_settings.wire_mode == ProjectNumbering::WiresUnchanged) return changes;
+	for (int i = 0; i < m_potentials.size() && i < list.size(); ++i) {
+		const ProjectNumbering::PotentialInfo &info = list.at(i);
+		if (changes.contains(info.id) || info.number.trimmed().isEmpty()) continue;
+		for (Conductor *wire : m_potentials.at(i).wires)
+			if (wire->properties().text.trimmed().isEmpty()) {
+				changes.insert(info.id, info.number.trimmed());
+				break;
+			}
+	}
+	return changes;
+}
+
+ProjectNumbering::TagScope ProjectNumberingWizard::wireScope() const
+{
+	return m_wires_complete && m_wires_complete->isChecked() ? ProjectNumbering::CompleteOnly
+								 : ProjectNumbering::RenumberAll;
+}
+
+QWizardPage *ProjectNumberingWizard::wiresPage()
+{
+	auto page = new QWizardPage;
+	page->setTitle(tr("Fios"));
+	page->setSubTitle(tr("Os fios ligados entre si formam um potencial e têm o mesmo número. "
+			     "Um potencial com nome (0V, +24V-DI, 1L1, X1.2) fica como está."));
+
+	m_wire_mode = new QComboBox(page);
+	m_wire_mode->addItem(tr("Não mexer nos números dos fios"));
+	m_wire_mode->addItem(tr("Sequencial no projeto – 001, 002..."));
+	m_wire_mode->addItem(tr("Por folha – 02.04-01, 02.04-02..."));
+	m_wire_mode->addItem(tr("Pela coluna onde o fio começa – 02.04-3"));
+	m_wire_mode->setCurrentIndex(m_settings.wire_mode);
+	m_wire_digits = new QSpinBox(page);
+	m_wire_digits->setRange(1, 4);
+	m_wire_digits->setValue(m_settings.wire_digits);
+	m_wire_compact = new QCheckBox(tr("Folha sem o separador (0204 em vez de 02.04)"), page);
+	m_wire_compact->setChecked(m_settings.wire_compact_folio);
+	m_wire_separator = new QComboBox(page);
+	m_wire_separator->addItem(tr("hífen – 02.04-01"), QStringLiteral("-"));
+	m_wire_separator->addItem(tr("ponto – 02.04.01"), QStringLiteral("."));
+	m_wire_separator->addItem(tr("nada – 02.0401"), QString());
+	m_wire_separator->setCurrentIndex(qMax(0, m_wire_separator->findData(m_settings.wire_separator)));
+
+	bool has_numbers = false;
+	for (const Potential &potential : std::as_const(m_potentials))
+		has_numbers |= ProjectNumbering::isWireNumber(potential.info.number);
+	auto scope = new QGroupBox(tr("Ao aplicar"), page);
+	m_wires_all = new QRadioButton(tr("Renumerar todos os fios numerados"), scope);
+	m_wires_complete = new QRadioButton(tr("Só numerar os fios sem número"), scope);
+	(m_reapply || has_numbers ? m_wires_complete : m_wires_all)->setChecked(true);
+	auto scope_layout = new QVBoxLayout(scope);
+	scope_layout->addWidget(m_wires_all);
+	scope_layout->addWidget(m_wires_complete);
+
+	m_wires_summary = new QLabel(page);
+	m_wires_summary->setWordWrap(true);
+	m_wires_summary->setAlignment(Qt::AlignTop | Qt::AlignLeft);
+
+	auto changed = [this]() { readWireSettings(); fillWireSummary(); };
+	connect(m_wire_mode, &QComboBox::currentIndexChanged, this, changed);
+	connect(m_wire_digits, &QSpinBox::valueChanged, this, changed);
+	connect(m_wire_compact, &QCheckBox::toggled, this, changed);
+	connect(m_wire_separator, &QComboBox::currentIndexChanged, this, changed);
+	connect(m_wires_all, &QRadioButton::toggled, this, changed);
+
+	auto form = new QFormLayout;
+	form->addRow(tr("Fios de comando:"), m_wire_mode);
+	form->addRow(tr("Dígitos do número:"), m_wire_digits);
+	form->addRow(tr("Entre a folha e o número:"), m_wire_separator);
+	form->addRow(m_wire_compact);
+
+	auto layout = new QVBoxLayout(page);
+	layout->addLayout(form);
+	layout->addWidget(scope);
+	layout->addWidget(m_wires_summary, 1);
+	return page;
+}
+
+void ProjectNumberingWizard::readWireSettings()
+{
+	if (!m_wire_mode) return;
+	m_settings.wire_mode = ProjectNumbering::WireMode(m_wire_mode->currentIndex());
+	m_settings.wire_digits = m_wire_digits->value();
+	m_settings.wire_compact_folio = m_wire_compact->isChecked();
+	m_settings.wire_separator = m_wire_separator->currentData().toString();
+	const bool by_folio = m_settings.wire_mode == ProjectNumbering::WiresByFolio
+			|| m_settings.wire_mode == ProjectNumbering::WiresByColumn;
+	m_wire_digits->setEnabled(m_settings.wire_mode == ProjectNumbering::WiresSequential
+				  || m_settings.wire_mode == ProjectNumbering::WiresByFolio);
+	m_wire_compact->setEnabled(by_folio);
+	m_wire_separator->setEnabled(by_folio);
+}
+
+/**
+	@brief ProjectNumberingWizard::fillWireSummary
+	How many potentials have a name, a number or none, and what the
+	settings give them
+*/
+void ProjectNumberingWizard::fillWireSummary()
+{
+	readWireSettings();
+	const QList<ProjectNumbering::PotentialInfo> list = potentials();
+	const QHash<QString, QString> changes = wireNumbers(list);
+	int named = 0, numbered = 0, empty = 0;
+	QStringList names, numbers, examples;
+	for (const ProjectNumbering::PotentialInfo &info : list) {
+		const QString number = info.number.trimmed();
+		if (number.isEmpty()) ++empty;
+		else if (ProjectNumbering::isWireNumber(number)) {
+			++numbered;
+			if (numbers.size() < 5 && !numbers.contains(number)) numbers << number;
+		} else {
+			++named;
+			if (names.size() < 6 && !names.contains(number)) names << number;
+		}
+		if (changes.contains(info.id) && examples.size() < 6)
+			examples << QStringLiteral("%1 → %2").arg(number.isEmpty() ? tr("(sem número)") : number,
+								  changes.value(info.id));
+	}
+	QString text = tr("%1 potenciais: %2 com nome (%3) ficam como estão; %4 com número (%5); %6 sem número.")
+			.arg(list.size()).arg(named).arg(names.join(QStringLiteral(", ")))
+			.arg(numbered).arg(numbers.join(QStringLiteral(", "))).arg(empty);
+	text += QStringLiteral("\n\n");
+	text += changes.isEmpty() ? tr("Nenhum número de fio muda.")
+				  : tr("%1 potenciais mudam de número, por exemplo: %2")
+				    .arg(changes.size()).arg(examples.join(QStringLiteral(", ")));
+	m_wires_summary->setText(text);
+}
+
 QWizardPage *ProjectNumberingWizard::previewPage()
 {
 	auto page = new QWizardPage;
@@ -508,6 +682,12 @@ QWizardPage *ProjectNumberingWizard::previewPage()
 	m_preview_tabs = new QTabWidget(page);
 	m_preview_tabs->addTab(m_preview_table, tr("Folhas"));
 	m_preview_tabs->addTab(m_components_table, tr("Componentes"));
+	m_wires_table = new QTableWidget(0, 4, page);
+	m_wires_table->setHorizontalHeaderLabels({tr("Folha"), tr("Número atual"), tr("Novo número"), tr("Fios")});
+	m_wires_table->horizontalHeader()->setStretchLastSection(true);
+	m_wires_table->verticalHeader()->hide();
+	m_wires_table->setEditTriggers(QAbstractItemView::NoEditTriggers);
+	m_preview_tabs->addTab(m_wires_table, tr("Fios"));
 
 	auto layout = new QVBoxLayout(page);
 	layout->addWidget(m_summary);
@@ -705,8 +885,9 @@ void ProjectNumberingWizard::fillPreview()
 	QList<int> changed;
 	for (int i = 0; i < list.size(); ++i)
 		if (changes.contains(list.at(i).id)) changed << i;
-	std::stable_sort(changed.begin(), changed.end(), [&list](int a, int b) {
-		return list.at(a).folio < list.at(b).folio;
+	std::stable_sort(changed.begin(), changed.end(), [&](int a, int b) {
+		if (list.at(a).folio != list.at(b).folio) return list.at(a).folio < list.at(b).folio;
+		return changes.value(list.at(a).id) < changes.value(list.at(b).id);
 	});
 	m_components_table->setRowCount(int(changed.size()));
 	for (int row = 0; row < changed.size(); ++row) {
@@ -720,13 +901,39 @@ void ProjectNumberingWizard::fillPreview()
 	m_preview_tabs->setTabText(0, tr("Folhas (%1)").arg(m_preview_table->rowCount()));
 	m_revision_warning->setVisible(m_has_revisions && tagScope() == ProjectNumbering::RenumberAll
 				       && !changed.isEmpty());
-	const QString tags_text = changed.isEmpty() ? QString()
+	readWireSettings();
+	const QList<ProjectNumbering::PotentialInfo> wire_list = potentials();
+	const QHash<QString, QString> wire_changes = wireNumbers(wire_list);
+	QList<int> wires_changed;
+	for (int i = 0; i < wire_list.size(); ++i)
+		if (wire_changes.contains(wire_list.at(i).id)) wires_changed << i;
+	std::stable_sort(wires_changed.begin(), wires_changed.end(), [&](int a, int b) {
+		const int fa = wire_list.at(a).folio, fb = wire_list.at(b).folio;
+		if (fa != fb) return fa < fb;
+		return wire_changes.value(wire_list.at(a).id) < wire_changes.value(wire_list.at(b).id);
+	});
+	m_wires_table->setRowCount(int(wires_changed.size()));
+	for (int row = 0; row < wires_changed.size(); ++row) {
+		const ProjectNumbering::PotentialInfo &info = wire_list.at(wires_changed.at(row));
+		m_wires_table->setItem(row, 0, readOnlyItem(info.folio_label));
+		m_wires_table->setItem(row, 1, readOnlyItem(info.number == wire_changes.value(info.id)
+							     ? tr("%1, com fios sem número").arg(info.number)
+							     : info.number));
+		m_wires_table->setItem(row, 2, readOnlyItem(wire_changes.value(info.id)));
+		m_wires_table->setItem(row, 3, readOnlyItem(QString::number(m_potentials.at(wires_changed.at(row)).wires.size())));
+	}
+	m_wires_table->resizeColumnsToContents();
+	m_preview_tabs->setTabText(2, tr("Fios (%1)").arg(wires_changed.size()));
+
+	QString tags_text = changed.isEmpty() ? QString()
 				  : tr(" %1 tags de componentes mudam.").arg(changed.size());
+	if (!wires_changed.isEmpty())
+		tags_text += tr(" %1 potenciais de fios mudam de número.").arg(wires_changed.size());
 
 	if (!m_settings.enabled)
 		m_summary->setText(tr("A numeração automática das folhas está desligada: as seções ficam guardadas "
 				      "no projeto e os números das folhas não mudam.") + tags_text);
-	else if (!numbers && !titles_changed && !moved && changed.isEmpty())
+	else if (!numbers && !titles_changed && !moved && changed.isEmpty() && wires_changed.isEmpty())
 		m_summary->setText(tr("Nada muda: as %1 folhas e os componentes já estão numerados assim.")
 				   .arg(new_order.size()));
 	else
