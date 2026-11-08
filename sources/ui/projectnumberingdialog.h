@@ -15,12 +15,12 @@
 	You should have received a copy of the GNU General Public License
 	along with QElectroTech.  If not, see <http://www.gnu.org/licenses/>.
 */
-#ifndef PROJECTNUMBERINGWIZARD_H
-#define PROJECTNUMBERINGWIZARD_H
+#ifndef PROJECTNUMBERINGDIALOG_H
+#define PROJECTNUMBERINGDIALOG_H
 
 #include "../projectnumbering.h"
 
-#include <QWizard>
+#include <QDialog>
 
 class Conductor;
 class Element;
@@ -32,25 +32,37 @@ class QTabWidget;
 class QSpinBox;
 class QTableWidget;
 class QETProject;
+class ProjectView;
+class QDialogButtonBox;
+class QVBoxLayout;
 
 /**
-	@brief The ProjectNumberingWizard class
-	Homiservi-SCH: set the sections of a project and how its folios are
-	numbered (ProjectNumbering), in three steps: the sections, the section
-	of every folio and the number format, then what changes, to apply.
-	Opened on its last page, it applies the settings of the project again.
+	@brief The ProjectNumberingDialog class
+	Homiservi-SCH: the sections of a project and how its folios, the tags
+	of its components and its wires are numbered (ProjectNumbering), one
+	tab each, and what changes in the last one. Any tab can be edited
+	alone: "Aplicar" applies everything as one undo step and keeps the
+	dialog open on the project as it now is, "OK" applies and closes.
+	Opened on the preview, it applies the settings of the project again.
 
-	A project numbered by hand ("02.04 - Title") gets its sections, and their
-	names when a text of a folio lists them, read from it.
+	A section without folio gets one, with its name as title, after the
+	folios of the sections before it. A project numbered by hand
+	("02.04 - Title") gets its sections, and their names when a text of a
+	folio lists them, read from it.
 */
-class ProjectNumberingWizard : public QWizard
+class ProjectNumberingDialog : public QDialog
 {
 	Q_OBJECT
 
 	public:
-		enum Page { SectionsPage, FoliosPage, ComponentsPage, WiresPage, PreviewPage };
+		enum Tab { SectionsTab, FoliosTab, ComponentsTab, WiresTab, PreviewTab };
 
-		ProjectNumberingWizard(QETProject *project, bool reapply, QWidget *parent = nullptr);
+		ProjectNumberingDialog(QETProject *project, ProjectView *project_view,
+				       bool reapply, QWidget *parent = nullptr);
+
+		bool apply();
+		void accept() override;
+		QTabWidget *tabs() const {return m_tabs;}
 
 		ProjectNumbering::Settings settings() const;
 			///The folio indexes in their new order
@@ -65,11 +77,20 @@ class ProjectNumberingWizard : public QWizard
 		QList<QPair<QList<Conductor *>, QString>> wireChanges() const;
 
 	private:
-		QWizardPage *sectionsPage();
-		QWizardPage *foliosPage();
-		QWizardPage *componentsPage();
-		QWizardPage *wiresPage();
-		QWizardPage *previewPage();
+		QWidget *sectionsPage();
+		QWidget *foliosPage();
+		QWidget *componentsPage();
+		QWidget *wiresPage();
+		QWidget *previewPage();
+		QVBoxLayout *pageLayout(QWidget *page, const QString &title, const QString &subtitle);
+
+		void load();
+		void tabChanged(int index);
+		bool validSections();
+		void readAll();
+		void refreshTab(int index);
+		void createMissingFolios();
+		QStringList missingSections() const;
 
 		void importSections();
 		void readSectionsTable();
@@ -92,6 +113,11 @@ class ProjectNumberingWizard : public QWizard
 		QString sectionText(const ProjectNumbering::Section &section) const;
 
 		QETProject *m_project;
+		ProjectView *m_project_view;
+		QTabWidget *m_tabs = nullptr;
+		QDialogButtonBox *m_buttons = nullptr;
+		QCheckBox *m_create_folios = nullptr;
+		int m_last_tab = SectionsTab;
 		QList<ProjectNumbering::FolioInfo> m_folios;
 		QStringList m_texts;
 		ProjectNumbering::Settings m_settings;

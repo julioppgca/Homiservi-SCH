@@ -25,9 +25,7 @@
 #include "ui/potentialrulesdialog.h"
 #include "ui/textstylesdialog.h"
 #include "ui/homiserviprojectwizard.h"
-#include "ui/projectnumberingwizard.h"
-#include "undocommand/movediagramcommand.h"
-#include "undocommand/projectnumberingcommand.h"
+#include "ui/projectnumberingdialog.h"
 #include "ui/projectrevisionsdialog.h"
 #include "projectvariants.h"
 #include "terminalsheet.h"
@@ -1992,12 +1990,10 @@ void QETDiagramEditor::showHomiserviData()
 
 /**
 	@brief QETDiagramEditor::showProjectNumbering
-	Set the sections and the folio numbering of the current project with
-	ProjectNumberingWizard, then apply them as one undo step: the folios
-	moved to the order of the sections when asked, their numbers and their
-	titles.
-	@param reapply : open the wizard on what changes, to apply the settings
-	of the project again (from the start when the project has none)
+	Set the sections and the numbering of the folios, tags and wires of the
+	current project (ProjectNumberingDialog), which applies them itself.
+	@param reapply : open on what changes, to apply the settings of the
+	project again (on the sections when the project has none)
 */
 void QETDiagramEditor::showProjectNumbering(bool reapply)
 {
@@ -2006,81 +2002,8 @@ void QETDiagramEditor::showProjectNumbering(bool reapply)
 	if (!project || !project_view || project->isReadOnly()) {
 		return;
 	}
-	ProjectNumberingWizard wizard(project, reapply && !project->numbering().isEmpty(), this);
-	if (wizard.exec() != QDialog::Accepted) {
-		return;
-	}
-
-	const QList<Diagram *> diagrams = project->diagrams();
-	const QList<int> order = wizard.order();
-	const QStringList titles = wizard.titles();
-	const QStringList labels = wizard.labels();
-	const ProjectNumbering::Settings settings = wizard.settings();
-		//Before the folios move: the tags are worked out in the new order
-	const QList<QPair<Element *, QString>> tags = wizard.componentChanges();
-	const QList<QPair<QList<Conductor *>, QString>> wires = wizard.wireChanges();
-
-	QUndoStack *undo = project->undoStack();
-	undo->beginMacro(tr("Numeração das folhas"));
-		//The folios in their new order first: the numbers follow it
-	for (int position = 0; position < order.size(); ++position) {
-		Diagram *diagram = diagrams.at(order.at(position));
-		if (project->diagrams().indexOf(diagram) != position)
-			undo->push(new MoveDiagramCommand(project_view, diagram, position));
-	}
-	auto command = new ProjectNumberingCommand(project, project->numbering(), settings);
-	for (int position = 0; position < order.size(); ++position) {
-		const int index = order.at(position);
-		Diagram *diagram = diagrams.at(index);
-		const TitleBlockProperties old_properties = diagram->border_and_titleblock.exportTitleBlock();
-		TitleBlockProperties new_properties = old_properties;
-		new_properties.title = titles.value(index);
-		if (settings.enabled)
-			new_properties.folio = labels.value(position);
-		if (new_properties != old_properties)
-			command->addTitleBlock(diagram, old_properties, new_properties);
-	}
-	undo->push(command);
-	if (!tags.isEmpty()) {
-		QMap<QPointer<Element>, QPair<DiagramContext, DiagramContext>> changes;
-		for (const auto &tag : tags) {
-			const DiagramContext old_info = tag.first->elementInformations();
-			DiagramContext new_info = old_info;
-			new_info.addValue(QStringLiteral("label"), tag.second);
-				//The tag typed in an element is kept as its formula too:
-				//the old formula would give it its old tag back
-			if (!old_info.value(QStringLiteral("formula")).toString().isEmpty())
-				new_info.addValue(QStringLiteral("formula"), tag.second);
-			changes.insert(tag.first, qMakePair(old_info, new_info));
-		}
-		undo->push(new ChangeElementInformationCommand(changes));
-	}
-	if (!wires.isEmpty()) {
-		auto wire_undo = new QUndoCommand(tr("Numerar os fios"));
-		for (const auto &potential : wires) {
-			for (Conductor *conductor : potential.first) {
-				ConductorProperties properties = conductor->properties();
-				const QString old_text = properties.text;
-				if (old_text == potential.second) continue;
-					//A wire numbered otherwise in a mixed potential stays
-				if (!ProjectNumbering::isNoWireNumber(old_text) && ProjectNumbering::isNoWireNumber(potential.second))
-					continue;
-				properties.text = potential.second;
-					//As for a tag: the number typed is kept as the formula
-				if (!properties.m_formula.isEmpty() || !old_text.isEmpty())
-					properties.m_formula = potential.second;
-				QVariant old_value, new_value;
-				old_value.setValue(conductor->properties());
-				new_value.setValue(properties);
-				new QPropertyUndoCommand(conductor, "properties", old_value, new_value, wire_undo);
-			}
-		}
-		if (wire_undo->childCount())
-			undo->push(wire_undo);
-		else
-			delete wire_undo;
-	}
-	undo->endMacro();
+	ProjectNumberingDialog dialog(project, project_view, reapply && !project->numbering().isEmpty(), this);
+	dialog.exec();
 }
 
 /**

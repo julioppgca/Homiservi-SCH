@@ -15,7 +15,7 @@
 	You should have received a copy of the GNU General Public License
 	along with QElectroTech.  If not, see <http://www.gnu.org/licenses/>.
 */
-#include "projectnumberingwizard.h"
+#include "projectnumberingdialog.h"
 
 #include "../diagram.h"
 #include "../projectrevisions.h"
@@ -23,9 +23,16 @@
 #include "../qetgraphicsitem/element.h"
 #include "../qetgraphicsitem/independenttextitem.h"
 #include "../qetproject.h"
+#include "../projectview.h"
+#include "../QPropertyUndoCommand/qpropertyundocommand.h"
+#include "../undocommand/changeelementinformationcommand.h"
+#include "../undocommand/movediagramcommand.h"
+#include "../undocommand/projectnumberingcommand.h"
 
 #include <QCheckBox>
 #include <QComboBox>
+#include <QDialogButtonBox>
+#include <QUndoStack>
 #include <QFormLayout>
 #include <QHBoxLayout>
 #include <QHeaderView>
@@ -44,14 +51,6 @@
 
 namespace
 {
-		///A page whose validatePage() asks a function
-	class ValidatedPage : public QWizardPage
-	{
-		public:
-			std::function<bool()> validate;
-			bool validatePage() override { return !validate || validate(); }
-	};
-
 	QTableWidgetItem *readOnlyItem(const QString &text)
 	{
 		auto item = new QTableWidgetItem(text);
@@ -63,71 +62,334 @@ namespace
 	const QStringList format_keys {QStringLiteral("."), QStringLiteral("-"), QString(), QStringLiteral("seq")};
 }
 
-ProjectNumberingWizard::ProjectNumberingWizard(QETProject *project, bool reapply, QWidget *parent) :
-	QWizard(parent),
-	m_project(project)
+ProjectNumberingDialog::ProjectNumberingDialog(QETProject *project, ProjectView *project_view,
+					       bool reapply, QWidget *parent) :
+	QDialog(parent),
+	m_project(project),
+	m_project_view(project_view),
+	m_reapply(reapply)
 {
 	setWindowTitle(tr("Numeração do projeto"));
-	setWizardStyle(QWizard::ClassicStyle);
-	setButtonText(QWizard::FinishButton, tr("Aplicar"));
-	setMinimumSize(820, 600);
+	resize(960, 680);
 
-	m_folios = project->numberingFolios();
-	for (Diagram *diagram : project->diagrams())
+	load();
+
+	m_tabs = new QTabWidget(this);
+	m_tabs->addTab(sectionsPage(), tr("Seções"));
+	m_tabs->addTab(foliosPage(), tr("Folhas"));
+	m_tabs->addTab(componentsPage(), tr("Componentes"));
+	m_tabs->addTab(wiresPage(), tr("Fios"));
+	m_tabs->addTab(previewPage(), tr("Prévia"));
+
+	m_buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Apply | QDialogButtonBox::Close, this);
+	m_buttons->button(QDialogButtonBox::Ok)->setText(tr("Aplicar e fechar"));
+	m_buttons->button(QDialogButtonBox::Apply)->setText(tr("Aplicar"));
+	m_buttons->button(QDialogButtonBox::Apply)->setToolTip(
+				tr("Aplica tudo o que foi mudado em todas as abas, como um único passo de desfazer,"
+				   " e continua aqui"));
+	connect(m_buttons, &QDialogButtonBox::accepted, this, &ProjectNumberingDialog::accept);
+	connect(m_buttons, &QDialogButtonBox::rejected, this, &ProjectNumberingDialog::reject);
+	connect(m_buttons->button(QDialogButtonBox::Apply), &QPushButton::clicked, this, [this]() { apply(); });
+
+	auto layout = new QVBoxLayout(this);
+	layout->addWidget(m_tabs, 1);
+	layout->addWidget(m_buttons);
+
+	fillSectionsTable();
+	fillFoliosTable();
+	connect(m_tabs, &QTabWidget::currentChanged, this, &ProjectNumberingDialog::tabChanged);
+	if (reapply)
+		m_tabs->setCurrentIndex(PreviewTab);
+}
+
+/**
+	@brief ProjectNumberingDialog::load
+	Read the folios, components and potentials of the project, and its
+	numbering, or the one read from its folios when it has none
+*/
+void ProjectNumberingDialog::load()
+{
+	m_folios = m_project->numberingFolios();
+	m_texts.clear();
+	for (Diagram *diagram : m_project->diagrams())
 		for (QGraphicsItem *item : diagram->items())
 			if (auto text = qgraphicsitem_cast<IndependentTextItem *>(item))
 				m_texts << text->toPlainText();
 
+	m_components.clear();
 	QList<Element *> elements;
-	const QList<ProjectNumbering::ComponentInfo> components = project->numberingComponents(&elements);
+	const QList<ProjectNumbering::ComponentInfo> components = m_project->numberingComponents(&elements);
 	for (int i = 0; i < components.size(); ++i)
 		m_components << Component {elements.at(i), components.at(i).folio, components.at(i)};
+	m_potentials.clear();
 	QList<QList<Conductor *>> wires;
-	const QList<ProjectNumbering::PotentialInfo> potentials = project->numberingPotentials(&wires);
+	const QList<ProjectNumbering::PotentialInfo> potentials = m_project->numberingPotentials(&wires);
 	for (int i = 0; i < potentials.size(); ++i)
 		m_potentials << Potential {wires.at(i), potentials.at(i).folio, potentials.at(i)};
-	m_has_revisions = !ProjectRevisions::read(project).isEmpty();
-	m_reapply = reapply;
+	m_has_revisions = !ProjectRevisions::read(m_project).isEmpty();
 
-	m_settings = project->numbering();
+	m_settings = m_project->numbering();
 	if (m_settings.sections.isEmpty())
 		m_settings = ProjectNumbering::importFrom(m_folios, m_texts);
 	m_codes = ProjectNumbering::sectionCodes(m_settings, m_folios);
+	if (m_sections_table)
+		fillSectionsTable();
+}
 
-	setPage(SectionsPage, sectionsPage());
-	setPage(FoliosPage, foliosPage());
-	setPage(ComponentsPage, componentsPage());
-	setPage(WiresPage, wiresPage());
-	setPage(PreviewPage, previewPage());
+/**
+	@brief ProjectNumberingDialog::pageLayout
+	@return the layout of page, under its title and what it is for
+*/
+QVBoxLayout *ProjectNumberingDialog::pageLayout(QWidget *page, const QString &title, const QString &subtitle)
+{
+	auto layout = new QVBoxLayout(page);
+	auto heading = new QLabel(QStringLiteral("<b>%1</b><br>%2").arg(title.toHtmlEscaped(), subtitle.toHtmlEscaped()), page);
+	heading->setWordWrap(true);
+	layout->addWidget(heading);
+	return layout;
+}
 
-	fillSectionsTable();
-	fillFoliosTable();
-	connect(this, &QWizard::currentIdChanged, this, [this](int id) {
-		if (id == FoliosPage) {
-			fillFoliosTable();
-		} else if (id == ComponentsPage) {
-			readFormat();
-			fillPrefixTable();
-		} else if (id == WiresPage) {
-			readFormat();
-			fillWireSummary();
-		} else if (id == PreviewPage) {
-			readFormat();
-			fillPreview();
-		}
-	});
-	if (reapply) {
-		setStartId(PreviewPage);
-		readFormat();
-		fillPreview();
+/**
+	@brief ProjectNumberingDialog::tabChanged
+	Take what was changed in the other tabs into the one now shown. The
+	sections must be right to leave their tab.
+*/
+void ProjectNumberingDialog::tabChanged(int index)
+{
+	if (m_last_tab == SectionsTab && index != SectionsTab && !validSections()) {
+		QSignalBlocker blocker(m_tabs);
+		m_tabs->setCurrentIndex(SectionsTab);
+		return;
 	}
+	m_last_tab = index;
+	readAll();
+	refreshTab(index);
+}
+
+void ProjectNumberingDialog::readAll()
+{
+	readSectionsTable();
+	readFormat();
+	readTagSettings();
+	readWireSettings();
+}
+
+void ProjectNumberingDialog::refreshTab(int index)
+{
+	switch (index) {
+		case SectionsTab: fillSectionsTable(); break;
+		case FoliosTab: fillFoliosTable(); break;
+		case ComponentsTab: fillPrefixTable(); break;
+		case WiresTab: fillWireSummary(); break;
+		case PreviewTab: fillPreview(); break;
+		default: break;
+	}
+}
+
+/**
+	@return the sections have a number each, none twice; says what is wrong
+	when they do not
+*/
+bool ProjectNumberingDialog::validSections()
+{
+	readSectionsTable();
+	QStringList codes;
+	for (const ProjectNumbering::Section &section : std::as_const(m_settings.sections)) {
+		if (codes.contains(section.code)) {
+			QMessageBox::warning(this, windowTitle(), tr("Duas seções têm o número %1.").arg(section.code));
+			return false;
+		}
+		codes << section.code;
+	}
+	if (codes.isEmpty()) {
+		QMessageBox::warning(this, windowTitle(), tr("Crie ao menos uma seção."));
+		return false;
+	}
+	return true;
+}
+
+/**
+	@return the sections without any folio, which get one when applying
+	(when asked)
+*/
+QStringList ProjectNumberingDialog::missingSections() const
+{
+	QStringList missing;
+	if (m_create_folios && !m_create_folios->isChecked())
+		return missing;
+	for (const ProjectNumbering::Section &section : m_settings.sections)
+		if (!m_codes.contains(section.code))
+			missing << section.code;
+	return missing;
+}
+
+/**
+	@brief ProjectNumberingDialog::createMissingFolios
+	Give each section without folio its first one, titled with its name,
+	after the folios of the sections before it; added to the project (an
+	undo step of its own, inside the one of apply()) and to what this
+	dialog knows of the folios.
+*/
+void ProjectNumberingDialog::createMissingFolios()
+{
+	for (const QString &code : missingSections()) {
+		const int rank = m_settings.sectionIndex(code);
+		int position = 0;
+		for (int i = 0; i < m_codes.size(); ++i) {
+			const int other = m_settings.sectionIndex(m_codes.at(i));
+			if (other >= 0 && other <= rank)
+				position = i + 1;
+		}
+		Diagram *diagram = m_project->addNewDiagram(position);
+		if (!diagram) continue;
+		const ProjectNumbering::Section section = m_settings.sections.value(rank);
+		TitleBlockProperties properties = diagram->border_and_titleblock.exportTitleBlock();
+		properties.title = section.name.isEmpty() ? section.code : section.name;
+		diagram->border_and_titleblock.importTitleBlock(properties);
+
+		m_folios.insert(position, ProjectNumbering::FolioInfo {diagram->uuid().toString(),
+								   diagram->border_and_titleblock.folio(),
+								   properties.title});
+		m_codes.insert(position, code);
+		for (Component &component : m_components)
+			if (component.folio >= position) ++component.folio;
+		for (Potential &potential : m_potentials)
+			if (potential.folio >= position) ++potential.folio;
+	}
+}
+
+/**
+	@brief ProjectNumberingDialog::apply
+	Apply what every tab says as one undo step: the folios of the new
+	sections, the folios in the order of the sections when asked, their
+	numbers and titles, the tags and the wire numbers. Then show the
+	project as it now is.
+	@return false when the sections are not right
+*/
+bool ProjectNumberingDialog::apply()
+{
+	if (!validSections())
+		return false;
+	readAll();
+	if (m_project->isReadOnly())
+		return false;
+
+		//Nothing to change: no empty step in the undo history
+	if (missingSections().isEmpty()) {
+		bool changes = settings() != m_project->numbering()
+				|| !componentChanges().isEmpty() || !wireChanges().isEmpty();
+		const QList<Diagram *> diagrams = m_project->diagrams();
+		const QList<int> new_order = order();
+		const QStringList new_titles = titles();
+		const QStringList new_labels = labels();
+		for (int position = 0; position < new_order.size() && !changes; ++position) {
+			const int index = new_order.at(position);
+			Diagram *diagram = diagrams.value(index);
+			changes = index != position || !diagram
+				  || new_titles.value(index) != diagram->title()
+				  || (m_settings.enabled && new_labels.value(position) != diagram->border_and_titleblock.folio());
+		}
+		if (!changes) {
+			load();
+			refreshTab(m_tabs->currentIndex());
+			return true;
+		}
+	}
+
+	QUndoStack *undo = m_project->undoStack();
+	undo->beginMacro(tr("Numeração do projeto"));
+	createMissingFolios();
+
+	const QList<Diagram *> diagrams = m_project->diagrams();
+	const QList<int> new_order = order();
+	const QStringList new_titles = titles();
+	const QStringList new_labels = labels();
+	const ProjectNumbering::Settings new_settings = settings();
+		//Before the folios move: the tags are worked out in the new order
+	const QList<QPair<Element *, QString>> tags = componentChanges();
+	const QList<QPair<QList<Conductor *>, QString>> wires = wireChanges();
+
+		//The folios in their new order first: the numbers follow it
+	for (int position = 0; position < new_order.size(); ++position) {
+		Diagram *diagram = diagrams.value(new_order.at(position));
+		if (diagram && m_project_view && m_project->diagrams().indexOf(diagram) != position)
+			undo->push(new MoveDiagramCommand(m_project_view, diagram, position));
+	}
+	auto command = new ProjectNumberingCommand(m_project, m_project->numbering(), new_settings);
+	for (int position = 0; position < new_order.size(); ++position) {
+		const int index = new_order.at(position);
+		Diagram *diagram = diagrams.value(index);
+		if (!diagram) continue;
+		const TitleBlockProperties old_properties = diagram->border_and_titleblock.exportTitleBlock();
+		TitleBlockProperties new_properties = old_properties;
+		new_properties.title = new_titles.value(index);
+		if (new_settings.enabled)
+			new_properties.folio = new_labels.value(position);
+		if (new_properties != old_properties)
+			command->addTitleBlock(diagram, old_properties, new_properties);
+	}
+	if (command->titleBlockCount() || new_settings != m_project->numbering())
+		undo->push(command);
+	else
+		delete command;
+
+	if (!tags.isEmpty()) {
+		QMap<QPointer<Element>, QPair<DiagramContext, DiagramContext>> changes;
+		for (const auto &tag : tags) {
+			const DiagramContext old_info = tag.first->elementInformations();
+			DiagramContext new_info = old_info;
+			new_info.addValue(QStringLiteral("label"), tag.second);
+				//The tag typed in an element is kept as its formula too:
+				//the old formula would give it its old tag back
+			if (!old_info.value(QStringLiteral("formula")).toString().isEmpty())
+				new_info.addValue(QStringLiteral("formula"), tag.second);
+			changes.insert(tag.first, qMakePair(old_info, new_info));
+		}
+		undo->push(new ChangeElementInformationCommand(changes));
+	}
+	if (!wires.isEmpty()) {
+		auto wire_undo = new QUndoCommand(tr("Numerar os fios"));
+		for (const auto &potential : wires) {
+			for (Conductor *conductor : potential.first) {
+				ConductorProperties properties = conductor->properties();
+				const QString old_text = properties.text;
+				if (old_text == potential.second) continue;
+					//A wire numbered otherwise in a mixed potential stays
+				if (!ProjectNumbering::isNoWireNumber(old_text) && ProjectNumbering::isNoWireNumber(potential.second))
+					continue;
+				properties.text = potential.second;
+					//As for a tag: the number typed is kept as the formula
+				if (!properties.m_formula.isEmpty() || !old_text.isEmpty())
+					properties.m_formula = potential.second;
+				QVariant old_value, new_value;
+				old_value.setValue(conductor->properties());
+				new_value.setValue(properties);
+				new QPropertyUndoCommand(conductor, "properties", old_value, new_value, wire_undo);
+			}
+		}
+		if (wire_undo->childCount())
+			undo->push(wire_undo);
+		else
+			delete wire_undo;
+	}
+	undo->endMacro();
+
+	load();
+	refreshTab(m_tabs->currentIndex());
+	return true;
+}
+
+void ProjectNumberingDialog::accept()
+{
+	if (apply())
+		QDialog::accept();
 }
 
 /**
 	@return the settings to give the project, its sections starting at
 	the folios in their new order
 */
-ProjectNumbering::Settings ProjectNumberingWizard::settings() const
+ProjectNumbering::Settings ProjectNumberingDialog::settings() const
 {
 	ProjectNumbering::Settings settings = m_settings;
 	QList<ProjectNumbering::FolioInfo> folios;
@@ -137,7 +399,7 @@ ProjectNumbering::Settings ProjectNumberingWizard::settings() const
 	return settings;
 }
 
-QList<int> ProjectNumberingWizard::order() const
+QList<int> ProjectNumberingDialog::order() const
 {
 	if (m_group && !m_group->isHidden() && m_group->isChecked())
 		return ProjectNumbering::groupedOrder(m_settings, m_codes);
@@ -146,7 +408,7 @@ QList<int> ProjectNumberingWizard::order() const
 	return identity;
 }
 
-QStringList ProjectNumberingWizard::titles() const
+QStringList ProjectNumberingDialog::titles() const
 {
 	QStringList titles;
 	for (const ProjectNumbering::FolioInfo &folio : m_folios)
@@ -155,7 +417,7 @@ QStringList ProjectNumberingWizard::titles() const
 	return titles;
 }
 
-QStringList ProjectNumberingWizard::labels() const
+QStringList ProjectNumberingDialog::labels() const
 {
 	if (m_settings.enabled)
 		return ProjectNumbering::folioLabels(m_settings, orderedCodes());
@@ -165,11 +427,11 @@ QStringList ProjectNumberingWizard::labels() const
 	return labels;
 }
 
-QWizardPage *ProjectNumberingWizard::sectionsPage()
+QWidget *ProjectNumberingDialog::sectionsPage()
 {
-	auto page = new ValidatedPage;
-	page->setTitle(tr("Seções"));
-	page->setSubTitle(tr("As seções agrupam as folhas: \"02 – Alimentação e distribuição\". "
+	auto page = new QWidget;
+	const QString title = (tr("Seções"));
+	const QString subtitle = (tr("As seções agrupam as folhas: \"02 – Alimentação e distribuição\". "
 			     "O número da seção abre o número de cada folha dela: 02.01, 02.02..."));
 
 	m_sections_table = new QTableWidget(0, 2, page);
@@ -216,7 +478,7 @@ QWizardPage *ProjectNumberingWizard::sectionsPage()
 	};
 	connect(up, &QPushButton::clicked, this, [move]() { move(-1); });
 	connect(down, &QPushButton::clicked, this, [move]() { move(1); });
-	connect(import, &QPushButton::clicked, this, &ProjectNumberingWizard::importSections);
+	connect(import, &QPushButton::clicked, this, &ProjectNumberingDialog::importSections);
 
 	auto buttons = new QVBoxLayout;
 	for (QPushButton *button : QList<QPushButton *> {add, remove, up, down})
@@ -224,35 +486,25 @@ QWizardPage *ProjectNumberingWizard::sectionsPage()
 	buttons->addStretch();
 	buttons->addWidget(import);
 
-	auto layout = new QHBoxLayout(page);
-	layout->addWidget(m_sections_table, 1);
-	layout->addLayout(buttons);
+	auto row = new QHBoxLayout;
+	row->addWidget(m_sections_table, 1);
+	row->addLayout(buttons);
+	m_create_folios = new QCheckBox(tr("Criar a primeira folha de cada seção que ainda não tem folha,"
+					   " com o nome da seção"), page);
+	m_create_folios->setChecked(true);
 
-	page->validate = [this]() {
-		readSectionsTable();
-		QStringList codes;
-		for (const ProjectNumbering::Section &section : std::as_const(m_settings.sections)) {
-			if (codes.contains(section.code)) {
-				QMessageBox::warning(this, windowTitle(),
-						     tr("Duas seções têm o número %1.").arg(section.code));
-				return false;
-			}
-			codes << section.code;
-		}
-		if (codes.isEmpty()) {
-			QMessageBox::warning(this, windowTitle(), tr("Crie ao menos uma seção."));
-			return false;
-		}
-		return true;
-	};
+	auto layout = pageLayout(page, title, subtitle);
+	layout->addLayout(row, 1);
+	layout->addWidget(m_create_folios);
+
 	return page;
 }
 
-QWizardPage *ProjectNumberingWizard::foliosPage()
+QWidget *ProjectNumberingDialog::foliosPage()
 {
-	auto page = new QWizardPage;
-	page->setTitle(tr("Folhas"));
-	page->setSubTitle(tr("Escolha a seção de cada folha e o formato do número. Selecione várias "
+	auto page = new QWidget;
+	const QString title = (tr("Folhas"));
+	const QString subtitle = (tr("Escolha a seção de cada folha e o formato do número. Selecione várias "
 			     "linhas para mudar a seção de todas de uma vez."));
 
 	m_enabled = new QCheckBox(tr("Numerar as folhas automaticamente (o número é recalculado "
@@ -305,7 +557,7 @@ QWizardPage *ProjectNumberingWizard::foliosPage()
 	m_folios_table->setSelectionMode(QAbstractItemView::ExtendedSelection);
 	m_folios_table->setEditTriggers(QAbstractItemView::NoEditTriggers);
 
-	auto layout = new QVBoxLayout(page);
+	auto layout = pageLayout(page, title, subtitle);
 	layout->addLayout(form);
 	layout->addWidget(m_folios_table, 1);
 	return page;
@@ -315,7 +567,7 @@ QWizardPage *ProjectNumberingWizard::foliosPage()
 	@return the components whose tag changes and their new tag, with the
 	folios in their new order and numbers
 */
-QList<QPair<Element *, QString>> ProjectNumberingWizard::componentChanges() const
+QList<QPair<Element *, QString>> ProjectNumberingDialog::componentChanges() const
 {
 	const QHash<QString, QString> changes = ProjectNumbering::componentLabels(m_settings, components(), tagScope());
 	QList<QPair<Element *, QString>> list;
@@ -329,7 +581,7 @@ QList<QPair<Element *, QString>> ProjectNumberingWizard::componentChanges() cons
 	@return the components as ProjectNumbering takes them: their folio in
 	its new place, with its new number and section
 */
-QList<ProjectNumbering::ComponentInfo> ProjectNumberingWizard::components() const
+QList<ProjectNumbering::ComponentInfo> ProjectNumberingDialog::components() const
 {
 	const QList<int> new_order = order();
 	const QStringList new_labels = labels();
@@ -345,17 +597,17 @@ QList<ProjectNumbering::ComponentInfo> ProjectNumberingWizard::components() cons
 	return list;
 }
 
-ProjectNumbering::TagScope ProjectNumberingWizard::tagScope() const
+ProjectNumbering::TagScope ProjectNumberingDialog::tagScope() const
 {
 	return m_complete_only && m_complete_only->isChecked() ? ProjectNumbering::CompleteOnly
 							       : ProjectNumbering::RenumberAll;
 }
 
-QWizardPage *ProjectNumberingWizard::componentsPage()
+QWidget *ProjectNumberingDialog::componentsPage()
 {
-	auto page = new QWizardPage;
-	page->setTitle(tr("Componentes"));
-	page->setSubTitle(tr("A tag de um componente é o prefixo (-KA, -F, -Q...) seguido de um número. "
+	auto page = new QWidget;
+	const QString title = (tr("Componentes"));
+	const QString subtitle = (tr("A tag de um componente é o prefixo (-KA, -F, -Q...) seguido de um número. "
 			     "Os contatos mostram a tag da bobina e acompanham."));
 
 	m_tag_mode = new QComboBox(page);
@@ -411,7 +663,7 @@ QWizardPage *ProjectNumberingWizard::componentsPage()
 	form->addRow(tr("Dígitos do número:"), m_tag_digits);
 	form->addRow(m_terminals);
 
-	auto layout = new QVBoxLayout(page);
+	auto layout = pageLayout(page, title, subtitle);
 	layout->addLayout(form);
 	layout->addWidget(scope);
 	layout->addWidget(m_prefix_table, 1);
@@ -419,7 +671,7 @@ QWizardPage *ProjectNumberingWizard::componentsPage()
 	return page;
 }
 
-void ProjectNumberingWizard::readTagSettings()
+void ProjectNumberingDialog::readTagSettings()
 {
 	if (!m_tag_mode) return;
 	m_settings.tag_mode = ProjectNumbering::TagMode(m_tag_mode->currentIndex());
@@ -430,11 +682,11 @@ void ProjectNumberingWizard::readTagSettings()
 }
 
 /**
-	@brief ProjectNumberingWizard::fillPrefixTable
+	@brief ProjectNumberingDialog::fillPrefixTable
 	The prefixes of the project, how many components have each and a few
 	of their tags before and after
 */
-void ProjectNumberingWizard::fillPrefixTable()
+void ProjectNumberingDialog::fillPrefixTable()
 {
 	readTagSettings();
 	const QList<ProjectNumbering::ComponentInfo> list = components();
@@ -482,7 +734,7 @@ void ProjectNumberingWizard::fillPrefixTable()
 				: QString());
 }
 
-QList<QPair<QList<Conductor *>, QString>> ProjectNumberingWizard::wireChanges() const
+QList<QPair<QList<Conductor *>, QString>> ProjectNumberingDialog::wireChanges() const
 {
 	const QHash<QString, QString> changes = wireNumbers(potentials());
 	QList<QPair<QList<Conductor *>, QString>> list;
@@ -496,7 +748,7 @@ QList<QPair<QList<Conductor *>, QString>> ProjectNumberingWizard::wireChanges() 
 	@return the potentials as ProjectNumbering takes them: the folio of
 	their first wire in its new place, with its new number
 */
-QList<ProjectNumbering::PotentialInfo> ProjectNumberingWizard::potentials() const
+QList<ProjectNumbering::PotentialInfo> ProjectNumberingDialog::potentials() const
 {
 	const QList<int> new_order = order();
 	const QStringList new_labels = labels();
@@ -515,7 +767,7 @@ QList<ProjectNumbering::PotentialInfo> ProjectNumberingWizard::potentials() cons
 	ProjectNumbering::wireNumbers(), and a numbered potential with wires
 	left without number gets its number on all of them
 */
-QHash<QString, QString> ProjectNumberingWizard::wireNumbers(const QList<ProjectNumbering::PotentialInfo> &list) const
+QHash<QString, QString> ProjectNumberingDialog::wireNumbers(const QList<ProjectNumbering::PotentialInfo> &list) const
 {
 	QHash<QString, QString> changes = ProjectNumbering::wireNumbers(m_settings, list, wireScope());
 	if (m_settings.wire_mode == ProjectNumbering::WiresUnchanged) return changes;
@@ -531,17 +783,17 @@ QHash<QString, QString> ProjectNumberingWizard::wireNumbers(const QList<ProjectN
 	return changes;
 }
 
-ProjectNumbering::TagScope ProjectNumberingWizard::wireScope() const
+ProjectNumbering::TagScope ProjectNumberingDialog::wireScope() const
 {
 	return m_wires_complete && m_wires_complete->isChecked() ? ProjectNumbering::CompleteOnly
 								 : ProjectNumbering::RenumberAll;
 }
 
-QWizardPage *ProjectNumberingWizard::wiresPage()
+QWidget *ProjectNumberingDialog::wiresPage()
 {
-	auto page = new QWizardPage;
-	page->setTitle(tr("Fios"));
-	page->setSubTitle(tr("Os fios ligados entre si formam um potencial e têm o mesmo número. "
+	auto page = new QWidget;
+	const QString title = (tr("Fios"));
+	const QString subtitle = (tr("Os fios ligados entre si formam um potencial e têm o mesmo número. "
 			     "Um potencial com nome (0V, +24V-DI, 1L1, X1.2) fica como está."));
 
 	m_wire_mode = new QComboBox(page);
@@ -596,14 +848,14 @@ QWizardPage *ProjectNumberingWizard::wiresPage()
 	form->addRow(m_wire_compact);
 	form->addRow(m_wire_text_near);
 
-	auto layout = new QVBoxLayout(page);
+	auto layout = pageLayout(page, title, subtitle);
 	layout->addLayout(form);
 	layout->addWidget(scope);
 	layout->addWidget(m_wires_summary, 1);
 	return page;
 }
 
-void ProjectNumberingWizard::readWireSettings()
+void ProjectNumberingDialog::readWireSettings()
 {
 	if (!m_wire_mode) return;
 	m_settings.wire_mode = ProjectNumbering::WireMode(m_wire_mode->currentIndex());
@@ -620,11 +872,11 @@ void ProjectNumberingWizard::readWireSettings()
 }
 
 /**
-	@brief ProjectNumberingWizard::fillWireSummary
+	@brief ProjectNumberingDialog::fillWireSummary
 	How many potentials have a name, a number or none, and what the
 	settings give them
 */
-void ProjectNumberingWizard::fillWireSummary()
+void ProjectNumberingDialog::fillWireSummary()
 {
 	readWireSettings();
 	const QList<ProjectNumbering::PotentialInfo> list = potentials();
@@ -655,17 +907,18 @@ void ProjectNumberingWizard::fillWireSummary()
 	m_wires_summary->setText(text);
 }
 
-QWizardPage *ProjectNumberingWizard::previewPage()
+QWidget *ProjectNumberingDialog::previewPage()
 {
-	auto page = new QWizardPage;
-	page->setTitle(tr("Aplicar"));
-	page->setSubTitle(tr("O que muda nas folhas. Tudo é desfeito com um único Ctrl+Z."));
+	auto page = new QWidget;
+	const QString title = (tr("Prévia"));
+	const QString subtitle = (tr("O que muda no projeto ao aplicar o que está em todas as abas."
+				     " Tudo é desfeito com um único Ctrl+Z."));
 
 	m_summary = new QLabel(page);
 	m_summary->setWordWrap(true);
 	m_group = new QCheckBox(tr("Agrupar as folhas por seção (move as folhas para a ordem das seções)"), page);
 	m_group->setChecked(true);
-	connect(m_group, &QCheckBox::toggled, this, &ProjectNumberingWizard::fillPreview);
+	connect(m_group, &QCheckBox::toggled, this, &ProjectNumberingDialog::fillPreview);
 
 	m_revision_warning = new QLabel(page);
 	m_revision_warning->setWordWrap(true);
@@ -697,7 +950,7 @@ QWizardPage *ProjectNumberingWizard::previewPage()
 	m_wires_table->setEditTriggers(QAbstractItemView::NoEditTriggers);
 	m_preview_tabs->addTab(m_wires_table, tr("Fios"));
 
-	auto layout = new QVBoxLayout(page);
+	auto layout = pageLayout(page, title, subtitle);
 	layout->addWidget(m_summary);
 	layout->addWidget(m_revision_warning);
 	layout->addWidget(m_group);
@@ -706,11 +959,11 @@ QWizardPage *ProjectNumberingWizard::previewPage()
 }
 
 /**
-	@brief ProjectNumberingWizard::importSections
+	@brief ProjectNumberingDialog::importSections
 	Read the sections, and the section of every folio, from the numbers and
 	the titles of the folios
 */
-void ProjectNumberingWizard::importSections()
+void ProjectNumberingDialog::importSections()
 {
 	const ProjectNumbering::Settings imported = ProjectNumbering::importFrom(m_folios, m_texts);
 	m_settings.sections = imported.sections;
@@ -721,7 +974,7 @@ void ProjectNumberingWizard::importSections()
 	fillSectionsTable();
 }
 
-void ProjectNumberingWizard::fillSectionsTable()
+void ProjectNumberingDialog::fillSectionsTable()
 {
 	m_sections_table->setRowCount(int(m_settings.sections.size()));
 	for (int row = 0; row < m_settings.sections.size(); ++row) {
@@ -731,11 +984,11 @@ void ProjectNumberingWizard::fillSectionsTable()
 }
 
 /**
-	@brief ProjectNumberingWizard::readSectionsTable
+	@brief ProjectNumberingDialog::readSectionsTable
 	Take the sections from their table. A folio whose section is gone goes
 	to the section of the folio before it.
 */
-void ProjectNumberingWizard::readSectionsTable()
+void ProjectNumberingDialog::readSectionsTable()
 {
 	QList<ProjectNumbering::Section> sections;
 	for (int row = 0; row < m_sections_table->rowCount(); ++row) {
@@ -760,13 +1013,13 @@ void ProjectNumberingWizard::readSectionsTable()
 	}
 }
 
-QString ProjectNumberingWizard::sectionText(const ProjectNumbering::Section &section) const
+QString ProjectNumberingDialog::sectionText(const ProjectNumbering::Section &section) const
 {
 	return section.name.isEmpty() ? section.code
 				      : QStringLiteral("%1 – %2").arg(section.code, section.name);
 }
 
-void ProjectNumberingWizard::fillFoliosTable()
+void ProjectNumberingDialog::fillFoliosTable()
 {
 	m_filling = true;
 	m_folios_table->setRowCount(int(m_folios.size()));
@@ -790,11 +1043,11 @@ void ProjectNumberingWizard::fillFoliosTable()
 }
 
 /**
-	@brief ProjectNumberingWizard::setFolioSection
+	@brief ProjectNumberingDialog::setFolioSection
 	Put the folio of row in the section code, and the other selected
 	folios with it when row is selected
 */
-void ProjectNumberingWizard::setFolioSection(int row, const QString &code)
+void ProjectNumberingDialog::setFolioSection(int row, const QString &code)
 {
 	QList<int> rows {row};
 	const QModelIndexList selected = m_folios_table->selectionModel()->selectedRows();
@@ -815,7 +1068,7 @@ void ProjectNumberingWizard::setFolioSection(int row, const QString &code)
 	updateNewNumbers();
 }
 
-void ProjectNumberingWizard::readFormat()
+void ProjectNumberingDialog::readFormat()
 {
 	if (!m_enabled) return;
 	m_settings.enabled = m_enabled->isChecked();
@@ -830,7 +1083,7 @@ void ProjectNumberingWizard::readFormat()
 	m_section_digits->setEnabled(m_settings.format == ProjectNumbering::SectionPage);
 }
 
-void ProjectNumberingWizard::updateNewNumbers()
+void ProjectNumberingDialog::updateNewNumbers()
 {
 	const QStringList labels = m_settings.enabled
 			? ProjectNumbering::folioLabels(m_settings, m_codes) : QStringList();
@@ -839,7 +1092,7 @@ void ProjectNumberingWizard::updateNewNumbers()
 			item->setText(m_settings.enabled ? labels.value(row) : tr("(como está)"));
 }
 
-QStringList ProjectNumberingWizard::orderedCodes() const
+QStringList ProjectNumberingDialog::orderedCodes() const
 {
 	QStringList codes;
 	for (int index : order())
@@ -848,10 +1101,10 @@ QStringList ProjectNumberingWizard::orderedCodes() const
 }
 
 /**
-	@brief ProjectNumberingWizard::fillPreview
+	@brief ProjectNumberingDialog::fillPreview
 	List the folios whose number, title or place changes
 */
-void ProjectNumberingWizard::fillPreview()
+void ProjectNumberingDialog::fillPreview()
 {
 	m_group->setVisible(m_settings.enabled && !ProjectNumbering::isGrouped(m_settings, m_codes));
 
@@ -943,10 +1196,19 @@ void ProjectNumberingWizard::fillPreview()
 				? tr(" Os números dos fios vão para perto do componente onde o fio começa.")
 				: tr(" Os números dos fios voltam para o meio do fio.");
 
+	const QStringList missing = missingSections();
+	if (!missing.isEmpty()) {
+		QStringList names;
+		for (const QString &code : missing)
+			names << sectionText(m_settings.sections.value(m_settings.sectionIndex(code)));
+		tags_text += tr(" Ganham a primeira folha: %1.").arg(names.join(QStringLiteral(", ")));
+	}
+
 	if (!m_settings.enabled)
 		m_summary->setText(tr("A numeração automática das folhas está desligada: as seções ficam guardadas "
 				      "no projeto e os números das folhas não mudam.") + tags_text);
-	else if (!numbers && !titles_changed && !moved && changed.isEmpty() && wires_changed.isEmpty() && !text_moves)
+	else if (!numbers && !titles_changed && !moved && changed.isEmpty() && wires_changed.isEmpty() && !text_moves
+		 && missing.isEmpty())
 		m_summary->setText(tr("Nada muda: as %1 folhas e os componentes já estão numerados assim.")
 				   .arg(new_order.size()));
 	else

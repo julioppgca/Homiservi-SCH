@@ -867,8 +867,8 @@ set(QET_SRC_FILES
   ${QET_DIR}/sources/ui/wiringeditordock.h
   ${QET_DIR}/sources/ui/potentialrulesdialog.cpp
   ${QET_DIR}/sources/ui/potentialrulesdialog.h
-  ${QET_DIR}/sources/ui/projectnumberingwizard.cpp
-  ${QET_DIR}/sources/ui/projectnumberingwizard.h
+  ${QET_DIR}/sources/ui/projectnumberingdialog.cpp
+  ${QET_DIR}/sources/ui/projectnumberingdialog.h
   ${QET_DIR}/sources/ui/homiserviprojectwizard.cpp
   ${QET_DIR}/sources/ui/homiserviprojectwizard.h
   ${QET_DIR}/sources/ui/projectrevisionsdialog.cpp

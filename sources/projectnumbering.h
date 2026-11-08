@@ -31,7 +31,7 @@ class QDomElement;
 	Alimentação e distribuição") and numbered by section: 02.01, 02.02,
 	03.01... The settings are saved in the project, so the numbers are kept
 	up to date when a folio is added, moved or removed, and can be applied
-	again (ProjectNumberingWizard).
+	again (ProjectNumberingDialog).
 
 	A folio is in the section given to it, or else in the section of the
 	folio before it: a section starts at the folio given to it and goes on
