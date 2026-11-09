@@ -118,7 +118,9 @@ void WiringCheckDialog::fill()
 		m_table->setItem(row, 0, type);
 		m_table->setItem(row, 1, new QTableWidgetItem(issue.folio));
 		m_table->setItem(row, 2, new QTableWidgetItem(issue.wire));
-		m_table->setItem(row, 3, new QTableWidgetItem(issue.text));
+		auto text = new QTableWidgetItem(issue.text);
+		text->setToolTip(issue.text);
+		m_table->setItem(row, 3, text);
 	}
 	m_table->resizeColumnsToContents();
 }

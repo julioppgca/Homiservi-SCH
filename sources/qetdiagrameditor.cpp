@@ -108,6 +108,7 @@
 #include "wiringlistexport.h"
 #include "wiringlist.h"
 #include "ui/wiringcheckdialog.h"
+#include "ui/wiringruleswarning.h"
 #include "conductorendlabeling.h"
 #include "ui/wiringlistdialog.h"
 #include "ui/terminalnumberingdialog.h"
@@ -822,6 +823,10 @@ void QETDiagramEditor::setUpActions()
 		ProjectIndexDialog dialog(view->diagram(), this);
 		dialog.exec();
 	});
+	m_terminal_renumber = new QAction(QET::Icons::TerminalStrip, tr("Numeração dos bornes..."), this);
+	ShortcutManager::instance().registerAction(m_terminal_renumber, "diagrameditor.terminal_renumber", tr("Éditeur de schémas"), QKeySequence());
+	m_terminal_renumber->setStatusTip(tr("Os bornes de cada régua numerados na ordem do desenho, com a numeração do projeto (aba Componentes)", "status bar tip"));
+	connect(m_terminal_renumber, &QAction::triggered, this, [this]() { showProjectNumbering(false, ProjectNumberingDialog::ComponentsTab); });
 	m_wire_numbering = new QAction(tr("Numeração dos fios..."), this);
 	ShortcutManager::instance().registerAction(m_wire_numbering, "diagrameditor.wire_numbering", tr("Éditeur de schémas"), QKeySequence());
 	m_wire_numbering->setStatusTip(tr("Como os fios são numerados: ao desenhar e ao reaplicar a numeração do projeto", "status bar tip"));
@@ -1826,10 +1831,11 @@ void QETDiagramEditor::setUpMenu()
 		//toolbar-only and so had no keyboard route at all.
 	wiring_menu -> addAction(m_auto_break_conductor);
 
+		//Homiservi-SCH: the numbering of the project numbers the terminals;
+		//the tools of QElectroTech that do it otherwise go to Manutenção
 	QMenu *terminal_menu = menu_project -> addMenu(QET::Icons::TerminalStrip, tr("Bornes"));
-	terminal_menu -> addAction(m_terminal_strip_dialog);
-	terminal_menu -> addAction(m_project_terminalBloc);
-	terminal_menu -> addAction(m_terminal_numbering);
+	terminal_menu -> addAction(m_terminal_renumber);
+	terminal_menu -> addAction(m_terminal_sheets);
 
 	QMenu *export_menu = menu_project -> addMenu(QET::Icons::DocumentSpreadsheet, tr("Exportar listas"));
 	export_menu -> addAction(m_csv_export);
@@ -1845,7 +1851,10 @@ void QETDiagramEditor::setUpMenu()
 	maintenance_menu -> addAction(m_clean_project);
 	maintenance_menu -> addAction(m_reload_element_drawings);
 	maintenance_menu -> addAction(m_project_wiring_list_view);
-	maintenance_menu -> addSeparator();
+	QMenu *old_terminal_menu = maintenance_menu -> addMenu(QET::Icons::TerminalStrip, tr("Ferramentas de bornes do QElectroTech"));
+	old_terminal_menu -> addAction(m_terminal_numbering);
+	old_terminal_menu -> addAction(m_terminal_strip_dialog);
+	old_terminal_menu -> addAction(m_project_terminalBloc);	maintenance_menu -> addSeparator();
 	maintenance_menu -> addAction(m_project_history);
 	maintenance_menu -> addAction(m_project_compare);
 #ifdef QET_HAS_SCRIPTING
@@ -2450,6 +2459,7 @@ void QETDiagramEditor::showPotentialRules()
 	}
 
 	PotentialRulesDialog dialog(project->potentialRules(), this);
+	dialog.setWiringRules(project->projectWiringRules());
 	if (dialog.exec() != QDialog::Accepted) {
 		return;
 	}
@@ -2457,6 +2467,14 @@ void QETDiagramEditor::showPotentialRules()
 	if (rules != project->potentialRules()) {
 		project->setPotentialRules(rules);
 		project->setModified(true);
+	}
+	const WiringRules::Settings wiring_rules = dialog.wiringRules();
+	if (wiring_rules != project->projectWiringRules()) {
+		const WiringRules::Settings before = project->wiringRules();
+		project->setWiringRules(wiring_rules);
+		project->setModified(true);
+		if (WiringRules::masterEnabled() && WiringRules::turnsRuleOn(before, project->wiringRules()))
+			WiringRulesWarning::show(this);
 	}
 
 	if (dialog.action() == PotentialRulesDialog::ApplyAll)
@@ -2481,7 +2499,7 @@ void QETDiagramEditor::showPotentialRules()
 		} else {
 			delete undo;
 		}
-		QET::QetMessageBox::information(this, tr("Regras de cor e bitola"),
+		QET::QetMessageBox::information(this, tr("Regras de fiação"),
 			changed ? tr("%n fio(s) alterado(s). Ctrl+Z desfaz.", nullptr, changed)
 				: tr("Nenhum fio precisou mudar."));
 	}
@@ -2490,7 +2508,7 @@ void QETDiagramEditor::showPotentialRules()
 		DiagramView *view = currentDiagramView();
 		const QStringList lines = PotentialRules::legend(rules);
 		if (!view || lines.isEmpty()) {
-			QET::QetMessageBox::information(this, tr("Regras de cor e bitola"),
+			QET::QetMessageBox::information(this, tr("Regras de fiação"),
 				!view ? tr("Abra um fólio para inserir a legenda.")
 				      : tr("Nenhuma regra com cor ou seção para a legenda."));
 			return;
@@ -3430,6 +3448,7 @@ void QETDiagramEditor::slot_updateActions()
 	m_add_component_list          -> setEnabled(editable_project);
 	m_terminal_sheets             -> setEnabled(editable_project);
 	m_wire_numbering              -> setEnabled(editable_project);
+	m_terminal_renumber           -> setEnabled(editable_project);
 	m_label_all_wire_ends         -> setEnabled(editable_project);
 	m_add_wiring_list             -> setEnabled(editable_project);
 	m_wiring_check                -> setEnabled(opened_project);

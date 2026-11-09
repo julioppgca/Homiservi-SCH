@@ -26,6 +26,7 @@
 #include <QPainter>
 #include <QPixmap>
 #include <QPushButton>
+#include <QSpinBox>
 #include <QTableWidget>
 #include <QVBoxLayout>
 
@@ -85,6 +86,42 @@ PotentialRulesDialog::PotentialRulesDialog(const PotentialRules::Settings &setti
 				    " as etiquetas já desenhadas."));
 	labels_layout->addWidget(m_end_labels, 1);
 	layout->addLayout(labels_layout);
+
+		//Wires per terminal (WiringRules)
+	auto per_terminal = new QHBoxLayout();
+	m_own_wiring = new QCheckBox(tr("Limite de fios por borne próprio deste projeto:"), this);
+	const WiringRules::Settings application = WiringRules::applicationSettings();
+	m_own_wiring->setToolTip(tr("Desmarcado, valem as regras do aplicativo (Configurações > Geral): %1")
+				 .arg(application.max_wires ? tr("%n fio(s) por borne", nullptr, application.max_wires)
+							    : tr("sem limite")));
+	m_max_wires = new QSpinBox(this);
+	m_max_wires->setRange(0, 99);
+	m_max_wires->setSpecialValueText(tr("Sem limite"));
+	m_max_wires->setToolTip(tr("Um fio novo que passaria deste número num borne é recusado. Os fios já"
+				   " desenhados não mudam; a verificação da fiação aponta os que passam."
+				   " 4 = duas ponteiras duplas, uma de cada lado do parafuso."));
+	m_one_per_report = new QCheckBox(tr("Um só fio por referência de folha"), this);
+	per_terminal->addWidget(m_own_wiring);
+	per_terminal->addWidget(m_max_wires);
+	per_terminal->addWidget(m_one_per_report);
+	per_terminal->addStretch();
+	layout->addLayout(per_terminal);
+	if (!WiringRules::masterEnabled()) {
+		auto off = new QLabel(tr("<i>Os limites de fios por borne estão desligados para todos os projetos"
+					 " (Configurações > Geral).</i>"), this);
+		off->setWordWrap(true);
+		layout->addWidget(off);
+	}
+	connect(m_own_wiring, &QCheckBox::toggled, this, [this](bool own) {
+		if (!own) {
+			const WiringRules::Settings app = WiringRules::applicationSettings();
+			m_max_wires->setValue(app.max_wires);
+			m_one_per_report->setChecked(app.one_wire_per_report);
+		}
+		m_max_wires->setEnabled(own);
+		m_one_per_report->setEnabled(own);
+	});
+	setWiringRules(WiringRules::Settings());
 
 	auto rules_title = new QLabel(tr("<b>Cor e bitola</b>"), this);
 	layout->addWidget(rules_title);
@@ -236,4 +273,29 @@ void PotentialRulesDialog::closeWith(Action action)
 {
 	m_action = action;
 	accept();
+}
+
+void PotentialRulesDialog::setWiringRules(const WiringRules::Settings &rules)
+{
+	const WiringRules::Settings shown = rules.own ? rules : WiringRules::applicationSettings();
+	m_own_wiring->setChecked(rules.own);
+	m_max_wires->setValue(shown.max_wires);
+	m_one_per_report->setChecked(shown.one_wire_per_report);
+	m_max_wires->setEnabled(rules.own);
+	m_one_per_report->setEnabled(rules.own);
+}
+
+/**
+	@return the wires per terminal as edited: following the application's
+	rules stores nothing in the project
+*/
+WiringRules::Settings PotentialRulesDialog::wiringRules() const
+{
+	WiringRules::Settings rules;
+	if (m_own_wiring->isChecked()) {
+		rules.own = true;
+		rules.max_wires = m_max_wires->value();
+		rules.one_wire_per_report = m_one_per_report->isChecked();
+	}
+	return rules;
 }

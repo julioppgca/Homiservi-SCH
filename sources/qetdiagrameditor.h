@@ -221,6 +221,7 @@ class QETDiagramEditor : public QETMainWindow
 		*m_label_all_wire_ends = nullptr, ///< The end labels of every wire of the project
 		*m_wire_numbering = nullptr,      ///< The numbering of the wires (ProjectNumberingDialog)
 		*m_wiring_check = nullptr,        ///< What is left to do on the wires (WiringCheckDialog)
+		*m_terminal_renumber = nullptr,   ///< The numbering of the terminals (ProjectNumberingDialog)
 		*m_add_wiring_list = nullptr,     ///< A wiring list on a folio (ProjectIndex::Wires)
 		*m_cut,                     ///< Cut selection to clipboard
 		*m_copy,                    ///< Copy selection to clipboard
