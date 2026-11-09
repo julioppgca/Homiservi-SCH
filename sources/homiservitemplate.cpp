@@ -18,11 +18,11 @@
 #include "homiservitemplate.h"
 
 #include "dataBase/ui/elementquerywidget.h"
-#include "dataBase/ui/summaryquerywidget.h"
 #include "diagram.h"
 #include "factory/qetgraphicstablefactory.h"
 #include "factory/ui/addtabledialog.h"
 #include "potentialrules.h"
+#include "projectindex.h"
 #include "projectrevisions.h"
 #include "projectvariants.h"
 #include "properties/elementdata.h"
@@ -35,6 +35,7 @@
 
 #include <QCoreApplication>
 #include <QFile>
+#include <QTextStream>
 #include <QUuid>
 
 const QString HomiserviTemplate::TitleBlockName = QStringLiteral("Homiservi_Legenda");
@@ -71,7 +72,23 @@ namespace {
 	{
 		TitleBlockTemplatesProjectCollection *collection = project->embeddedTitleBlockTemplatesCollection();
 		if (collection->templates().contains(name))
+		{
+				//The first Homiservi title block showed the position of
+				//the folio (4/9), not its number (01.04, %{folio}): only
+				//that cell is brought up to date, any other change made to
+				//the embedded title block stays
+			const QString old_cell = QStringLiteral("%{folio-id}/%{folio-total}");
+			QDomElement description = collection->getTemplateXmlDescription(name);
+			QString xml;
+			QTextStream stream(&xml);
+			description.save(stream, 0);
+			if (xml.contains(old_cell)) {
+				QDomDocument document;
+				if (document.setContent(xml.replace(old_cell, QStringLiteral("%{folio}"))))
+					collection->setTemplateXmlDescription(name, document.documentElement());
+			}
 			return;
+		}
 		QFile file(QStringLiteral(":/ico/homiservi/%1.titleblock").arg(name));
 		QDomDocument document;
 		if (file.open(QIODevice::ReadOnly) && document.setContent(&file))
@@ -384,24 +401,24 @@ void HomiserviTemplate::createFolios(QETProject *project, const Data &data, cons
 	}
 	if (folios.contents)
 	{
-		Diagram *diagram = project->addNewDiagram();
-		setTitle(diagram, tr("Índice"));
+			//The two indexes (ProjectIndex): the sections, then the folios
+			//grouped by section; they follow the project as it changes
+		Diagram *sections = project->addNewDiagram();
+		setTitle(sections, ProjectIndex::defaultName(ProjectIndex::Sections));
 		if (!folios.cover)
 			start_section(tr("Geral"));
-		auto query = new SummaryQueryWidget();
-		if (data.layout == Revisions)
-		{
-			query->setQuery(QStringLiteral("SELECT title AS \"%1\", folio AS \"%2\", indexrev AS \"%3\","
-						       " COALESCE(NULLIF(variant, ''), '%4') AS \"%5\""
-						       " FROM project_summary_view ORDER BY pos")
-					.arg(tr("Assunto"), tr("Folha"), tr("Ed."), ProjectVariants::Standard,
-					     tr("Tipo")));
-			addVariantLegend(diagram);
-		}
-		else
-			query->setQuery(QStringLiteral("SELECT folio, title, plant, locmach, indexrev, date"
-						       " FROM project_summary_view ORDER BY pos"));
-		addTable(diagram, query, tr("Índice"));
+		ProjectIndex::insert(sections, ProjectIndex::query(ProjectIndex::Sections,
+				     ProjectIndex::defaultColumns(ProjectIndex::Sections)),
+				     ProjectIndex::defaultName(ProjectIndex::Sections), true, false);
+
+		Diagram *folio_index = project->addNewDiagram();
+		setTitle(folio_index, ProjectIndex::defaultName(ProjectIndex::Folios));
+		const bool revisions = data.layout == Revisions;
+		ProjectIndex::insert(folio_index, ProjectIndex::query(ProjectIndex::Folios,
+				     ProjectIndex::defaultColumns(ProjectIndex::Folios, revisions), true),
+				     ProjectIndex::defaultName(ProjectIndex::Folios), true, false);
+		if (revisions)
+			addVariantLegend(folio_index);
 	}
 	for (const QString &title : folios.schematics)
 	{
