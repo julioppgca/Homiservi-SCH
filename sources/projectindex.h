@@ -34,11 +34,13 @@ class QETProject;
 	- the section index: code, name, first to last folio, folio count
 	  (project_sections_view);
 	- the list of revisions: edition, modification, folios changed, by,
-	  approved, date (project_revision, see ProjectRevisions).
+	  approved, date (project_revision, see ProjectRevisions);
+	- the wiring list: number, from, to, colour, section, cable, folio...
+	  (project_wire, see WiringList).
 */
 namespace ProjectIndex
 {
-	enum Kind { Folios, Sections, Revisions };
+	enum Kind { Folios, Sections, Revisions, Wires };
 
 	struct Column
 	{

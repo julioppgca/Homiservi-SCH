@@ -52,6 +52,7 @@ class ElementPickerPopup;
 class CommandSearchPopup;
 class AutoNumberingDockWidget;
 class TerminalNumberingDialog;
+class WiringCheckDialog;
 
 class KAutoSaveFile;
 /**
@@ -219,6 +220,8 @@ class QETDiagramEditor : public QETMainWindow
 		*m_conductor_numerate_ends, ///< Numerate cross-reference end labels of every conductor on the page
 		*m_label_all_wire_ends = nullptr, ///< The end labels of every wire of the project
 		*m_wire_numbering = nullptr,      ///< The numbering of the wires (ProjectNumberingDialog)
+		*m_wiring_check = nullptr,        ///< What is left to do on the wires (WiringCheckDialog)
+		*m_add_wiring_list = nullptr,     ///< A wiring list on a folio (ProjectIndex::Wires)
 		*m_cut,                     ///< Cut selection to clipboard
 		*m_copy,                    ///< Copy selection to clipboard
 		*m_paste_element_info,      ///< Copy the information of the copied element onto the selected elements (#1375)
@@ -394,6 +397,7 @@ class QETDiagramEditor : public QETMainWindow
 		AutoNumberingDockWidget *m_autonumbering_dock;
 		class ProjectDiffDock *m_project_diff_dock = nullptr;
 		class WiringEditorDock *m_wiring_editor_dock = nullptr;
+		QPointer<WiringCheckDialog> m_wiring_check_dialog;
 		int activeSubWindowIndex;
 		SearchAndReplaceWidget m_search_and_replace_widget;
 };

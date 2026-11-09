@@ -107,6 +107,7 @@
 #include "TerminalStrip/ui/addterminalstripitemdialog.h"
 #include "wiringlistexport.h"
 #include "wiringlist.h"
+#include "ui/wiringcheckdialog.h"
 #include "conductorendlabeling.h"
 #include "ui/wiringlistdialog.h"
 #include "ui/terminalnumberingdialog.h"
@@ -795,6 +796,32 @@ void QETDiagramEditor::setUpActions()
 	ShortcutManager::instance().registerAction(m_project_renumber, "diagrameditor.project_renumber", tr("Éditeur de schémas"), QKeySequence());
 	m_project_renumber->setStatusTip(tr("Mostra o que muda e aplica de novo a numeração do projeto", "status bar tip"));
 	connect(m_project_renumber, &QAction::triggered, this, [this]() { showProjectNumbering(true); });
+	m_wiring_check = new QAction(QET::Icons::DialogInformation, tr("Verificar fiação..."), this);
+	ShortcutManager::instance().registerAction(m_wiring_check, "diagrameditor.wiring_check", tr("Éditeur de schémas"), QKeySequence());
+	m_wiring_check->setStatusTip(tr("O que falta nos fios: sem número, números repetidos, sem cor ou seção, bornes acima do limite, etiquetas fora da regra", "status bar tip"));
+	connect(m_wiring_check, &QAction::triggered, this, [this]() {
+		QETProject *project = currentProject();
+		if (!project) return;
+		if (!m_wiring_check_dialog) {
+			m_wiring_check_dialog = new WiringCheckDialog(project, this);
+			m_wiring_check_dialog->setAttribute(Qt::WA_DeleteOnClose);
+		} else {
+			m_wiring_check_dialog->setProject(project);
+		}
+		m_wiring_check_dialog->show();
+		m_wiring_check_dialog->raise();
+		m_wiring_check_dialog->activateWindow();
+	});
+	m_add_wiring_list = new QAction(QET::Icons::TableOfContent, tr("Adicionar lista de fiação..."), this);
+	ShortcutManager::instance().registerAction(m_add_wiring_list, "diagrameditor.add_wiring_list", tr("Éditeur de schémas"), QKeySequence());
+	m_add_wiring_list->setStatusTip(tr("Uma folha com a lista de fiação: número, origem, destino, cor, seção e cabo de cada fio, que acompanha o desenho", "status bar tip"));
+	connect(m_add_wiring_list, &QAction::triggered, this, [this]() {
+		DiagramView *view = currentDiagramView();
+		if (!view || !view->diagram() || view->diagram()->isReadOnly()) return;
+		QSettings().setValue(QStringLiteral("homiservi/index/kind"), int(ProjectIndex::Wires));
+		ProjectIndexDialog dialog(view->diagram(), this);
+		dialog.exec();
+	});
 	m_wire_numbering = new QAction(tr("Numeração dos fios..."), this);
 	ShortcutManager::instance().registerAction(m_wire_numbering, "diagrameditor.wire_numbering", tr("Éditeur de schémas"), QKeySequence());
 	m_wire_numbering->setStatusTip(tr("Como os fios são numerados: ao desenhar e ao reaplicar a numeração do projeto", "status bar tip"));
@@ -828,8 +855,9 @@ void QETDiagramEditor::setUpActions()
 	connect(m_wiring_editor, &QAction::triggered, this, [this](bool checked) {
 		if (!m_wiring_editor_dock) {
 			m_wiring_editor_dock = new WiringEditorDock(this);
-			m_wiring_editor_dock->addTools({m_potential_rules, m_wire_numbering, m_label_all_wire_ends,
-							m_project_print_wire_tags, m_project_export_wire_tags_csv});
+			m_wiring_editor_dock->addTools({m_potential_rules, m_wire_numbering, m_wiring_check,
+							m_label_all_wire_ends, m_project_print_wire_tags,
+							m_project_export_wire_tags_csv});
 			addDockWidget(Qt::BottomDockWidgetArea, m_wiring_editor_dock);
 			connect(m_wiring_editor_dock, &QDockWidget::visibilityChanged,
 				m_wiring_editor, &QAction::setChecked);
@@ -1763,6 +1791,7 @@ void QETDiagramEditor::setUpMenu()
 	generated_menu -> addAction(m_add_nomenclature);
 	generated_menu -> addAction(m_add_component_list);
 	generated_menu -> addSeparator();
+	generated_menu -> addAction(m_add_wiring_list);
 	generated_menu -> addAction(m_terminal_sheets);
 	generated_menu -> addAction(m_io_maps);
 	menu_project -> addSeparator();
@@ -1782,7 +1811,8 @@ void QETDiagramEditor::setUpMenu()
 	wiring_menu -> addAction(m_wire_numbering);
 	wiring_menu -> addSeparator();
 	wiring_menu -> addAction(m_wiring_editor);
-	wiring_menu -> addAction(m_project_wiring_list_view);
+	wiring_menu -> addAction(m_wiring_check);
+	wiring_menu -> addAction(m_add_wiring_list);
 	wiring_menu -> addSeparator();
 	wiring_menu -> addAction(m_conductor_numerate_ends);
 	wiring_menu -> addAction(m_label_all_wire_ends);
@@ -1814,6 +1844,7 @@ void QETDiagramEditor::setUpMenu()
 	QMenu *maintenance_menu = menu_project -> addMenu(QET::Icons::EditClear, tr("Manutenção"));
 	maintenance_menu -> addAction(m_clean_project);
 	maintenance_menu -> addAction(m_reload_element_drawings);
+	maintenance_menu -> addAction(m_project_wiring_list_view);
 	maintenance_menu -> addSeparator();
 	maintenance_menu -> addAction(m_project_history);
 	maintenance_menu -> addAction(m_project_compare);
@@ -3398,9 +3429,15 @@ void QETDiagramEditor::slot_updateActions()
 	m_project_renumber            -> setEnabled(editable_project);
 	m_add_component_list          -> setEnabled(editable_project);
 	m_terminal_sheets             -> setEnabled(editable_project);
+	m_wire_numbering              -> setEnabled(editable_project);
+	m_label_all_wire_ends         -> setEnabled(editable_project);
+	m_add_wiring_list             -> setEnabled(editable_project);
+	m_wiring_check                -> setEnabled(opened_project);
 	m_io_maps                     -> setEnabled(editable_project);
 	if (m_wiring_editor_dock && m_wiring_editor_dock->isVisible())
 		m_wiring_editor_dock->setProject(currentProject());
+	if (m_wiring_check_dialog && m_wiring_check_dialog->isVisible())
+		m_wiring_check_dialog->setProject(currentProject());
 	m_add_summary                 -> setEnabled(editable_project);
 	m_add_index                   -> setEnabled(editable_project);
 	m_add_nomenclature            -> setEnabled(editable_project);
