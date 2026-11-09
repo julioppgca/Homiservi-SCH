@@ -36,7 +36,8 @@
 
 #include <QCoreApplication>
 #include <QFile>
-#include <QTextStream>
+
+#include <functional>
 #include <QUuid>
 
 const QString HomiserviTemplate::TitleBlockName = QStringLiteral("Homiservi_Legenda");
@@ -92,15 +93,32 @@ namespace {
 				//that cell is brought up to date, any other change made to
 				//the embedded title block stays
 			const QString old_cell = QStringLiteral("%{folio-id}/%{folio-total}");
-			QDomElement description = collection->getTemplateXmlDescription(name);
-			QString xml;
-			QTextStream stream(&xml);
-			description.save(stream, 0);
-			if (xml.contains(old_cell)) {
-				QDomDocument document;
-				if (document.setContent(xml.replace(old_cell, QStringLiteral("%{folio}"))))
-					collection->setTemplateXmlDescription(name, document.documentElement());
-			}
+				//The description of a project read from its file belongs to
+				//the document of that file, gone once the project is read:
+				//its nodes can be read, not saved nor changed. Look for the
+				//old cell by reading, then change a copy of it.
+			std::function<bool(const QDomNode &, bool)> visit = [&](const QDomNode &node, bool change) {
+				bool found = false;
+				for (QDomNode child = node.firstChild(); !child.isNull(); child = child.nextSibling()) {
+					if (child.isText() && child.nodeValue().contains(old_cell)) {
+						found = true;
+						if (change) {
+							QString text = child.nodeValue();
+							child.setNodeValue(text.replace(old_cell, QStringLiteral("%{folio}")));
+						}
+					}
+					found |= visit(child, change);
+				}
+				return found;
+			};
+			const QDomElement description = collection->getTemplateXmlDescription(name);
+			if (description.isNull() || !visit(description, false))
+				return;
+			QDomDocument document;
+			QDomElement copy = document.importNode(description, true).toElement();
+			document.appendChild(copy);
+			visit(copy, true);
+			collection->setTemplateXmlDescription(name, copy);
 			return;
 		}
 		QFile file(QStringLiteral(":/ico/homiservi/%1.titleblock").arg(name));
