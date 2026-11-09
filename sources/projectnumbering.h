@@ -218,6 +218,11 @@ namespace ProjectNumbering
 						 const QList<ComponentInfo> &components,
 						 TagScope scope);
 	Settings importFrom(const QList<FolioInfo> &folios, const QStringList &texts);
+
+		///A cross reference or folio report format giving the position of
+		///the folio (%f: 8-E9) rather than its number (%F: 02.04-E9)
+	bool usesFolioPosition(const QString &format);
+	QString withFolioNumber(const QString &format);
 }
 
 #endif

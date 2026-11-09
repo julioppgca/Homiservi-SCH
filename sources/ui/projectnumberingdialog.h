@@ -139,6 +139,8 @@ class ProjectNumberingDialog : public QDialog
 		QSpinBox *m_section_digits = nullptr;
 		QSpinBox *m_page_digits = nullptr;
 		QCheckBox *m_strip_titles = nullptr;
+		QCheckBox *m_folio_references = nullptr;
+		bool referencesChange() const;
 		QCheckBox *m_group = nullptr;
 		QLabel *m_summary = nullptr;
 		QLabel *m_revision_warning = nullptr;

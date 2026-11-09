@@ -360,6 +360,15 @@ class tst_projectnumbering : public QObject
 				 QStringList({"02.04-3a", "02.04-3b", "02.04-4a", "02.04-4b"}));
 		}
 
+		void referencesWithTheFolioNumber()
+		{
+			QVERIFY(usesFolioPosition(QStringLiteral("%f.%l%c")));
+			QVERIFY(usesFolioPosition(QStringLiteral("(%f-%l%c)")));
+			QVERIFY(!usesFolioPosition(QStringLiteral("%F-%l%c")));
+			QCOMPARE(withFolioNumber(QStringLiteral("(%f-%l%c)")), QStringLiteral("(%F-%l%c)"));
+			QCOMPARE(withFolioNumber(QStringLiteral("%F-%l%c")), QStringLiteral("%F-%l%c"));
+		}
+
 		void xmlRoundTrip()
 		{
 			Settings s = twoSections();

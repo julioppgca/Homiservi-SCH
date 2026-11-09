@@ -42,9 +42,29 @@ void ProjectNumberingCommand::addTitleBlock(Diagram *diagram,
 	m_title_blocks << TitleBlockChange {diagram, old_properties, new_properties};
 }
 
+/**
+	@brief ProjectNumberingCommand::setReferences
+	The cross references and folio reports change too, from old_xrefs and
+	old_report to new_xrefs and new_report
+*/
+void ProjectNumberingCommand::setReferences(const QHash<QString, XRefProperties> &old_xrefs,
+					    const QHash<QString, XRefProperties> &new_xrefs,
+					    const QString &old_report, const QString &new_report)
+{
+	m_references = true;
+	m_old_xrefs = old_xrefs;
+	m_new_xrefs = new_xrefs;
+	m_old_report = old_report;
+	m_new_report = new_report;
+}
+
 void ProjectNumberingCommand::undo()
 {
 	if (!m_project) return;
+	if (m_references) {
+		m_project->setDefaultXRefProperties(m_old_xrefs);
+		m_project->setDefaultReportProperties(m_old_report);
+	}
 		//First: a title block given back asks for the folio data, which
 		//numbers the folios by the settings of the project
 	m_project->setNumbering(m_old_settings);
@@ -61,5 +81,9 @@ void ProjectNumberingCommand::redo()
 	for (const TitleBlockChange &change : std::as_const(m_title_blocks))
 		if (change.diagram)
 			change.diagram->border_and_titleblock.importTitleBlock(change.new_properties);
+	if (m_references) {
+		m_project->setDefaultXRefProperties(m_new_xrefs);
+		m_project->setDefaultReportProperties(m_new_report);
+	}
 	m_project->setModified(true);
 }

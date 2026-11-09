@@ -23,6 +23,7 @@
 #include "../qetgraphicsitem/element.h"
 #include "../qetgraphicsitem/independenttextitem.h"
 #include "../qetproject.h"
+#include "../properties/xrefproperties.h"
 #include "../projectview.h"
 #include "../QPropertyUndoCommand/qpropertyundocommand.h"
 #include "../undocommand/changeelementinformationcommand.h"
@@ -209,6 +210,16 @@ bool ProjectNumberingDialog::validSections()
 }
 
 /**
+	@return the cross references and folio reports go from the position of
+	the folio to its number when applying
+*/
+bool ProjectNumberingDialog::referencesChange() const
+{
+	return m_settings.enabled && m_folio_references && !m_folio_references->isHidden()
+			&& m_folio_references->isChecked();
+}
+
+/**
 	@return the sections without any folio, which get one when applying
 	(when asked)
 */
@@ -276,7 +287,7 @@ bool ProjectNumberingDialog::apply()
 
 		//Nothing to change: no empty step in the undo history
 	if (missingSections().isEmpty()) {
-		bool changes = settings() != m_project->numbering()
+		bool changes = settings() != m_project->numbering() || referencesChange()
 				|| !componentChanges().isEmpty() || !wireChanges().isEmpty();
 		const QList<Diagram *> diagrams = m_project->diagrams();
 		const QList<int> new_order = order();
@@ -328,7 +339,17 @@ bool ProjectNumberingDialog::apply()
 		if (new_properties != old_properties)
 			command->addTitleBlock(diagram, old_properties, new_properties);
 	}
-	if (command->titleBlockCount() || new_settings != m_project->numbering())
+	if (referencesChange()) {
+		const QHash<QString, XRefProperties> old_xrefs = m_project->defaultXRefProperties();
+		QHash<QString, XRefProperties> new_xrefs = old_xrefs;
+		for (auto it = new_xrefs.begin(); it != new_xrefs.end(); ++it) {
+			it->setMasterLabel(ProjectNumbering::withFolioNumber(it->masterLabel()));
+			it->setSlaveLabel(ProjectNumbering::withFolioNumber(it->slaveLabel()));
+		}
+		const QString old_report = m_project->defaultReportProperties();
+		command->setReferences(old_xrefs, new_xrefs, old_report, ProjectNumbering::withFolioNumber(old_report));
+	}
+	if (command->titleBlockCount() || new_settings != m_project->numbering() || referencesChange())
 		undo->push(command);
 	else
 		delete command;
@@ -521,6 +542,17 @@ QWidget *ProjectNumberingDialog::foliosPage()
 	m_strip_titles = new QCheckBox(tr("Tirar o número do começo dos títulos "
 					  "(\"02.04 – Fonte 24 Vcc\" vira \"Fonte 24 Vcc\")"), page);
 
+		//A reference giving the position of the folio (8-E9) says nothing
+		//once the folios are numbered by section
+	bool position_references = ProjectNumbering::usesFolioPosition(m_project->defaultReportProperties());
+	for (const XRefProperties &xref : m_project->defaultXRefProperties())
+		position_references |= ProjectNumbering::usesFolioPosition(xref.masterLabel())
+				|| ProjectNumbering::usesFolioPosition(xref.slaveLabel());
+	m_folio_references = new QCheckBox(tr("Referências cruzadas e renvois de folha mostram o número da folha"
+					      " (02.04-E9), não a posição dela no projeto (8-E9)"), page);
+	m_folio_references->setChecked(true);
+	m_folio_references->setVisible(position_references);
+
 	m_enabled->setChecked(m_settings.enabled);
 	m_format->setCurrentIndex(m_settings.format == ProjectNumbering::Sequential
 				  ? 3 : qMax(0, int(format_keys.indexOf(m_settings.separator))));
@@ -548,6 +580,7 @@ QWidget *ProjectNumberingDialog::foliosPage()
 	form->addRow(tr("Formato:"), m_format);
 	form->addRow(digits);
 	form->addRow(m_strip_titles);
+	form->addRow(m_folio_references);
 
 	m_folios_table = new QTableWidget(0, 4, page);
 	m_folios_table->setHorizontalHeaderLabels({tr("Folha"), tr("Título"), tr("Seção"), tr("Novo número")});
@@ -1196,6 +1229,8 @@ void ProjectNumberingDialog::fillPreview()
 				? tr(" Os números dos fios vão para perto do componente onde o fio começa.")
 				: tr(" Os números dos fios voltam para o meio do fio.");
 
+	if (referencesChange())
+		tags_text += tr(" As referências cruzadas e os renvois passam a mostrar o número da folha.");
 	const QStringList missing = missingSections();
 	if (!missing.isEmpty()) {
 		QStringList names;
@@ -1208,7 +1243,7 @@ void ProjectNumberingDialog::fillPreview()
 		m_summary->setText(tr("A numeração automática das folhas está desligada: as seções ficam guardadas "
 				      "no projeto e os números das folhas não mudam.") + tags_text);
 	else if (!numbers && !titles_changed && !moved && changed.isEmpty() && wires_changed.isEmpty() && !text_moves
-		 && missing.isEmpty())
+		 && missing.isEmpty() && !referencesChange())
 		m_summary->setText(tr("Nada muda: as %1 folhas e os componentes já estão numerados assim.")
 				   .arg(new_order.size()));
 	else

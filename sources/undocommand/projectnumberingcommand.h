@@ -19,7 +19,10 @@
 #define PROJECTNUMBERINGCOMMAND_H
 
 #include "../projectnumbering.h"
+#include "../properties/xrefproperties.h"
 #include "../titleblockproperties.h"
+
+#include <QHash>
 
 #include <QList>
 #include <QPointer>
@@ -46,6 +49,9 @@ class ProjectNumberingCommand : public QUndoCommand
 		void addTitleBlock(Diagram *diagram, const TitleBlockProperties &old_properties,
 				   const TitleBlockProperties &new_properties);
 		int titleBlockCount() const {return int(m_title_blocks.size());}
+		void setReferences(const QHash<QString, XRefProperties> &old_xrefs,
+				   const QHash<QString, XRefProperties> &new_xrefs,
+				   const QString &old_report, const QString &new_report);
 
 		void undo() override;
 		void redo() override;
@@ -62,6 +68,9 @@ class ProjectNumberingCommand : public QUndoCommand
 		ProjectNumbering::Settings m_old_settings;
 		ProjectNumbering::Settings m_new_settings;
 		QList<TitleBlockChange> m_title_blocks;
+		bool m_references = false;
+		QHash<QString, XRefProperties> m_old_xrefs, m_new_xrefs;
+		QString m_old_report, m_new_report;
 };
 
 #endif

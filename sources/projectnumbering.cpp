@@ -656,3 +656,25 @@ QHash<QString, QString> ProjectNumbering::wireNumbers(const Settings &settings,
 	}
 	return result;
 }
+
+/**
+	@brief ProjectNumbering::usesFolioPosition
+	@return true if the cross reference or folio report format shows the
+	position of the folio in the project (%f), which is not its number once
+	the folios are numbered by section
+*/
+bool ProjectNumbering::usesFolioPosition(const QString &format)
+{
+	return format.contains(QLatin1String("%f"));
+}
+
+/**
+	@brief ProjectNumbering::withFolioNumber
+	@return format with the number of the folio (%F, 02.04-E9) where it has
+	its position (%f, 8-E9)
+*/
+QString ProjectNumbering::withFolioNumber(const QString &format)
+{
+	QString result = format;
+	return result.replace(QLatin1String("%f"), QLatin1String("%F"));
+}

@@ -68,6 +68,19 @@ namespace {
 		return border;
 	}
 
+		///The cross references and folio reports of project show the
+		///number of the folio (%F, 02.04-E9), not its position (%f, 8-E9)
+	void useFolioNumbers(QETProject *project)
+	{
+		QHash<QString, XRefProperties> xrefs = project->defaultXRefProperties();
+		for (auto it = xrefs.begin(); it != xrefs.end(); ++it) {
+			it->setMasterLabel(ProjectNumbering::withFolioNumber(it->masterLabel()));
+			it->setSlaveLabel(ProjectNumbering::withFolioNumber(it->slaveLabel()));
+		}
+		project->setDefaultXRefProperties(xrefs);
+		project->setDefaultReportProperties(ProjectNumbering::withFolioNumber(project->defaultReportProperties()));
+	}
+
 	void embedTitleBlock(QETProject *project, const QString &name)
 	{
 		TitleBlockTemplatesProjectCollection *collection = project->embeddedTitleBlockTemplatesCollection();
@@ -320,14 +333,23 @@ void HomiserviTemplate::prepare(QETProject *project, Layout layout, bool styles)
 			if (diagram->border_and_titleblock.exportBorder() != border)
 				diagram->border_and_titleblock.importBorder(border);
 
+			//The references written folio.rowcolumn, with the number of the
+			//folio when the folios are numbered by section; a format that
+			//already gives the number of the folio (%F) is the project's
+			//own and stays
+		const QString reference = project->numbering().enabled
+				? ProjectNumbering::withFolioNumber(revisions_reference) : revisions_reference;
 		QHash<QString, XRefProperties> xrefs = project->defaultXRefProperties();
 		for (auto it = xrefs.begin(); it != xrefs.end(); ++it)
 		{
-			it->setMasterLabel(revisions_reference);
-			it->setSlaveLabel(revisions_reference);
+			if (!it->masterLabel().contains(QLatin1String("%F")))
+				it->setMasterLabel(reference);
+			if (!it->slaveLabel().contains(QLatin1String("%F")))
+				it->setSlaveLabel(reference);
 		}
 		project->setDefaultXRefProperties(xrefs);
-		project->setDefaultReportProperties(revisions_reference);
+		if (!project->defaultReportProperties().contains(QLatin1String("%F")))
+			project->setDefaultReportProperties(reference);
 		ProjectRevisions::ensureTable(project);
 	}
 
@@ -462,8 +484,10 @@ void HomiserviTemplate::createFolios(QETProject *project, const Data &data, cons
 	}
 	apply(project, data);
 		//Last: it numbers every folio
-	if (folios.numbering)
+	if (folios.numbering) {
 		project->setNumbering(settings);
+		useFolioNumbers(project);
+	}
 }
 
 /**

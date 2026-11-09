@@ -209,5 +209,16 @@ void ProjectIndex::insert(Diagram *diagram, const QString &query, const QString 
 	dialog.setTableName(name);
 	dialog.setAdjustTableToFolio(adjust_to_folio);
 	dialog.setAddNewTableToNewDiagram(more_folios);
+	QETProject *project = diagram->project();
+	const QList<Diagram *> before = project->diagrams();
 	QetGraphicsTableFactory::create(diagram, &dialog);
+
+		//The folios the rows that did not fit went on: "Índice de folhas (2)"
+	int number = 1;
+	for (Diagram *folio : project->diagrams()) {
+		if (before.contains(folio)) continue;
+		TitleBlockProperties properties = folio->border_and_titleblock.exportTitleBlock();
+		properties.title = QStringLiteral("%1 (%2)").arg(name).arg(++number);
+		folio->border_and_titleblock.importTitleBlock(properties);
+	}
 }
