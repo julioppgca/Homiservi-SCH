@@ -77,6 +77,7 @@ class ProjectIndexDialog : public QDialog
 		QPushButton *m_advanced = nullptr;
 		QRadioButton *m_folios = nullptr;
 		QRadioButton *m_sections = nullptr;
+		QRadioButton *m_revisions = nullptr;
 		QListWidget *m_columns = nullptr;
 		QCheckBox *m_grouped = nullptr;
 		QCheckBox *m_adjust = nullptr;

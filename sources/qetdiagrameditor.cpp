@@ -26,6 +26,7 @@
 #include "ui/textstylesdialog.h"
 #include "ui/homiserviprojectwizard.h"
 #include "ui/projectindexdialog.h"
+#include "undocommand/projectrevisionscommand.h"
 #include "ui/projectnumberingdialog.h"
 #include "ui/projectrevisionsdialog.h"
 #include "projectvariants.h"
@@ -2032,9 +2033,13 @@ void QETDiagramEditor::showProjectRevisions()
 	if (!project || project->isReadOnly()) {
 		return;
 	}
-	ProjectRevisionsDialog dialog(ProjectRevisions::read(project), this);
+	DiagramView *view = currentDiagramView();
+	ProjectRevisionsDialog dialog(project, view ? view->diagram() : nullptr, this);
 	if (dialog.exec() == QDialog::Accepted) {
-		ProjectRevisions::write(project, dialog.revisions());
+		const QList<ProjectRevisions::Revision> revisions = dialog.revisions();
+		if (revisions != project->revisions() || !project->projectProperties()
+			    .contains(QStringLiteral("rev%1_ed").arg(ProjectRevisions::TableRows)))
+			project->undoStack()->push(new ProjectRevisionsCommand(project, revisions));
 	}
 }
 

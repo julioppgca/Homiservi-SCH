@@ -1857,6 +1857,7 @@ QDomDocument QETProject::toXml()
 	writePotentialRulesXml(project_root);
 	writeTextStylesXml(project_root);
 	writeNumberingXml(project_root);
+	writeRevisionsXml(project_root);
 
 	// Properties for news diagrams
 	QDomElement new_diagrams_properties = xml_doc.createElement("newdiagrams");
@@ -2372,6 +2373,7 @@ void QETProject::readProjectXml(QDomDocument &xml_project)
 	readPotentialRulesXml(xml_project);
 	readTextStylesXml(xml_project);
 	readNumberingXml(xml_project);
+	readRevisionsXml(xml_project);
 
 		//Load the default properties for the new diagrams
 	readDefaultPropertiesXml(xml_project);
@@ -2602,6 +2604,21 @@ void QETProject::readWiringRulesXml(QDomDocument &xml_project)
 void QETProject::readTextStylesXml(QDomDocument &xml_project)
 {
 	m_text_styles = TextStyles::fromXml(xml_project.documentElement());
+}
+
+/**
+	@brief QETProject::readRevisionsXml
+	Read the revisions (<project_revisions>); a project saved before has
+	them as project properties (rev1_ed...), read as revisions of every
+	folio. Called after the project properties are read.
+	@param xml_project : the xml description of the project
+*/
+void QETProject::readRevisionsXml(QDomDocument &xml_project)
+{
+	bool found = false;
+	m_revisions = ProjectRevisions::fromXml(xml_project.documentElement(), &found);
+	if (!found)
+		m_revisions = ProjectRevisions::readLegacy(this);
 }
 
 /**
@@ -2839,6 +2856,17 @@ void QETProject::writeWiringRulesXml(QDomElement &xml_element)
 void QETProject::writeTextStylesXml(QDomElement &xml_element)
 {
 	TextStyles::toXml(m_text_styles, xml_element);
+}
+
+/**
+	@brief QETProject::writeRevisionsXml
+	Export the revisions as a <project_revisions> child of xml_element,
+	only when there is one
+*/
+void QETProject::writeRevisionsXml(QDomElement &xml_element)
+{
+	if (!m_revisions.isEmpty())
+		ProjectRevisions::toXml(m_revisions, xml_element);
 }
 
 /**

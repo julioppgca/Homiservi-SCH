@@ -66,6 +66,13 @@ namespace
 */
 QList<ProjectIndex::Column> ProjectIndex::columns(Kind kind)
 {
+	if (kind == Revisions)
+		return {{QStringLiteral("edition"), tr("Ed.")},
+			{QStringLiteral("description"), tr("Modificação")},
+			{QStringLiteral("folios"), tr("Folhas")},
+			{QStringLiteral("modified_by"), tr("Modificado por")},
+			{QStringLiteral("approved_by"), tr("Aprovado por")},
+			{QStringLiteral("date"), tr("Data")}};
 	if (kind == Sections)
 		return {{QStringLiteral("code"), tr("Código")},
 			{QStringLiteral("name"), tr("Seção")},
@@ -88,6 +95,11 @@ QList<ProjectIndex::Column> ProjectIndex::columns(Kind kind)
 */
 QStringList ProjectIndex::defaultColumns(Kind kind, bool revisions)
 {
+	if (kind == Revisions) {
+		QStringList keys;
+		for (const Column &column : columns(kind)) keys << column.key;
+		return keys;
+	}
 	if (kind == Sections)
 		return {QStringLiteral("code"), QStringLiteral("name"), QStringLiteral("folios"),
 			QStringLiteral("folio_count")};
@@ -107,7 +119,8 @@ QString ProjectIndex::columnTitle(Kind kind, const QString &key)
 
 QString ProjectIndex::defaultName(Kind kind)
 {
-	return kind == Sections ? tr("Índice de seções") : tr("Índice de folhas");
+	return kind == Sections ? tr("Índice de seções")
+				: kind == Revisions ? tr("Lista de revisões") : tr("Índice de folhas");
 }
 
 /**
@@ -119,6 +132,13 @@ QString ProjectIndex::defaultName(Kind kind)
 */
 QString ProjectIndex::query(Kind kind, const QStringList &keys, bool grouped)
 {
+	if (kind == Revisions) {
+		QStringList select;
+		for (const QString &key : keys)
+			select << QStringLiteral("COALESCE(%1, '')").arg(key) + QStringLiteral(" AS ") + quoted(columnTitle(kind, key));
+		if (select.isEmpty()) select << QStringLiteral("edition");
+		return QStringLiteral("SELECT %1 FROM project_revision ORDER BY rank").arg(select.join(QStringLiteral(", ")));
+	}
 	if (kind == Sections) {
 		QStringList select;
 		for (const QString &key : keys)
@@ -238,7 +258,7 @@ bool ProjectIndex::recognize(const QString &query, Kind *kind, QStringList *keys
 	while (it.hasNext())
 		titles << it.next().captured(1).replace(QStringLiteral("\"\""), QStringLiteral("\""));
 
-	for (Kind k : {Folios, Sections}) {
+	for (Kind k : {Folios, Sections, Revisions}) {
 		QStringList found;
 		for (const QString &title : std::as_const(titles))
 			for (const Column &column : columns(k))

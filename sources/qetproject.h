@@ -31,6 +31,7 @@
 #include "wirehops.h"
 #include "potentialrules.h"
 #include "projectnumbering.h"
+#include "projectrevisions.h"
 #include "textstyles.h"
 #include "wiringrules.h"
 #include "diagram.h"
@@ -242,6 +243,8 @@ class QETProject : public QObject
 		QList<TextStyles::Style> textStyles() const {return m_text_styles;}
 		void setTextStyles(const QList<TextStyles::Style> &styles);
 		void scheduleTextStyles();
+		QList<ProjectRevisions::Revision> revisions() const {return m_revisions;}
+		void setRevisions(const QList<ProjectRevisions::Revision> &revisions) {m_revisions = revisions;}
 		ProjectNumbering::Settings numbering() const {return m_numbering;}
 		void setNumbering(const ProjectNumbering::Settings &numbering);
 		QList<ProjectNumbering::FolioInfo> numberingFolios() const;
@@ -353,6 +356,7 @@ class QETProject : public QObject
 		void readPotentialRulesXml(QDomDocument &xml_project);
 		void readTextStylesXml(QDomDocument &xml_project);
 		void readNumberingXml(QDomDocument &xml_project);
+		void readRevisionsXml(QDomDocument &xml_project);
 
 		void writeProjectPropertiesXml(QDomElement &);
 		void writeDefaultPropertiesXml(QDomElement &);
@@ -363,6 +367,7 @@ class QETProject : public QObject
 		void writePotentialRulesXml(QDomElement &);
 		void writeTextStylesXml(QDomElement &);
 		void writeNumberingXml(QDomElement &);
+		void writeRevisionsXml(QDomElement &);
 		void applyFolioNumbering();
 		void addDiagram(Diagram *diagram, int pos = -1);
 		void detachDiagram(Diagram *diagram);
@@ -437,6 +442,7 @@ class QETProject : public QObject
 		QList<TextStyles::Style> m_text_styles;
 		bool m_text_styles_scheduled = false;
 		ProjectNumbering::Settings m_numbering;
+		QList<ProjectRevisions::Revision> m_revisions;
 			///A refresh of the folios in the database is on its way
 		bool m_folio_db_refresh_scheduled = false;
 	bool m_auto_break_conductor = false;

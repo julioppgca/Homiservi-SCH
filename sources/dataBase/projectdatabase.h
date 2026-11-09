@@ -143,6 +143,7 @@ class projectDataBase : public QObject
 		void populateElementInfoTable();
 		void populateDiagramInfoTable();
 		void populateSectionTables();
+		void populateRevisionTable();
 		void populateConductorTable();
 		void populateDrawingItemTables();
 		bool populateFromDocument(const QDomDocument &document, QString *why = nullptr);

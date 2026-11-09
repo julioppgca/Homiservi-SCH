@@ -111,6 +111,14 @@ add_test(NAME tst_projectnumbering COMMAND tst_projectnumbering)
 target_include_directories(tst_projectnumbering PRIVATE ${QET_DIR}/sources)
 target_link_libraries(tst_projectnumbering PRIVATE Qt::Test Qt::Xml)
 
+# ProjectRevisions: the revisions of a project and the folios each one
+# changed (Homiservi-SCH), the functions that need no project.
+add_executable(tst_projectrevisions tst_projectrevisions.cpp
+  ${QET_DIR}/sources/projectrevisionlist.cpp ${QET_DIR}/sources/projectrevisions.h)
+add_test(NAME tst_projectrevisions COMMAND tst_projectrevisions)
+target_include_directories(tst_projectrevisions PRIVATE ${QET_DIR}/sources)
+target_link_libraries(tst_projectrevisions PRIVATE Qt::Test Qt::Xml)
+
 # diagramsortkeys.h is a header-only helper (no QET link deps needed
 # beyond Qt itself), so this test builds independently of the rest of
 # the QET sources.

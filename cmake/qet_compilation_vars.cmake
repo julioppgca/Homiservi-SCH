@@ -189,6 +189,7 @@ set(QET_SRC_FILES
   ${QET_DIR}/sources/homiservitemplate.cpp
   ${QET_DIR}/sources/homiservitemplate.h
   ${QET_DIR}/sources/projectrevisions.cpp
+  ${QET_DIR}/sources/projectrevisionlist.cpp
   ${QET_DIR}/sources/projectrevisions.h
   ${QET_DIR}/sources/projectvariants.cpp
   ${QET_DIR}/sources/projectvariants.h
@@ -987,6 +988,8 @@ set(QET_SRC_FILES
   ${QET_DIR}/sources/undocommand/movediagramcommand.h
   ${QET_DIR}/sources/undocommand/projectnumberingcommand.cpp
   ${QET_DIR}/sources/undocommand/projectnumberingcommand.h
+  ${QET_DIR}/sources/undocommand/projectrevisionscommand.cpp
+  ${QET_DIR}/sources/undocommand/projectrevisionscommand.h
   ${QET_DIR}/sources/undocommand/removediagramcommand.cpp
   ${QET_DIR}/sources/undocommand/removediagramcommand.h
   ${QET_DIR}/sources/undocommand/setautonumcontextcommand.cpp

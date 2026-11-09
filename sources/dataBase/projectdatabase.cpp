@@ -1695,7 +1695,12 @@ bool projectDataBase::createDataBase()
 			QStringLiteral("CREATE TABLE project_section (code VARCHAR(20) PRIMARY KEY NOT NULL,"
 				       " name VARCHAR(200), heading VARCHAR(250), rank INTEGER)"),
 			QStringLiteral("CREATE TABLE diagram_section (diagram_uuid VARCHAR(50) PRIMARY KEY NOT NULL,"
-				       " code VARCHAR(20))") })
+				       " code VARCHAR(20))"),
+				//The revisions, the newest first (rank 0), with the
+				//numbers of the folios they change
+			QStringLiteral("CREATE TABLE project_revision (rank INTEGER, edition VARCHAR(20),"
+				       " description VARCHAR(500), modified_by VARCHAR(100), approved_by VARCHAR(100),"
+				       " date VARCHAR(50), folios VARCHAR(1000))") })
 	{
 		if (!query_.exec(table)) {
 			qDebug() << "section table query : " << query_.lastError();
@@ -1891,6 +1896,7 @@ void projectDataBase::populateSectionTables()
 	QSqlQuery query(m_data_base);
 	query.exec(QStringLiteral("DELETE FROM project_section"));
 	query.exec(QStringLiteral("DELETE FROM diagram_section"));
+	populateRevisionTable();
 
 	const ProjectNumbering::Settings numbering = m_project->numbering();
 	if (numbering.sections.isEmpty())
@@ -1919,6 +1925,49 @@ void projectDataBase::populateSectionTables()
 		folio.bindValue(QStringLiteral(":code"), codes.at(i));
 		if (!folio.exec())
 			qDebug() << "projectDataBase::populateSectionTables folio error : " << folio.lastError();
+	}
+}
+
+/**
+	@brief projectDataBase::populateRevisionTable
+	Homiservi-SCH: fill project_revision with the revisions of the project,
+	the folios each one changes written with their numbers ("Todas" for a
+	revision of every folio)
+*/
+void projectDataBase::populateRevisionTable()
+{
+	QSqlQuery query(m_data_base);
+	query.exec(QStringLiteral("DELETE FROM project_revision"));
+	const QList<ProjectRevisions::Revision> revisions = m_project->revisions();
+	if (revisions.isEmpty())
+		return;
+
+	QHash<QString, QString> labels;
+	QStringList order;
+	for (Diagram *diagram : m_project->diagrams()) {
+		labels.insert(diagram->uuid().toString(), diagram->border_and_titleblock.finalfolio());
+		order << diagram->uuid().toString();
+	}
+	QSqlQuery insert(m_data_base);
+	insert.prepare(QStringLiteral("INSERT INTO project_revision (rank, edition, description, modified_by,"
+				      " approved_by, date, folios) VALUES (:rank, :edition, :description,"
+				      " :modified_by, :approved_by, :date, :folios)"));
+	for (int rank = 0; rank < revisions.size(); ++rank) {
+		const ProjectRevisions::Revision &revision = revisions.at(rank);
+		QStringList folios;
+		for (const QString &uuid : std::as_const(order))
+			if (revision.folios.contains(uuid))
+				folios << labels.value(uuid);
+		insert.bindValue(QStringLiteral(":rank"), rank);
+		insert.bindValue(QStringLiteral(":edition"), revision.edition);
+		insert.bindValue(QStringLiteral(":description"), revision.description);
+		insert.bindValue(QStringLiteral(":modified_by"), revision.modified_by);
+		insert.bindValue(QStringLiteral(":approved_by"), revision.approved_by);
+		insert.bindValue(QStringLiteral(":date"), revision.date);
+		insert.bindValue(QStringLiteral(":folios"), revision.isGeneral()
+				 ? tr("Todas") : folios.join(QStringLiteral(", ")));
+		if (!insert.exec())
+			qDebug() << "projectDataBase::populateRevisionTable error : " << insert.lastError();
 	}
 }
 

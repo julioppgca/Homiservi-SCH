@@ -123,9 +123,10 @@ void ProjectIndexDialog::build(Diagram *current)
 	const bool has_sections = ProjectIndex::hasSections(project);
 
 	QSettings settings;
-	for (ProjectIndex::Kind kind : {ProjectIndex::Folios, ProjectIndex::Sections}) {
+	for (ProjectIndex::Kind kind : {ProjectIndex::Folios, ProjectIndex::Sections, ProjectIndex::Revisions}) {
 		const QStringList saved = settings.value(settings_group + (kind == ProjectIndex::Folios
-					? QStringLiteral("folio_columns") : QStringLiteral("section_columns"))).toStringList();
+					? QStringLiteral("folio_columns") : kind == ProjectIndex::Sections
+					? QStringLiteral("section_columns") : QStringLiteral("revision_columns"))).toStringList();
 		m_chosen.insert(kind, saved.isEmpty() ? ProjectIndex::defaultColumns(kind) : saved);
 	}
 
@@ -136,11 +137,14 @@ void ProjectIndexDialog::build(Diagram *current)
 	m_sections->setEnabled(has_sections);
 	if (!has_sections)
 		m_sections->setToolTip(tr("O projeto não tem seções: configure-as em Projeto > Numeração"));
-	(has_sections && settings.value(settings_group + QStringLiteral("kind")).toInt() == ProjectIndex::Sections
-	 ? m_sections : m_folios)->setChecked(true);
+	m_revisions = new QRadioButton(tr("Lista de revisões – edição, modificação e folhas alteradas"), type_box);
+	const int saved_kind = settings.value(settings_group + QStringLiteral("kind")).toInt();
+	(has_sections && saved_kind == ProjectIndex::Sections ? m_sections
+	 : saved_kind == ProjectIndex::Revisions ? m_revisions : m_folios)->setChecked(true);
 	auto type_layout = new QVBoxLayout(type_box);
 	type_layout->addWidget(m_folios);
 	type_layout->addWidget(m_sections);
+	type_layout->addWidget(m_revisions);
 
 		//Columns
 	auto columns_box = new QGroupBox(tr("Colunas (marque e ordene)"), this);
@@ -219,6 +223,7 @@ void ProjectIndexDialog::build(Diagram *current)
 	layout->addWidget(buttons);
 
 	connect(m_folios, &QRadioButton::toggled, this, [this]() { fillColumns(); });
+	connect(m_revisions, &QRadioButton::toggled, this, [this]() { fillColumns(); });
 	connect(m_columns, &QListWidget::itemChanged, this, [this]() {
 		if (m_filling) return;
 		m_chosen[kind()] = checkedColumns();
@@ -236,7 +241,8 @@ void ProjectIndexDialog::build(Diagram *current)
 	if (edited_model && ProjectIndex::recognize(edited_model->queryString(),
 						    &edited_kind, &edited_keys, &edited_grouped)) {
 		m_chosen[edited_kind] = edited_keys;
-		(edited_kind == ProjectIndex::Sections ? m_sections : m_folios)->setChecked(true);
+		(edited_kind == ProjectIndex::Sections ? m_sections
+		 : edited_kind == ProjectIndex::Revisions ? m_revisions : m_folios)->setChecked(true);
 		m_grouped->setChecked(edited_grouped);
 		where_box->hide();
 		advanced->hide();
@@ -262,7 +268,8 @@ QString ProjectIndexDialog::baseName() const
 
 ProjectIndex::Kind ProjectIndexDialog::kind() const
 {
-	return m_sections->isChecked() ? ProjectIndex::Sections : ProjectIndex::Folios;
+	return m_sections->isChecked() ? ProjectIndex::Sections
+	     : m_revisions->isChecked() ? ProjectIndex::Revisions : ProjectIndex::Folios;
 }
 
 /**
@@ -293,8 +300,10 @@ void ProjectIndexDialog::fillColumns()
 	m_filling = false;
 	m_grouped->setVisible(k == ProjectIndex::Folios);
 		//A name of one's own stays; the usual name follows the kind
-	const ProjectIndex::Kind other = k == ProjectIndex::Folios ? ProjectIndex::Sections : ProjectIndex::Folios;
-	if (!m_table || m_name->text() == ProjectIndex::defaultName(other))
+	bool usual_name = !m_table;
+	for (ProjectIndex::Kind other : {ProjectIndex::Folios, ProjectIndex::Sections, ProjectIndex::Revisions})
+		usual_name |= m_name->text() == ProjectIndex::defaultName(other);
+	if (usual_name)
 		m_name->setText(ProjectIndex::defaultName(k));
 	updatePreview();
 }
@@ -357,6 +366,7 @@ void ProjectIndexDialog::saveChoices() const
 	settings.setValue(settings_group + QStringLiteral("kind"), int(kind()));
 	settings.setValue(settings_group + QStringLiteral("folio_columns"), m_chosen.value(ProjectIndex::Folios));
 	settings.setValue(settings_group + QStringLiteral("section_columns"), m_chosen.value(ProjectIndex::Sections));
+	settings.setValue(settings_group + QStringLiteral("revision_columns"), m_chosen.value(ProjectIndex::Revisions));
 	if (m_grouped->isEnabled())
 		settings.setValue(settings_group + QStringLiteral("grouped"), m_grouped->isChecked());
 }

@@ -32,11 +32,13 @@ class QETProject;
 	- the folio index: folio, title, location..., grouped by section under
 	  a heading row ("02 - DISTRIBUIÇÃO DE FORÇA") or with a section column;
 	- the section index: code, name, first to last folio, folio count
-	  (project_sections_view).
+	  (project_sections_view);
+	- the list of revisions: edition, modification, folios changed, by,
+	  approved, date (project_revision, see ProjectRevisions).
 */
 namespace ProjectIndex
 {
-	enum Kind { Folios, Sections };
+	enum Kind { Folios, Sections, Revisions };
 
 	struct Column
 	{
