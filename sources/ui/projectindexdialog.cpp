@@ -29,6 +29,7 @@
 #include <QUndoStack>
 
 #include <QCheckBox>
+#include <QComboBox>
 #include <QDialogButtonBox>
 #include <QFormLayout>
 #include <QGroupBox>
@@ -68,8 +69,13 @@ namespace
 				m_old_title = old_title;
 				m_new_title = new_title;
 			}
-			void undo() override { set(m_old_query, m_old_names); title(m_old_title); }
-			void redo() override { set(m_new_query, m_new_names); title(m_new_title); }
+			void setStyles(QetGraphicsTableItem::TableStyle old_style, QetGraphicsTableItem::TableStyle new_style)
+			{
+				m_old_style = old_style;
+				m_new_style = new_style;
+			}
+			void undo() override { set(m_old_query, m_old_names); title(m_old_title); style(m_old_style); }
+			void redo() override { set(m_new_query, m_new_names); title(m_new_title); style(m_new_style); }
 
 		private:
 			void set(const QString &query, const QStringList &names)
@@ -85,6 +91,13 @@ namespace
 				properties.title = text;
 				m_folio->border_and_titleblock.importTitleBlock(properties);
 			}
+			void style(QetGraphicsTableItem::TableStyle style)
+			{
+				if (!m_tables.isEmpty() && m_tables.constFirst())
+					m_tables.constFirst()->setTableStyle(style);
+			}
+			QetGraphicsTableItem::TableStyle m_old_style = QetGraphicsTableItem::Grid,
+							 m_new_style = QetGraphicsTableItem::Grid;
 			QPointer<Diagram> m_folio;
 			QString m_old_title, m_new_title;
 			QPointer<ProjectDBModel> m_model;
@@ -168,7 +181,18 @@ void ProjectIndexDialog::build(Diagram *current)
 	m_adjust->setChecked(true);
 	m_more_folios = new QCheckBox(tr("Continuar em folhas novas se não couber"), options_box);
 	m_more_folios->setChecked(true);
+	m_style = new QComboBox(options_box);
+	m_style->addItem(tr("Limpo – linhas finas, seções em destaque, pontilhado até a próxima coluna"),
+			 int(QetGraphicsTableItem::Clean));
+	m_style->addItem(tr("Grade – todas as linhas, cabeçalho cinza"), int(QetGraphicsTableItem::Grid));
+	m_style->setCurrentIndex(m_style->findData(settings.value(settings_group + QStringLiteral("style"),
+								  int(QetGraphicsTableItem::Clean)).toInt()));
+	if (m_style->currentIndex() < 0) m_style->setCurrentIndex(0);
+	auto style_layout = new QHBoxLayout();
+	style_layout->addWidget(new QLabel(tr("Estilo:"), options_box));
+	style_layout->addWidget(m_style, 1);
 	auto options_layout = new QVBoxLayout(options_box);
+	options_layout->addLayout(style_layout);
 	options_layout->addWidget(m_grouped);
 	options_layout->addWidget(m_adjust);
 	options_layout->addWidget(m_more_folios);
@@ -244,6 +268,7 @@ void ProjectIndexDialog::build(Diagram *current)
 		(edited_kind == ProjectIndex::Sections ? m_sections
 		 : edited_kind == ProjectIndex::Revisions ? m_revisions : m_folios)->setChecked(true);
 		m_grouped->setChecked(edited_grouped);
+		m_style->setCurrentIndex(m_style->findData(int(m_table->tableStyle())));
 		where_box->hide();
 		advanced->hide();
 		buttons->button(QDialogButtonBox::Ok)->setText(tr("Atualizar"));
@@ -369,6 +394,7 @@ void ProjectIndexDialog::saveChoices() const
 	settings.setValue(settings_group + QStringLiteral("revision_columns"), m_chosen.value(ProjectIndex::Revisions));
 	if (m_grouped->isEnabled())
 		settings.setValue(settings_group + QStringLiteral("grouped"), m_grouped->isChecked());
+	settings.setValue(settings_group + QStringLiteral("style"), m_style->currentData().toInt());
 }
 
 void ProjectIndexDialog::accept()
@@ -384,7 +410,7 @@ void ProjectIndexDialog::accept()
 	Diagram *folio = targetFolio();
 	ProjectIndex::insert(folio, currentQuery(), m_name->text().trimmed().isEmpty()
 			     ? ProjectIndex::defaultName(kind()) : m_name->text().trimmed(),
-			     m_adjust->isChecked(), m_more_folios->isChecked());
+			     m_adjust->isChecked(), m_more_folios->isChecked(), isClean());
 	QDialog::accept();
 }
 
@@ -461,6 +487,7 @@ void ProjectIndexDialog::updateTable()
 	QUndoStack *undo = project->undoStack();
 	undo->beginMacro(tr("Editar índice"));
 	auto command = new EditIndexCommand(model, model->queryString(), currentQuery(), tables, old_names, new_names);
+	command->setStyles(m_table->tableStyle(), isClean() ? QetGraphicsTableItem::Clean : QetGraphicsTableItem::Grid);
 		//The folio named after the index follows its new name
 	if (m_current->title() == baseName() && base != baseName())
 		command->setFolioTitle(m_current, m_current->title(), base);
@@ -492,4 +519,13 @@ void ProjectIndexDialog::updateTable()
 		last = table;
 	}
 	undo->endMacro();
+}
+
+/**
+	@return true if the index is drawn in the clean style
+	(QetGraphicsTableItem::Clean)
+*/
+bool ProjectIndexDialog::isClean() const
+{
+	return m_style->currentData().toInt() == QetGraphicsTableItem::Clean;
 }

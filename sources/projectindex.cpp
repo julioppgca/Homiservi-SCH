@@ -17,6 +17,8 @@
 */
 #include "projectindex.h"
 
+#include "qetgraphicsitem/ViewItem/qetgraphicstableitem.h"
+
 #include "dataBase/ui/summaryquerywidget.h"
 #include "diagram.h"
 #include "factory/qetgraphicstablefactory.h"
@@ -221,7 +223,7 @@ Diagram *ProjectIndex::addIndexFolio(QETProject *project, Kind kind, Diagram *af
 	rows that do not fit go on new folios after it
 */
 void ProjectIndex::insert(Diagram *diagram, const QString &query, const QString &name,
-			  bool adjust_to_folio, bool more_folios)
+			  bool adjust_to_folio, bool more_folios, bool clean)
 {
 	if (!diagram) return;
 	auto content = new SummaryQueryWidget();
@@ -232,7 +234,15 @@ void ProjectIndex::insert(Diagram *diagram, const QString &query, const QString 
 	dialog.setAddNewTableToNewDiagram(more_folios);
 	QETProject *project = diagram->project();
 	const QList<Diagram *> before = project->diagrams();
+	const QList<QGraphicsItem *> items_before = diagram->items();
 	QetGraphicsTableFactory::create(diagram, &dialog);
+
+		//Drawn clean (QetGraphicsTableItem::Clean), with its continuations
+	if (clean)
+		for (QGraphicsItem *item : diagram->items())
+			if (auto table = dynamic_cast<QetGraphicsTableItem *>(item))
+				if (!items_before.contains(item) && !table->previousTable())
+					table->setTableStyle(QetGraphicsTableItem::Clean);
 
 		//The folios the rows that did not fit went on: "Índice de folhas (2)"
 	int number = 1;

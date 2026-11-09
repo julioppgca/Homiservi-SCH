@@ -28,6 +28,7 @@ class QetGraphicsTableItem;
 class QGroupBox;
 class QPushButton;
 class QCheckBox;
+class QComboBox;
 class QLabel;
 class QLineEdit;
 class QListWidget;
@@ -69,6 +70,7 @@ class ProjectIndexDialog : public QDialog
 		void build(Diagram *current);
 		void updateTable();
 		QString baseName() const;
+		bool isClean() const;
 
 		Diagram *m_current = nullptr;
 			///The first table of the index edited, null to insert one
@@ -80,6 +82,7 @@ class ProjectIndexDialog : public QDialog
 		QRadioButton *m_revisions = nullptr;
 		QListWidget *m_columns = nullptr;
 		QCheckBox *m_grouped = nullptr;
+		QComboBox *m_style = nullptr;
 		QCheckBox *m_adjust = nullptr;
 		QCheckBox *m_more_folios = nullptr;
 		QRadioButton *m_new_folio = nullptr;

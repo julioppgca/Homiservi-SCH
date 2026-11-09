@@ -18,6 +18,7 @@
 #include "qetgraphicsheaderitem.h"
 
 #include "../../createdxf.h"
+#include "qetgraphicstableitem.h"
 #include "../../qetxml.h"
 #include "../../utils/qetutils.h"
 #include "qabstractitemmodel.h"
@@ -108,6 +109,13 @@ void QetGraphicsHeaderItem::paint(
 
 	painter->save();
 
+	auto table = dynamic_cast<QetGraphicsTableItem *>(parentItem());
+	if (table && table->tableStyle() == QetGraphicsTableItem::Clean) {
+		paintClean(painter, table);
+		painter->restore();
+		return;
+	}
+
 	QPen pen;
 	pen.setWidthF(0.7);
 	pen.setColor(Qt::black);
@@ -175,6 +183,40 @@ void QetGraphicsHeaderItem::paint(
 	painter->restore();
 }
 /**
+	@brief QetGraphicsHeaderItem::paintClean
+	Homiservi-SCH: the header in the clean style of table: the titles in
+	capitals, grey, without a frame, over a line
+*/
+void QetGraphicsHeaderItem::paintClean(QPainter *painter, QetGraphicsTableItem *table)
+{
+	QPen line(Qt::black);
+	line.setWidthF(1.2);
+	painter->setPen(line);
+	painter->drawLine(QPointF(m_current_rect.left(), m_current_rect.bottom()),
+			  QPointF(m_current_rect.right(), m_current_rect.bottom()));
+	if (!m_model)
+		return;
+
+	QFont font = m_model->headerData(0, Qt::Horizontal, Qt::FontRole).value<QFont>();
+	font.setPointSizeF(font.pointSizeF() * 0.85);
+	font.setLetterSpacing(QFont::PercentageSpacing, 104);
+	painter->setFont(font);
+	painter->setPen(QColor(90, 90, 90));
+	const QMargins margins_ = QETUtils::marginsFromString(
+				m_model->headerData(0, Qt::Horizontal, Qt::UserRole+1).toString());
+	qreal x = 0;
+	for (int i = 0; i < m_model->columnCount() && i < m_current_sections_width.size(); ++i)
+	{
+		const QRectF cell(x + margins_.left(), m_current_rect.top() + margins_.top(),
+				  m_current_sections_width.at(i) - margins_.left() - margins_.right(),
+				  m_section_height - margins_.top() - margins_.bottom());
+		painter->drawText(cell, table->columnAlignment(i) | Qt::AlignBottom,
+				  m_model->headerData(i, Qt::Horizontal, Qt::DisplayRole).toString().toUpper());
+		x += m_current_sections_width.at(i);
+	}
+}
+
+/**
 	@brief QetGraphicsHeaderItem::toDXF
 	Draw this table to the dxf document
 	@param filepath file path of the the dxf document
@@ -184,12 +226,18 @@ bool QetGraphicsHeaderItem::toDXF(const QString &filepath)
 {
 	QRectF rect = m_current_rect;
 	QPolygonF poly(rect);
-	Createdxf::drawPolygon(filepath,mapToScene(poly),0);
+	auto table = dynamic_cast<QetGraphicsTableItem *>(parentItem());
+	const bool clean = table && table->tableStyle() == QetGraphicsTableItem::Clean;
+	if (clean)
+		Createdxf::drawLine(filepath, QLineF(mapToScene(rect.bottomLeft()), mapToScene(rect.bottomRight())), 0);
+	else
+		Createdxf::drawPolygon(filepath,mapToScene(poly),0);
 
 	//Draw vertical lines
 	auto offset= 0;
 	for(auto size : m_current_sections_width)
 	{
+		if (clean) break;
 		QPointF p1(offset+size, m_current_rect.top());
 		QPointF p2(offset+size, m_current_rect.bottom());
 		Createdxf::drawLine(

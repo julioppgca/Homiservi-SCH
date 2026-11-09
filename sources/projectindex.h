@@ -57,7 +57,7 @@ namespace ProjectIndex
 	bool hasSections(QETProject *project);
 	Diagram *addIndexFolio(QETProject *project, Kind kind, Diagram *after = nullptr);
 	void insert(Diagram *diagram, const QString &query, const QString &name,
-		    bool adjust_to_folio = true, bool more_folios = true);
+		    bool adjust_to_folio = true, bool more_folios = true, bool clean = true);
 }
 
 #endif

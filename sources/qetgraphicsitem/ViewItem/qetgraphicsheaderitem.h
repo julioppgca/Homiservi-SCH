@@ -25,6 +25,7 @@
 #include <QMargins>
 
 class QAbstractItemModel;
+class QetGraphicsTableItem;
 
 /**
 	@brief The QetGraphicsHeaderItem class
@@ -73,6 +74,7 @@ class QetGraphicsHeaderItem : public QGraphicsObject
 		void heightResized();
 
 	private:
+		void paintClean(QPainter *painter, QetGraphicsTableItem *table);
 		void setUpMinimumSectionsSize();
 		void setUpBoundingRect();
 		void headerDataChanged(

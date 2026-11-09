@@ -59,6 +59,16 @@ class QetGraphicsTableItem : public QetGraphicsItem
 		enum { Type = UserType + 1300 };
 		int type() const override { return Type; }
 
+			///Homiservi-SCH: how the table is drawn. Grid: every line, the
+			///header filled (QElectroTech). Clean, for the indexes (see
+			///ProjectIndex): thin lines between the rows only, the section
+			///rows in bold, dots after the title, an alignment per column.
+		enum TableStyle { Grid, Clean };
+		void setTableStyle(TableStyle style);
+		TableStyle tableStyle() const {return m_style;}
+		Qt::Alignment columnAlignment(int column) const;
+		bool isHeadingRow(int model_row) const;
+
 		void setModel(QAbstractItemModel *model = nullptr);
 		QAbstractItemModel *model() const;
 
@@ -125,6 +135,8 @@ class QetGraphicsTableItem : public QetGraphicsItem
 		void adjustSize();
 		void previousTableDisplayRowChanged();
 		void removeUselessNextTable(bool recursive = true);
+		void paintClean(QPainter *painter);
+		void updateCleanLayout() const;
 
 		QPointer<QAbstractItemModel> m_model;
 
@@ -148,6 +160,13 @@ class QetGraphicsTableItem : public QetGraphicsItem
 		m_next_table;
 
 		QString m_name;
+		TableStyle m_style = Grid;
+			///What the query of an index tells the clean style: its column
+			///keys, the column of its section rows, the column with dots
+		mutable QString m_layout_query;
+		mutable QStringList m_layout_keys;
+		mutable int m_heading_column = -1;
+		mutable int m_leader_column = -1;
 		QUuid
 		m_uuid = QUuid::createUuid(),
 		m_pending_previous_table_uuid;
