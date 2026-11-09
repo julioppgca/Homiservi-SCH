@@ -184,6 +184,8 @@ set(QET_SRC_FILES
   ${QET_DIR}/sources/potentialrules.h
   ${QET_DIR}/sources/projectnumbering.cpp
   ${QET_DIR}/sources/projectnumbering.h
+  ${QET_DIR}/sources/projectindex.cpp
+  ${QET_DIR}/sources/projectindex.h
   ${QET_DIR}/sources/homiservitemplate.cpp
   ${QET_DIR}/sources/homiservitemplate.h
   ${QET_DIR}/sources/projectrevisions.cpp
@@ -869,6 +871,8 @@ set(QET_SRC_FILES
   ${QET_DIR}/sources/ui/potentialrulesdialog.h
   ${QET_DIR}/sources/ui/projectnumberingdialog.cpp
   ${QET_DIR}/sources/ui/projectnumberingdialog.h
+  ${QET_DIR}/sources/ui/projectindexdialog.cpp
+  ${QET_DIR}/sources/ui/projectindexdialog.h
   ${QET_DIR}/sources/ui/homiserviprojectwizard.cpp
   ${QET_DIR}/sources/ui/homiserviprojectwizard.h
   ${QET_DIR}/sources/ui/projectrevisionsdialog.cpp

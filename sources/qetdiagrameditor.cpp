@@ -25,6 +25,7 @@
 #include "ui/potentialrulesdialog.h"
 #include "ui/textstylesdialog.h"
 #include "ui/homiserviprojectwizard.h"
+#include "ui/projectindexdialog.h"
 #include "ui/projectnumberingdialog.h"
 #include "ui/projectrevisionsdialog.h"
 #include "projectvariants.h"
@@ -856,10 +857,23 @@ void QETDiagramEditor::setUpActions()
 
 		//Add a summary item
 	m_add_summary = new QAction(QET::Icons::TableOfContent, tr("Ajouter un sommaire"), this);
+		//Homiservi-SCH: the indexes come from m_add_index; this one is the
+		//table of folios of one's own
+	m_add_summary->setText(tr("Tabela personalizada de folhas..."));
 	ShortcutManager::instance().registerAction(m_add_summary, "diagrameditor.add_summary", tr("Éditeur de schémas"), QKeySequence());
 	connect(m_add_summary, &QAction::triggered, this, [this]() {
 		if(this->currentDiagramView()) {
 			QetGraphicsTableFactory::createAndAddSummary(this->currentDiagramView()->diagram());
+		}
+	});
+
+	m_add_index = new QAction(QET::Icons::TableOfContent, tr("Índice do projeto..."), this);
+	ShortcutManager::instance().registerAction(m_add_index, "diagrameditor.add_index", tr("Éditeur de schémas"), QKeySequence());
+	m_add_index->setStatusTip(tr("Insere o índice de folhas ou o índice de seções do projeto", "status bar tip"));
+	connect(m_add_index, &QAction::triggered, this, [this]() {
+		if (DiagramView *view = currentDiagramView()) {
+			ProjectIndexDialog dialog(view->diagram(), this);
+			dialog.exec();
 		}
 	});
 
@@ -1741,6 +1755,7 @@ void QETDiagramEditor::setUpMenu()
 	menu_project -> addAction(m_project_add_diagram);
 	menu_project -> addAction(m_remove_diagram_from_project);
 	QMenu *generated_menu = menu_project -> addMenu(QET::Icons::TableOfContent, tr("Folhas automáticas"));
+	generated_menu -> addAction(m_add_index);
 	generated_menu -> addAction(m_add_summary);
 	generated_menu -> addAction(m_add_nomenclature);
 	generated_menu -> addAction(m_add_component_list);
@@ -3341,6 +3356,7 @@ void QETDiagramEditor::slot_updateActions()
 	if (m_wiring_editor_dock && m_wiring_editor_dock->isVisible())
 		m_wiring_editor_dock->setProject(currentProject());
 	m_add_summary                 -> setEnabled(editable_project);
+	m_add_index                   -> setEnabled(editable_project);
 	m_add_nomenclature            -> setEnabled(editable_project);
 	m_csv_export                  -> setEnabled(editable_project);
 	m_project_export_conductor_num-> setEnabled(opened_project);
