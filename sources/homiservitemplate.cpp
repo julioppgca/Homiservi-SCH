@@ -22,6 +22,7 @@
 #include "factory/qetgraphicstablefactory.h"
 #include "factory/ui/addtabledialog.h"
 #include "potentialrules.h"
+#include "dataBase/projectdatabase.h"
 #include "projectindex.h"
 #include "projectrevisions.h"
 #include "projectvariants.h"
@@ -421,26 +422,23 @@ void HomiserviTemplate::createFolios(QETProject *project, const Data &data, cons
 		createCover(diagram, data);
 		start_section(tr("Geral"));
 	}
+		//The index folios; their tables are added at the end, once the
+		//database knows the sections and the folio numbers: a table is
+		//sized by the rows it has when it is added
+	Diagram *section_index = nullptr;
+	Diagram *folio_index = nullptr;
 	if (folios.contents)
 	{
-			//The two indexes (ProjectIndex): the sections, then the folios
-			//grouped by section; they follow the project as it changes
-		Diagram *sections = project->addNewDiagram();
-		setTitle(sections, ProjectIndex::defaultName(ProjectIndex::Sections));
-		if (!folios.cover)
-			start_section(tr("Geral"));
-		ProjectIndex::insert(sections, ProjectIndex::query(ProjectIndex::Sections,
-				     ProjectIndex::defaultColumns(ProjectIndex::Sections)),
-				     ProjectIndex::defaultName(ProjectIndex::Sections), true, false);
-
-		Diagram *folio_index = project->addNewDiagram();
+		if (folios.numbering) {
+			section_index = project->addNewDiagram();
+			setTitle(section_index, ProjectIndex::defaultName(ProjectIndex::Sections));
+			if (!folios.cover)
+				start_section(tr("Geral"));
+		}
+		folio_index = project->addNewDiagram();
 		setTitle(folio_index, ProjectIndex::defaultName(ProjectIndex::Folios));
-		const bool revisions = data.layout == Revisions;
-		ProjectIndex::insert(folio_index, ProjectIndex::query(ProjectIndex::Folios,
-				     ProjectIndex::defaultColumns(ProjectIndex::Folios, revisions), true),
-				     ProjectIndex::defaultName(ProjectIndex::Folios), true, false);
-		if (revisions)
-			addVariantLegend(folio_index);
+		if (!folios.cover && !section_index)
+			start_section(tr("Geral"));
 	}
 	for (const QString &title : folios.schematics)
 	{
@@ -487,6 +485,22 @@ void HomiserviTemplate::createFolios(QETProject *project, const Data &data, cons
 	if (folios.numbering) {
 		project->setNumbering(settings);
 		useFolioNumbers(project);
+	}
+
+		//The two indexes (ProjectIndex): the sections, then the folios
+		//grouped by section; they follow the project as it changes
+	project->dataBase()->diagramsInfoChanged();
+	if (section_index)
+		ProjectIndex::insert(section_index, ProjectIndex::query(ProjectIndex::Sections,
+				     ProjectIndex::defaultColumns(ProjectIndex::Sections)),
+				     ProjectIndex::defaultName(ProjectIndex::Sections), true, false);
+	if (folio_index) {
+		const bool revisions = data.layout == Revisions;
+		ProjectIndex::insert(folio_index, ProjectIndex::query(ProjectIndex::Folios,
+				     ProjectIndex::defaultColumns(ProjectIndex::Folios, revisions), folios.numbering),
+				     ProjectIndex::defaultName(ProjectIndex::Folios), true, false);
+		if (revisions)
+			addVariantLegend(folio_index);
 	}
 }
 

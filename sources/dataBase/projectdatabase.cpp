@@ -168,6 +168,7 @@ void projectDataBase::updateDB(const QDomDocument &document)
 	} else if (populateFromDocument(document, &why)) {
 		qInfo() << "Project database filled from the document";
 		populateDrawingItemTables();
+		populateSectionTables();
 		m_content_changed = false;
 		emit dataBaseUpdated();
 		return;

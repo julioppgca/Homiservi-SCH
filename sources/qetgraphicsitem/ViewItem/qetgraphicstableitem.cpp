@@ -511,6 +511,30 @@ int QetGraphicsTableItem::displayNRowOffset() const
 }
 
 /**
+	@brief QetGraphicsTableItem::displayedRowCount
+	@return the rectangle of the row-th row this table displays, from 0, in
+	its own coordinates, as paint() draws it
+*/
+QRectF QetGraphicsTableItem::displayedRowRect(int row) const
+{
+	const int rows = displayedRowCount();
+	if (row < 0 || row >= rows) return QRectF();
+	const qreal cell_height = static_cast<qreal>(m_current_size.height()) / rows;
+	return QRectF(m_header_item->rect().left(), cell_height * row,
+		      m_header_item->rect().width(), cell_height);
+}
+
+/**
+	@brief QetGraphicsTableItem::modelRow
+	@return the row of the model the row-th row this table displays shows:
+	the previous tables display the rows before
+*/
+int QetGraphicsTableItem::modelRow(int row) const
+{
+	return m_previous_table ? row + m_previous_table->displayNRowOffset() : row;
+}
+
+/**
  * @brief QetGraphicsTableItem::displayedRowCount
  * @return the number of row displayed by this table
  */

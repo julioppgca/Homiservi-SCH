@@ -80,6 +80,8 @@ class QetGraphicsTableItem : public QetGraphicsItem
 		QString tableName() const;
 		int displayNRowOffset() const;
 		int displayedRowCount() const;
+		QRectF displayedRowRect(int row) const;
+		int modelRow(int row) const;
 		QPointer<QetGraphicsTableItem> previousTable() const;
 		QPointer<QetGraphicsTableItem> nextTable() const;
 		void setToMinimumHeight();
