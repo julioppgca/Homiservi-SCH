@@ -106,6 +106,8 @@
 #include "ui/diagrameditorhandlersizewidget.h"
 #include "TerminalStrip/ui/addterminalstripitemdialog.h"
 #include "wiringlistexport.h"
+#include "wiringlist.h"
+#include "conductorendlabeling.h"
 #include "ui/wiringlistdialog.h"
 #include "ui/terminalnumberingdialog.h"
 #include "toolbarsettings.h"
@@ -538,7 +540,7 @@ void QETDiagramEditor::setUpActions()
 	});
 
 		//Reset conductor path
-	m_conductor_reset = new QAction(QET::Icons::ConductorSettings,     tr("Réinitialiser les conducteurs"),        this);
+	m_conductor_reset = new QAction(QET::Icons::ConductorSettings,     tr("Recalcular o trajeto dos condutores"),        this);
 	ShortcutManager::instance().registerAction(m_conductor_reset, "diagrameditor.conductor_reset", tr("Éditeur de schémas"), Qt::CTRL | Qt::Key_K);
 	m_conductor_reset->setStatusTip(tr("Recalcule les chemins des conducteurs sans tenir compte des modifications", "status bar tip"));
 	connect(m_conductor_reset, &QAction::triggered, [this]() {
@@ -547,16 +549,21 @@ void QETDiagramEditor::setUpActions()
 	});
 
 		//Numerate conductor wire-end (ferrule) labels for the whole page
-	m_conductor_numerate_ends = new QAction(QIcon::fromTheme(QStringLiteral("conductor-numerate-ends")), tr("Numerar as pontas dos fios da página"), this);
+	m_conductor_numerate_ends = new QAction(QIcon::fromTheme(QStringLiteral("conductor-numerate-ends")), tr("Etiquetar as pontas dos fios da folha"), this);
 	ShortcutManager::instance().registerAction(m_conductor_numerate_ends, "diagrameditor.conductor_numerate_ends", tr("Éditeur de schémas"), QKeySequence());
-	m_conductor_numerate_ends->setStatusTip(tr("Marca cada ponta dos fios do fólio atual com a identificação do elemento e pino da ponta oposta (destino)", "status bar tip"));
+	m_conductor_numerate_ends->setStatusTip(tr("Escreve a etiqueta de cada ponta dos fios da folha atual, pela regra do projeto (Fiação > Regras de fiação)", "status bar tip"));
+
+	m_label_all_wire_ends = new QAction(tr("Etiquetar as pontas de todos os fios"), this);
+	ShortcutManager::instance().registerAction(m_label_all_wire_ends, "diagrameditor.label_all_wire_ends", tr("Éditeur de schémas"), QKeySequence());
+	m_label_all_wire_ends->setStatusTip(tr("Escreve a etiqueta das pontas de todos os fios do projeto, pela regra do projeto", "status bar tip"));
+	connect(m_label_all_wire_ends, &QAction::triggered, this, &QETDiagramEditor::labelAllWireEnds);
 	connect(m_conductor_numerate_ends, &QAction::triggered, [this]() {
 		if (DiagramView *dv = currentDiagramView())
 			dv->numerateConductorEnds();
 	});
 
 		//AutoConductor
-	m_auto_conductor = new QAction   (QET::Icons::Autoconnect, tr("Création automatique de conducteur(s)","Tool tip of auto conductor"), this);
+	m_auto_conductor = new QAction   (QET::Icons::Autoconnect, tr("Criação automática de condutores"), this);
 	m_auto_conductor->setStatusTip (tr("Utiliser la création automatique de conducteur(s) quand cela est possible", "Status tip of auto conductor"));
 	m_auto_conductor->setCheckable (true);
 	connect(m_auto_conductor, &QAction::triggered, [this](bool ac) {
@@ -572,7 +579,7 @@ void QETDiagramEditor::setUpActions()
 	ShortcutManager::instance().registerAction(m_auto_conductor, "diagrameditor.auto_conductor", tr("Éditeur de schémas"), QKeySequence());
 
 		//AutoBreakConductor
-	m_auto_break_conductor = new QAction   (QET::Icons::Conductor, tr("Coupure automatique de conducteur(s)","Tool tip of auto break conductor"), this);
+	m_auto_break_conductor = new QAction   (QET::Icons::Conductor, tr("Corte automático de condutores"), this);
 	ShortcutManager::instance().registerAction(m_auto_break_conductor, "diagrameditor.auto_break_conductor", tr("Éditeur de schémas"), QKeySequence());
 	m_auto_break_conductor->setStatusTip (tr("Couper automatiquement les conducteurs existants lors du placement d'un élément", "Status tip of auto break conductor"));
 	m_auto_break_conductor->setCheckable (true);
@@ -762,7 +769,7 @@ void QETDiagramEditor::setUpActions()
 	connect(m_project_compare, &QAction::triggered, this, &QETDiagramEditor::compareProjectWithFile);
 
 		//Colour and section rules of the wires
-	m_potential_rules = new QAction(tr("Regras de cor e bitola..."), this);
+	m_potential_rules = new QAction(tr("Regras de fiação..."), this);
 	ShortcutManager::instance().registerAction(m_potential_rules, "diagrameditor.potential_rules", tr("Éditeur de schémas"), QKeySequence());
 	m_potential_rules->setStatusTip(tr("Define a cor e a seção dos fios por tensão ou função (24 VCC azul 0,75 mm², PE verde-amarelo...), aplica nos fios e insere a legenda", "status bar tip"));
 	connect(m_potential_rules, &QAction::triggered, this, &QETDiagramEditor::showPotentialRules);
@@ -788,6 +795,10 @@ void QETDiagramEditor::setUpActions()
 	ShortcutManager::instance().registerAction(m_project_renumber, "diagrameditor.project_renumber", tr("Éditeur de schémas"), QKeySequence());
 	m_project_renumber->setStatusTip(tr("Mostra o que muda e aplica de novo a numeração do projeto", "status bar tip"));
 	connect(m_project_renumber, &QAction::triggered, this, [this]() { showProjectNumbering(true); });
+	m_wire_numbering = new QAction(tr("Numeração dos fios..."), this);
+	ShortcutManager::instance().registerAction(m_wire_numbering, "diagrameditor.wire_numbering", tr("Éditeur de schémas"), QKeySequence());
+	m_wire_numbering->setStatusTip(tr("Como os fios são numerados: ao desenhar e ao reaplicar a numeração do projeto", "status bar tip"));
+	connect(m_wire_numbering, &QAction::triggered, this, [this]() { showProjectNumbering(false, ProjectNumberingDialog::WiresTab); });
 
 	m_add_component_list = new QAction(tr("Adicionar lista de componentes"), this);
 	ShortcutManager::instance().registerAction(m_add_component_list, "diagrameditor.add_component_list", tr("Éditeur de schémas"), QKeySequence());
@@ -817,6 +828,8 @@ void QETDiagramEditor::setUpActions()
 	connect(m_wiring_editor, &QAction::triggered, this, [this](bool checked) {
 		if (!m_wiring_editor_dock) {
 			m_wiring_editor_dock = new WiringEditorDock(this);
+			m_wiring_editor_dock->addTools({m_potential_rules, m_wire_numbering, m_label_all_wire_ends,
+							m_project_print_wire_tags, m_project_export_wire_tags_csv});
 			addDockWidget(Qt::BottomDockWidgetArea, m_wiring_editor_dock);
 			connect(m_wiring_editor_dock, &QDockWidget::visibilityChanged,
 				m_wiring_editor, &QAction::setChecked);
@@ -878,7 +891,7 @@ void QETDiagramEditor::setUpActions()
 		}
 	});
 
-	m_terminal_strip_dialog = new QAction(QET::Icons::TerminalStrip, tr("Gestionnaire de borniers (DEV)"), this);
+	m_terminal_strip_dialog = new QAction(QET::Icons::TerminalStrip, tr("Gerenciador de réguas de bornes (experimental)"), this);
 	ShortcutManager::instance().registerAction(m_terminal_strip_dialog, "diagrameditor.terminal_strip_dialog", tr("Éditeur de schémas"), QKeySequence());
 	connect(m_terminal_strip_dialog, &QAction::triggered, this, [this]()
 	{
@@ -889,12 +902,12 @@ void QETDiagramEditor::setUpActions()
 	});
 
 		//Launch the plugin of terminal generator
-	m_project_terminalBloc = new QAction(QET::Icons::TerminalStrip, tr("Lancer le plugin de création de borniers"), this);
+	m_project_terminalBloc = new QAction(QET::Icons::TerminalStrip, tr("Plugin de criação de réguas de bornes"), this);
 	ShortcutManager::instance().registerAction(m_project_terminalBloc, "diagrameditor.terminal_strip_plugin", tr("Éditeur de schémas"), QKeySequence());
 	connect(m_project_terminalBloc, &QAction::triggered, this, &QETDiagramEditor::generateTerminalBlock);
 
 	//Export conductor num to csv
-	m_project_export_conductor_num = new QAction(QET::Icons::DocumentSpreadsheet, tr("Exporter la liste des noms de conducteurs"), this);
+	m_project_export_conductor_num = new QAction(QET::Icons::DocumentSpreadsheet, tr("Exportar números dos condutores"), this);
 	ShortcutManager::instance().registerAction(m_project_export_conductor_num, "diagrameditor.export_conductor_names", tr("Éditeur de schémas"), QKeySequence());
 	connect(m_project_export_conductor_num, &QAction::triggered, [this]() {
 		QETProject *project = this->currentProject();
@@ -905,45 +918,34 @@ void QETDiagramEditor::setUpActions()
 		}
 	});
 	// Export wiring list to CSV
-	m_project_export_wiring_list = new QAction(QET::Icons::DocumentSpreadsheet, tr("Exporter le plan de câblage"), this);
+	m_project_export_wiring_list = new QAction(QET::Icons::DocumentSpreadsheet, tr("Exportar lista de fiação (CSV)..."), this);
 	ShortcutManager::instance().registerAction(m_project_export_wiring_list, "diagrameditor.export_wiring_list", tr("Éditeur de schémas"), QKeySequence());
+	m_project_export_wiring_list->setStatusTip(tr("Todos os fios: folha, número, origem, destino, etiquetas das pontas, cor, seção, cabo e tensão – as colunas do editor de fiação", "status bar tip"));
 	connect(m_project_export_wiring_list, &QAction::triggered, [this]() {
-		QETProject *project = this->currentProject();
-		if (project)
-		{
-			WiringListExport wle(project, this);
-			wle.toCsv();
-		}
+		if (QETProject *project = this->currentProject())
+			WiringList::saveCsv(this, project, WiringList::wires(project));
 	});
 
 	// Print the wire-end (ferrule) tag list
-	m_project_print_wire_tags = new QAction(QET::Icons::DocumentSpreadsheet, tr("Imprimir lista de marcação de fios"), this);
+	m_project_print_wire_tags = new QAction(QET::Icons::DocumentSpreadsheet, tr("Imprimir lista de marcação de fios..."), this);
 	ShortcutManager::instance().registerAction(m_project_print_wire_tags, "diagrameditor.print_wire_tags", tr("Éditeur de schémas"), QKeySequence());
-	m_project_print_wire_tags->setStatusTip(tr("Gera uma lista para impressão com a marcação de cada ponta de fio (etiquetas/ferrolhos)", "status bar tip"));
+	m_project_print_wire_tags->setStatusTip(tr("Uma linha por ponta de fio com a etiqueta a imprimir, a mesma desenhada na folha", "status bar tip"));
 	connect(m_project_print_wire_tags, &QAction::triggered, [this]() {
-		QETProject *project = this->currentProject();
-		if (project)
-		{
-			WiringListExport wle(project, this);
-			wle.printTagList();
-		}
+		if (QETProject *project = this->currentProject())
+			WiringList::printTagList(this, project);
 	});
 
 	// Export just the tag text, one per line, for label-printer software
-	m_project_export_wire_tags_csv = new QAction(QET::Icons::DocumentSpreadsheet, tr("Exportar tags dos fios para impressora de etiquetas"), this);
+	m_project_export_wire_tags_csv = new QAction(QET::Icons::DocumentSpreadsheet, tr("Exportar etiquetas para a impressora..."), this);
 	ShortcutManager::instance().registerAction(m_project_export_wire_tags_csv, "diagrameditor.export_wire_tags_csv", tr("Éditeur de schémas"), QKeySequence());
-	m_project_export_wire_tags_csv->setStatusTip(tr("CSV enxuto (uma coluna, uma linha por ponta) pronto para importar em software de impressora de ferrolho", "status bar tip"));
+	m_project_export_wire_tags_csv->setStatusTip(tr("Uma etiqueta por linha, as mesmas das pontas desenhadas, para o programa da impressora de etiquetas", "status bar tip"));
 	connect(m_project_export_wire_tags_csv, &QAction::triggered, [this]() {
-		QETProject *project = this->currentProject();
-		if (project)
-		{
-			WiringListExport wle(project, this);
-			wle.toTagListCsv();
-		}
+		if (QETProject *project = this->currentProject())
+			WiringList::saveTagListCsv(this, project);
 	});
 
 	// Show the wiring list read from the project database
-	m_project_wiring_list_view = new QAction(QET::Icons::DocumentSpreadsheet, tr("Liste de câblage (base de données)"), this);
+	m_project_wiring_list_view = new QAction(QET::Icons::DocumentSpreadsheet, tr("Lista de fiação (banco de dados)"), this);
 	ShortcutManager::instance().registerAction(m_project_wiring_list_view, "diagrameditor.wiring_list_view", tr("Éditeur de schémas"), QKeySequence());
 	connect(m_project_wiring_list_view, &QAction::triggered, [this]() {
 		QETProject *project = this->currentProject();
@@ -955,7 +957,7 @@ void QETDiagramEditor::setUpActions()
 	});
 
 	// Terminal Numbering
-	m_terminal_numbering = new QAction(QET::Icons::TerminalStrip, tr("Numérotation automatique des bornes"), this);
+	m_terminal_numbering = new QAction(QET::Icons::TerminalStrip, tr("Numeração automática de bornes"), this);
 	ShortcutManager::instance().registerAction(m_terminal_numbering, "diagrameditor.terminal_numbering", tr("Éditeur de schémas"), QKeySequence());
 	connect(m_terminal_numbering, &QAction::triggered, this, &QETDiagramEditor::slot_terminalNumbering);
 
@@ -1770,17 +1772,29 @@ void QETDiagramEditor::setUpMenu()
 	numbering_menu -> addAction(m_project_renumber);
 	QMenu *standards_menu = menu_project -> addMenu(tr("Padrões do projeto"));
 	standards_menu -> addAction(m_text_styles);
-	standards_menu -> addAction(m_potential_rules);
 	menu_project -> addSeparator();
 
-	QMenu *wiring_menu = menu_project -> addMenu(QET::Icons::Conductor, tr("Fiação e condutores"));
+		//Homiservi-SCH: everything about the wires in one place, in the
+		//order of the work: the rules, the numbers, the list, the labels
+		//of the ends, then what goes to the workshop
+	QMenu *wiring_menu = menu_project -> addMenu(QET::Icons::Conductor, tr("Fiação"));
+	wiring_menu -> addAction(m_potential_rules);
+	wiring_menu -> addAction(m_wire_numbering);
+	wiring_menu -> addSeparator();
+	wiring_menu -> addAction(m_wiring_editor);
+	wiring_menu -> addAction(m_project_wiring_list_view);
+	wiring_menu -> addSeparator();
+	wiring_menu -> addAction(m_conductor_numerate_ends);
+	wiring_menu -> addAction(m_label_all_wire_ends);
+	wiring_menu -> addSeparator();
+	wiring_menu -> addAction(m_project_export_wiring_list);
+	wiring_menu -> addAction(m_project_print_wire_tags);
+	wiring_menu -> addAction(m_project_export_wire_tags_csv);
+	wiring_menu -> addSeparator();
 	wiring_menu -> addAction(m_auto_conductor);
 		//Sits beside m_auto_conductor, the setting it pairs with. It was
 		//toolbar-only and so had no keyboard route at all.
 	wiring_menu -> addAction(m_auto_break_conductor);
-	wiring_menu -> addSeparator();
-	wiring_menu -> addAction(m_wiring_editor);
-	wiring_menu -> addAction(m_project_wiring_list_view);
 
 	QMenu *terminal_menu = menu_project -> addMenu(QET::Icons::TerminalStrip, tr("Bornes"));
 	terminal_menu -> addAction(m_terminal_strip_dialog);
@@ -1789,11 +1803,8 @@ void QETDiagramEditor::setUpMenu()
 
 	QMenu *export_menu = menu_project -> addMenu(QET::Icons::DocumentSpreadsheet, tr("Exportar listas"));
 	export_menu -> addAction(m_csv_export);
-	export_menu -> addAction(m_project_export_conductor_num);
 	export_menu -> addAction(m_project_export_wiring_list);
-	export_menu -> addSeparator();
-	export_menu -> addAction(m_project_print_wire_tags);
-	export_menu -> addAction(m_project_export_wire_tags_csv);
+	export_menu -> addAction(m_project_export_conductor_num);
 #ifdef QET_EXPORT_PROJECT_DB
 	export_menu -> addSeparator();
 	export_menu -> addAction(m_export_project_db);
@@ -2011,7 +2022,7 @@ void QETDiagramEditor::showHomiserviData()
 	@param reapply : open on what changes, to apply the settings of the
 	project again (on the sections when the project has none)
 */
-void QETDiagramEditor::showProjectNumbering(bool reapply)
+void QETDiagramEditor::showProjectNumbering(bool reapply, int tab)
 {
 	QETProject *project = currentProject();
 	ProjectView *project_view = currentProjectView();
@@ -2019,7 +2030,37 @@ void QETDiagramEditor::showProjectNumbering(bool reapply)
 		return;
 	}
 	ProjectNumberingDialog dialog(project, project_view, reapply && !project->numbering().isEmpty(), this);
+	if (tab >= 0)
+		dialog.tabs()->setCurrentIndex(tab);
 	dialog.exec();
+}
+
+/**
+	@brief QETDiagramEditor::labelAllWireEnds
+	Give the ends of every wire of the current project their label, by
+	the rule of the project (ConductorEndLabeling), as one undo step
+*/
+void QETDiagramEditor::labelAllWireEnds()
+{
+	QETProject *project = currentProject();
+	if (!project || project->isReadOnly()) {
+		return;
+	}
+	QList<Conductor *> to_label;
+	for (Diagram *diagram : project->diagrams())
+		for (Conductor *conductor : diagram->conductors())
+			if (ConductorEndLabeling::needsLabels(conductor))
+				to_label << conductor;
+	if (to_label.isEmpty()) {
+		QET::QetMessageBox::information(this, tr("Etiquetar as pontas"),
+			tr("As etiquetas de todos os fios já seguem a regra do projeto."));
+		return;
+	}
+	QUndoStack *undo = project->undoStack();
+	undo->beginMacro(tr("Etiquetar as pontas de %n fio(s)", nullptr, int(to_label.size())));
+	for (Conductor *conductor : std::as_const(to_label))
+		ConductorEndLabeling::applyToConductor(conductor);
+	undo->endMacro();
 }
 
 /**

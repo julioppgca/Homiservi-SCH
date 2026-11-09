@@ -59,18 +59,36 @@ namespace PotentialRules
 		}
 	};
 
+		///What the label at each end of a wire (its ferrule) says
+	enum EndLabels {
+			///The terminal of that end: -K1A1 at the end in -K1:A1
+		OwnTerminal,
+			///The terminal at the other end of the wire
+		Destination,
+			///The number of the wire, the same at both ends
+		WireNumber,
+			///The number and the terminal of that end: 101 -K1A1
+		NumberAndTerminal
+	};
+
 	struct Settings
 	{
 		bool automatic = true;
 		QList<Rule> rules;
+			///Homiservi-SCH: the rule of the wire end labels, see
+			///ConductorEndLabeling. Kept here with the other wiring rules
+			///of the project.
+		EndLabels end_labels = OwnTerminal;
 
 		bool operator==(const Settings &other) const {
-			return automatic == other.automatic && rules == other.rules;
+			return automatic == other.automatic && rules == other.rules
+					&& end_labels == other.end_labels;
 		}
 		bool operator!=(const Settings &other) const { return !(*this == other); }
 	};
 
 	QString fieldName(Field field);
+	QString endLabelsName(EndLabels rule);
 	QString fieldValue(const ConductorProperties &properties, Field field);
 	Settings examples();
 

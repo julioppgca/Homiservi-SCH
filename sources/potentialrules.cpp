@@ -74,6 +74,17 @@ namespace {
 		return nullptr;
 	}
 
+	QString endLabelsKey(PotentialRules::EndLabels rule)
+	{
+		switch (rule) {
+			case PotentialRules::Destination:       return QStringLiteral("destination");
+			case PotentialRules::WireNumber:        return QStringLiteral("number");
+			case PotentialRules::NumberAndTerminal: return QStringLiteral("number_terminal");
+			case PotentialRules::OwnTerminal:
+			default:                                return QStringLiteral("own");
+		}
+	}
+
 	QString fieldKey(PotentialRules::Field field)
 	{
 		switch (field) {
@@ -157,6 +168,24 @@ PotentialRules::Settings PotentialRules::examples()
 }
 
 /**
+	@return the name of the end label rule, for the user
+*/
+QString PotentialRules::endLabelsName(EndLabels rule)
+{
+	switch (rule) {
+		case Destination:
+			return QCoreApplication::translate("PotentialRules", "Destino – o borne da outra ponta");
+		case WireNumber:
+			return QCoreApplication::translate("PotentialRules", "Número do fio, igual nas duas pontas");
+		case NumberAndTerminal:
+			return QCoreApplication::translate("PotentialRules", "Número do fio e o borne da própria ponta");
+		case OwnTerminal:
+		default:
+			return QCoreApplication::translate("PotentialRules", "Próprio borne – o borne em que a ponta é ligada");
+	}
+}
+
+/**
 	@brief PotentialRules::fromXml
 	@return the rules of the <potential_rules> child of project_root, none
 	if it has no such child
@@ -168,6 +197,9 @@ PotentialRules::Settings PotentialRules::fromXml(const QDomElement &project_root
 	if (root.isNull()) return settings;
 	settings.automatic = root.attribute(QStringLiteral("automatic"), QStringLiteral("true"))
 			== QLatin1String("true");
+	const QString end_labels = root.attribute(QStringLiteral("end_labels"));
+	for (EndLabels rule : {OwnTerminal, Destination, WireNumber, NumberAndTerminal})
+		if (endLabelsKey(rule) == end_labels) settings.end_labels = rule;
 	for (QDomElement e = root.firstChildElement(QStringLiteral("rule")); !e.isNull();
 	     e = e.nextSiblingElement(QStringLiteral("rule"))) {
 		Rule rule;
@@ -189,11 +221,13 @@ PotentialRules::Settings PotentialRules::fromXml(const QDomElement &project_root
 */
 void PotentialRules::toXml(const Settings &settings, QDomElement &project_root)
 {
-	if (settings.rules.isEmpty()) return;
+	if (settings.rules.isEmpty() && settings.end_labels == OwnTerminal) return;
 	QDomDocument document = project_root.ownerDocument();
 	QDomElement root = document.createElement(QStringLiteral("potential_rules"));
 	root.setAttribute(QStringLiteral("automatic"),
 			  settings.automatic ? QStringLiteral("true") : QStringLiteral("false"));
+	if (settings.end_labels != OwnTerminal)
+		root.setAttribute(QStringLiteral("end_labels"), endLabelsKey(settings.end_labels));
 	for (const Rule &rule : settings.rules) {
 		QDomElement e = document.createElement(QStringLiteral("rule"));
 		e.setAttribute(QStringLiteral("field"), fieldKey(rule.field));

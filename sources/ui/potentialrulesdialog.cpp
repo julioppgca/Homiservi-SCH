@@ -68,9 +68,26 @@ PotentialRulesDialog::PotentialRulesDialog(const PotentialRules::Settings &setti
 					   QWidget *parent) :
 	QDialog(parent)
 {
-	setWindowTitle(tr("Regras de cor e bitola"));
-	resize(640, 420);
+	setWindowTitle(tr("Regras de fiação"));
+	resize(680, 480);
 	auto layout = new QVBoxLayout(this);
+
+		//The end labels (ferrules)
+	auto labels_layout = new QHBoxLayout();
+	labels_layout->addWidget(new QLabel(tr("Etiqueta nas pontas dos fios:"), this));
+	m_end_labels = new QComboBox(this);
+	for (PotentialRules::EndLabels rule : {PotentialRules::OwnTerminal, PotentialRules::Destination,
+					      PotentialRules::WireNumber, PotentialRules::NumberAndTerminal})
+		m_end_labels->addItem(PotentialRules::endLabelsName(rule), int(rule));
+	m_end_labels->setToolTip(tr("O que sai nas etiquetas das pontas desenhadas nas folhas, na"
+				    " lista de marcação impressa e no arquivo da impressora de"
+				    " etiquetas. Use \"Etiquetar as pontas dos fios\" para refazer"
+				    " as etiquetas já desenhadas."));
+	labels_layout->addWidget(m_end_labels, 1);
+	layout->addLayout(labels_layout);
+
+	auto rules_title = new QLabel(tr("<b>Cor e bitola</b>"), this);
+	layout->addWidget(rules_title);
 
 	auto help = new QLabel(tr("A primeira regra que combina com um fio dá a ele a cor e a"
 				  " seção. No valor, maiúsculas e espaços não importam;"
@@ -151,6 +168,7 @@ PotentialRules::Settings PotentialRulesDialog::settings() const
 {
 	PotentialRules::Settings settings;
 	settings.automatic = m_automatic->isChecked();
+	settings.end_labels = PotentialRules::EndLabels(m_end_labels->currentData().toInt());
 	for (int row = 0; row < m_table->rowCount(); ++row) {
 		PotentialRules::Rule rule;
 		auto combo = qobject_cast<QComboBox *>(m_table->cellWidget(row, FieldColumn));
@@ -172,6 +190,7 @@ PotentialRules::Settings PotentialRulesDialog::settings() const
 void PotentialRulesDialog::fill(const PotentialRules::Settings &settings)
 {
 	m_automatic->setChecked(settings.automatic);
+	m_end_labels->setCurrentIndex(qMax(0, m_end_labels->findData(int(settings.end_labels))));
 	m_table->setRowCount(0);
 	for (const PotentialRules::Rule &rule : settings.rules)
 		addRow(rule);

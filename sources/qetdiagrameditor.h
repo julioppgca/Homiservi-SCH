@@ -122,7 +122,8 @@ class QETDiagramEditor : public QETMainWindow
 		void newHomiserviProject();
 		void showHomiserviData();
 		void showProjectRevisions();
-		void showProjectNumbering(bool reapply = false);
+		void showProjectNumbering(bool reapply = false, int tab = -1);
+		void labelAllWireEnds();
 		void addComponentList();
 		void generateTerminalSheets();
 		void generateIoMaps();
@@ -216,6 +217,8 @@ class QETDiagramEditor : public QETMainWindow
 		*m_edit_diagram_properties, ///< Show a dialog to edit diagram properties
 		*m_conductor_reset,         ///< Reset paths of selected conductors
 		*m_conductor_numerate_ends, ///< Numerate cross-reference end labels of every conductor on the page
+		*m_label_all_wire_ends = nullptr, ///< The end labels of every wire of the project
+		*m_wire_numbering = nullptr,      ///< The numbering of the wires (ProjectNumberingDialog)
 		*m_cut,                     ///< Cut selection to clipboard
 		*m_copy,                    ///< Copy selection to clipboard
 		*m_paste_element_info,      ///< Copy the information of the copied element onto the selected elements (#1375)

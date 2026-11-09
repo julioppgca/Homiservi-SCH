@@ -1488,6 +1488,7 @@ void QETProject::setNumbering(const ProjectNumbering::Settings &numbering)
 		for (Diagram *diagram : std::as_const(m_diagrams_list))
 			for (Conductor *conductor : diagram->conductors())
 				conductor->calculateTextItemPosition();
+	emit numberingChanged();
 }
 
 /**

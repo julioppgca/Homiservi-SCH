@@ -176,6 +176,8 @@ set(QET_SRC_FILES
   ${QET_DIR}/sources/conductorautonumerotation.h
   ${QET_DIR}/sources/conductorendlabeling.cpp
   ${QET_DIR}/sources/conductorendlabeling.h
+  ${QET_DIR}/sources/wiringlist.cpp
+  ${QET_DIR}/sources/wiringlist.h
   ${QET_DIR}/sources/projectdiff.cpp
   ${QET_DIR}/sources/projectdiff.h
   ${QET_DIR}/sources/projecthistory.cpp

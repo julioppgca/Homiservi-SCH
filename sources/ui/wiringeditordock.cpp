@@ -26,6 +26,8 @@
 #include "../qetmessagebox.h"
 #include "../potentialrules.h"
 #include "../qetproject.h"
+#include "../conductorendlabeling.h"
+#include "../wiringlist.h"
 
 #include <QCheckBox>
 #include <QCollator>
@@ -168,7 +170,8 @@ Conductor *WiringTableModel::conductor(int row) const
 
 bool WiringTableModel::isEditable(int column)
 {
-	return column >= Number && column != From && column != To;
+	return column >= Number && column != From && column != To
+			&& column != FromLabel && column != ToLabel;
 }
 
 /**
@@ -237,18 +240,33 @@ QVariant WiringTableModel::data(const QModelIndex &index, int role) const
 			return tr("Um código IEC (BK, BN, RD, BU, GNYE...), um nome (preto,"
 				  " azul...) ou #rrggbb também muda a cor do fio no esquema");
 	}
+		//Sorted by the order of the folios, not by the text of their number
+	if (c && role == Qt::UserRole) {
+		if (index.column() == Folio)
+			return c->diagram() ? c->diagram()->folioIndex() : 0;
+		return data(index, Qt::DisplayRole);
+	}
 	if (!c || (role != Qt::DisplayRole && role != Qt::EditRole && role != Qt::ToolTipRole))
 		return QVariant();
 
 	switch (index.column()) {
 		case Folio: {
+				//The folio number of the title block (02.04)
 			Diagram *diagram = c->diagram();
 			if (!diagram) return QVariant();
 			if (role == Qt::ToolTipRole) return diagram->title();
-			return QStringLiteral("%1").arg(diagram->folioIndex() + 1, 3, 10, QLatin1Char('0'));
+			return WiringList::folioLabel(diagram);
 		}
 		case From: return terminalName(c->terminal1);
 		case To:   return terminalName(c->terminal2);
+		case FromLabel:
+			if (role == Qt::ToolTipRole)
+				return tr("A etiqueta desta ponta, como desenhada na folha ou pela regra do projeto");
+			return ConductorEndLabeling::shownLabel(c, true);
+		case ToLabel:
+			if (role == Qt::ToolTipRole)
+				return tr("A etiqueta desta ponta, como desenhada na folha ou pela regra do projeto");
+			return ConductorEndLabeling::shownLabel(c, false);
 		default:   return field(c->properties(), index.column());
 	}
 }
@@ -258,10 +276,12 @@ QVariant WiringTableModel::headerData(int section, Qt::Orientation orientation, 
 	if (orientation != Qt::Horizontal || role != Qt::DisplayRole)
 		return QAbstractTableModel::headerData(section, orientation, role);
 	switch (section) {
-		case Folio:     return tr("Fólio");
-		case Number:    return tr("Número");
+		case Folio:     return tr("Folha");
+		case Number:    return tr("Nº do fio");
 		case From:      return tr("Origem");
 		case To:        return tr("Destino");
+		case FromLabel: return tr("Etiqueta da origem");
+		case ToLabel:   return tr("Etiqueta do destino");
 		case Function:  return tr("Função");
 		case WireColor: return tr("Cor do fio");
 		case Section:   return tr("Seção");
@@ -316,8 +336,12 @@ WiringEditorDock::WiringEditorDock(QWidget *parent) :
 	top->addWidget(m_whole_potential);
 	auto export_button = new QToolButton(widget);
 	export_button->setText(tr("Exportar CSV..."));
+	export_button->setToolTip(tr("Os fios mostrados (com o filtro), nas colunas da lista de fiação"));
 	top->addWidget(export_button);
 	layout->addLayout(top);
+		//The wiring actions of the editor (addTools())
+	m_tools = new QHBoxLayout();
+	layout->addLayout(m_tools);
 
 	m_model = new WiringTableModel(this);
 	m_proxy = new QSortFilterProxyModel(this);
@@ -325,6 +349,8 @@ WiringEditorDock::WiringEditorDock(QWidget *parent) :
 	m_proxy->setFilterKeyColumn(-1);
 	m_proxy->setFilterCaseSensitivity(Qt::CaseInsensitive);
 	m_proxy->setSortCaseSensitivity(Qt::CaseInsensitive);
+	m_proxy->setSortRole(Qt::UserRole);
+	m_proxy->setSortLocaleAware(true);
 
 	m_view = new QTableView(widget);
 	m_view->setModel(m_proxy);
@@ -409,40 +435,26 @@ void WiringEditorDock::exportCsv()
 {
 	QETProject *project = m_model->project();
 	if (!project) return;
-	const QString dir = project->filePath().isEmpty()
-			? QString()
-			: QFileInfo(project->filePath()).absolutePath() + QLatin1Char('/')
-			  + QFileInfo(project->filePath()).completeBaseName() + tr("-fiacao.csv");
-	const QString path = QFileDialog::getSaveFileName(this, tr("Exportar a fiação"),
-							  dir, tr("Arquivos CSV (*.csv)"));
-	if (path.isEmpty()) return;
+	QList<WiringList::Wire> wires;
+	for (int row = 0 ; row < m_proxy->rowCount() ; ++row)
+		if (Conductor *c = m_model->conductor(m_proxy->mapToSource(m_proxy->index(row, 0)).row()))
+			wires << WiringList::wire(c);
+	WiringList::saveCsv(this, project, wires);
+}
 
-	QSaveFile file(path);
-	if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
-		QET::QetMessageBox::critical(this, tr("Exportar a fiação"),
-			tr("Não foi possível abrir o arquivo para escrita."));
-		return;
+/**
+	@brief WiringEditorDock::addTools
+	Show actions as buttons over the table: the wiring actions of the
+	project, at hand where the wires are edited
+*/
+void WiringEditorDock::addTools(const QList<QAction *> &actions)
+{
+	for (QAction *action : actions) {
+		if (!action) continue;
+		auto button = new QToolButton(widget());
+		button->setDefaultAction(action);
+		button->setToolButtonStyle(Qt::ToolButtonTextOnly);
+		m_tools->addWidget(button);
 	}
-	QTextStream out(&file);
-	out.setEncoding(QStringConverter::Utf8);
-	out.setGenerateByteOrderMark(true);	// accents in Excel
-	auto cell = [](QString text) {
-		text.replace(QLatin1Char('"'), QLatin1String("\"\""));
-		return QLatin1Char('"') + text + QLatin1Char('"');
-	};
-		//Semicolons: what Excel expects with a Brazilian locale
-	QStringList header;
-	for (int column = 0 ; column < m_proxy->columnCount() ; ++column)
-		header << cell(m_proxy->headerData(column, Qt::Horizontal).toString());
-	out << header.join(QLatin1Char(';')) << '\n';
-	for (int row = 0 ; row < m_proxy->rowCount() ; ++row) {
-		QStringList line;
-		for (int column = 0 ; column < m_proxy->columnCount() ; ++column)
-			line << cell(m_proxy->index(row, column).data().toString());
-		out << line.join(QLatin1Char(';')) << '\n';
-	}
-	if (!file.commit()) {
-		QET::QetMessageBox::critical(this, tr("Exportar a fiação"),
-			tr("Não foi possível gravar o arquivo."));
-	}
+	m_tools->addStretch();
 }

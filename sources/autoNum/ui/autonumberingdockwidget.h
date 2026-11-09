@@ -48,6 +48,9 @@ class AutoNumberingDockWidget : public QDockWidget
 		void setActive();
 		void setConductorActive(DiagramView*);
 
+	public:
+		void updateConductorLock();
+
 	private slots:
 		void on_m_conductor_cb_activated(int);
 		void on_m_element_cb_activated(int);

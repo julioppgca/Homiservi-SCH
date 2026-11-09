@@ -23,11 +23,13 @@
 #include <QDialog>
 
 class QCheckBox;
+class QComboBox;
 class QTableWidget;
 
 /**
 	@brief The PotentialRulesDialog class
-	Edit the colour and section rules of a project's wires. Besides OK, the
+	Edit the wiring rules of a project: what the end labels of the wires
+	say, and the colour and section rules. Besides OK, the
 	dialog can be closed asking to apply the rules to every wire, or to
 	insert their legend on the current folio: see action().
 */
@@ -52,6 +54,7 @@ class PotentialRulesDialog : public QDialog
 		void closeWith(Action action);
 
 		QCheckBox *m_automatic = nullptr;
+		QComboBox *m_end_labels = nullptr;
 		QTableWidget *m_table = nullptr;
 		Action m_action = NoAction;
 };
