@@ -25,6 +25,7 @@
 #include "qetproject.h"
 
 #include <QCoreApplication>
+#include <QRegularExpression>
 
 namespace
 {
@@ -221,4 +222,35 @@ void ProjectIndex::insert(Diagram *diagram, const QString &query, const QString 
 		properties.title = QStringLiteral("%1 (%2)").arg(name).arg(++number);
 		folio->border_and_titleblock.importTitleBlock(properties);
 	}
+}
+
+/**
+	@brief ProjectIndex::recognize
+	@return true if query is the query of an index, as query() makes it:
+	then kind, keys and grouped tell which. The titles of its columns give
+	the keys, and the query made from them must be query itself.
+*/
+bool ProjectIndex::recognize(const QString &query, Kind *kind, QStringList *keys, bool *grouped)
+{
+	static const QRegularExpression title_re(QStringLiteral("AS \"((?:[^\"]|\"\")*)\""));
+	QStringList titles;
+	QRegularExpressionMatchIterator it = title_re.globalMatch(query);
+	while (it.hasNext())
+		titles << it.next().captured(1).replace(QStringLiteral("\"\""), QStringLiteral("\""));
+
+	for (Kind k : {Folios, Sections}) {
+		QStringList found;
+		for (const QString &title : std::as_const(titles))
+			for (const Column &column : columns(k))
+				if (column.title == title) { found << column.key; break; }
+		if (found.size() != titles.size()) continue;
+		for (bool g : {true, false}) {
+			if (ProjectIndex::query(k, found, g) != query) continue;
+			if (kind) *kind = k;
+			if (keys) *keys = found;
+			if (grouped) *grouped = k == Folios && g;
+			return true;
+		}
+	}
+	return false;
 }

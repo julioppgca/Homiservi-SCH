@@ -16,6 +16,7 @@
 	along with QElectroTech. If not, see <http://www.gnu.org/licenses/>.
 */
 #include "qetgraphicstableitem.h"
+#include "../../ui/projectindexdialog.h"
 #include "../../shownkinds.h"
 #include "../../qetproject.h"
 #include "../../QPropertyUndoCommand/qpropertyundocommand.h"
@@ -511,7 +512,22 @@ int QetGraphicsTableItem::displayNRowOffset() const
 }
 
 /**
-	@brief QetGraphicsTableItem::displayedRowCount
+	@brief QetGraphicsTableItem::mouseDoubleClickEvent
+	Homiservi-SCH: a double click on an index edits it
+	(ProjectIndexDialog)
+*/
+void QetGraphicsTableItem::mouseDoubleClickEvent(QGraphicsSceneMouseEvent *event)
+{
+	QWidget *parent = scene() && !scene()->views().isEmpty() ? scene()->views().first() : nullptr;
+	if (ProjectIndexDialog::editIndex(this, parent)) {
+		event->accept();
+		return;
+	}
+	QetGraphicsItem::mouseDoubleClickEvent(event);
+}
+
+/**
+	@brief QetGraphicsTableItem::displayedRowRect
 	@return the rectangle of the row-th row this table displays, from 0, in
 	its own coordinates, as paint() draws it
 */

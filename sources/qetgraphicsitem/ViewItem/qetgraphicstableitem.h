@@ -95,6 +95,7 @@ class QetGraphicsTableItem : public QetGraphicsItem
 		virtual bool toDXF (const QString &filepath);
 
 	protected:
+		void mouseDoubleClickEvent(QGraphicsSceneMouseEvent *event) override;
 		virtual void hoverEnterEvent(
 				QGraphicsSceneHoverEvent *event) override;
 		virtual void hoverLeaveEvent(

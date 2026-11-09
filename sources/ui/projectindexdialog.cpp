@@ -23,6 +23,10 @@
 #include "../factory/qetgraphicstablefactory.h"
 #include "../factory/ui/addtabledialog.h"
 #include "../qetproject.h"
+#include "../qetgraphicsitem/ViewItem/projectdbmodel.h"
+#include "../qetgraphicsitem/ViewItem/qetgraphicstableitem.h"
+#include <QUndoCommand>
+#include <QUndoStack>
 
 #include <QCheckBox>
 #include <QDialogButtonBox>
@@ -44,13 +48,76 @@
 namespace
 {
 	const QString settings_group = QStringLiteral("homiservi/index/");
+
+		///The query of an index and the names of its tables change together
+	class EditIndexCommand : public QUndoCommand
+	{
+		public:
+			EditIndexCommand(ProjectDBModel *model, const QString &old_query, const QString &new_query,
+					 const QList<QetGraphicsTableItem *> &tables,
+					 const QStringList &old_names, const QStringList &new_names) :
+				QUndoCommand(QCoreApplication::translate("ProjectIndexDialog", "Editar índice")),
+				m_model(model), m_old_query(old_query), m_new_query(new_query),
+				m_old_names(old_names), m_new_names(new_names)
+			{
+				for (QetGraphicsTableItem *table : tables) m_tables << table;
+			}
+			void setFolioTitle(Diagram *folio, const QString &old_title, const QString &new_title)
+			{
+				m_folio = folio;
+				m_old_title = old_title;
+				m_new_title = new_title;
+			}
+			void undo() override { set(m_old_query, m_old_names); title(m_old_title); }
+			void redo() override { set(m_new_query, m_new_names); title(m_new_title); }
+
+		private:
+			void set(const QString &query, const QStringList &names)
+			{
+				if (m_model) m_model->setQuery(query);
+				for (int i = 0; i < m_tables.size() && i < names.size(); ++i)
+					if (m_tables.at(i)) m_tables.at(i)->setTableName(names.at(i));
+			}
+			void title(const QString &text)
+			{
+				if (!m_folio) return;
+				TitleBlockProperties properties = m_folio->border_and_titleblock.exportTitleBlock();
+				properties.title = text;
+				m_folio->border_and_titleblock.importTitleBlock(properties);
+			}
+			QPointer<Diagram> m_folio;
+			QString m_old_title, m_new_title;
+			QPointer<ProjectDBModel> m_model;
+			QString m_old_query, m_new_query;
+			QList<QPointer<QetGraphicsTableItem>> m_tables;
+			QStringList m_old_names, m_new_names;
+	};
 }
 
 ProjectIndexDialog::ProjectIndexDialog(Diagram *current, QWidget *parent) :
-	QDialog(parent),
-	m_current(current)
+	QDialog(parent)
 {
-	setWindowTitle(tr("Índice do projeto"));
+	build(current);
+}
+
+/**
+	@brief ProjectIndexDialog::ProjectIndexDialog
+	Edit the index shown by table (and the tables it continues on): its
+	kind, columns, grouping and name, updated in place
+*/
+ProjectIndexDialog::ProjectIndexDialog(QetGraphicsTableItem *table, QWidget *parent) :
+	QDialog(parent)
+{
+	while (table && table->previousTable())
+		table = table->previousTable();
+	m_table = table;
+	build(table ? table->diagram() : nullptr);
+}
+
+void ProjectIndexDialog::build(Diagram *current)
+{
+	m_current = current;
+	setWindowTitle(m_table ? tr("Editar índice") : tr("Índice do projeto"));
 	resize(980, 640);
 	QETProject *project = current ? current->project() : nullptr;
 	const bool has_sections = ProjectIndex::hasSections(project);
@@ -103,7 +170,7 @@ ProjectIndexDialog::ProjectIndexDialog(Diagram *current, QWidget *parent) :
 	options_layout->addWidget(m_more_folios);
 
 		//Where
-	auto where_box = new QGroupBox(tr("Onde"), this);
+	auto where_box = m_where_box = new QGroupBox(tr("Onde"), this);
 	m_new_folio = new QRadioButton(has_sections ? tr("Numa folha nova, no fim da primeira seção")
 						    : tr("Numa folha nova, depois da folha atual"), where_box);
 	m_current_folio = new QRadioButton(tr("Na folha atual (%1)")
@@ -140,7 +207,7 @@ ProjectIndexDialog::ProjectIndexDialog(Diagram *current, QWidget *parent) :
 
 	auto buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
 	buttons->button(QDialogButtonBox::Ok)->setText(tr("Inserir"));
-	auto advanced = buttons->addButton(tr("Avançado..."), QDialogButtonBox::ActionRole);
+	auto advanced = m_advanced = buttons->addButton(tr("Avançado..."), QDialogButtonBox::ActionRole);
 	advanced->setToolTip(tr("Abre a janela de tabela do QElectroTech com esta consulta: aparência"
 				" (margens, fontes) ou uma consulta própria"));
 	connect(buttons, &QDialogButtonBox::accepted, this, &ProjectIndexDialog::accept);
@@ -161,7 +228,36 @@ ProjectIndexDialog::ProjectIndexDialog(Diagram *current, QWidget *parent) :
 	connect(up, &QPushButton::clicked, this, [this]() { moveColumn(-1); });
 	connect(down, &QPushButton::clicked, this, [this]() { moveColumn(1); });
 
+		//Editing an index: what its query says, and its name
+	ProjectIndex::Kind edited_kind = ProjectIndex::Folios;
+	QStringList edited_keys;
+	bool edited_grouped = false;
+	auto edited_model = m_table ? dynamic_cast<ProjectDBModel *>(m_table->model()) : nullptr;
+	if (edited_model && ProjectIndex::recognize(edited_model->queryString(),
+						    &edited_kind, &edited_keys, &edited_grouped)) {
+		m_chosen[edited_kind] = edited_keys;
+		(edited_kind == ProjectIndex::Sections ? m_sections : m_folios)->setChecked(true);
+		m_grouped->setChecked(edited_grouped);
+		where_box->hide();
+		advanced->hide();
+		buttons->button(QDialogButtonBox::Ok)->setText(tr("Atualizar"));
+		m_more_folios->setText(tr("Criar folhas de continuação se não couber"));
+	}
+
 	fillColumns();
+	if (m_table) m_name->setText(baseName());
+}
+
+/**
+	@return the name of the index edited, without the number its tables
+	get when it goes on over several folios ("Índice de folhas 1")
+*/
+QString ProjectIndexDialog::baseName() const
+{
+	QString name = m_table ? m_table->tableName() : QString();
+	if (m_table && m_table->nextTable() && name.endsWith(QStringLiteral(" 1")))
+		name.chop(2);
+	return name;
 }
 
 ProjectIndex::Kind ProjectIndexDialog::kind() const
@@ -196,7 +292,10 @@ void ProjectIndexDialog::fillColumns()
 	}
 	m_filling = false;
 	m_grouped->setVisible(k == ProjectIndex::Folios);
-	m_name->setText(ProjectIndex::defaultName(k));
+		//A name of one's own stays; the usual name follows the kind
+	const ProjectIndex::Kind other = k == ProjectIndex::Folios ? ProjectIndex::Sections : ProjectIndex::Folios;
+	if (!m_table || m_name->text() == ProjectIndex::defaultName(other))
+		m_name->setText(ProjectIndex::defaultName(k));
 	updatePreview();
 }
 
@@ -265,6 +364,12 @@ void ProjectIndexDialog::saveChoices() const
 void ProjectIndexDialog::accept()
 {
 	if (!m_current) return;
+	if (m_table) {
+		saveChoices();
+		updateTable();
+		QDialog::accept();
+		return;
+	}
 	saveChoices();
 	Diagram *folio = targetFolio();
 	ProjectIndex::insert(folio, currentQuery(), m_name->text().trimmed().isEmpty()
@@ -292,4 +397,89 @@ void ProjectIndexDialog::advanced()
 	saveChoices();
 	QetGraphicsTableFactory::create(targetFolio(), &dialog);
 	QDialog::accept();
+}
+
+/**
+	@return true if table, or the first one of the tables it goes on over,
+	shows an index made by ProjectIndex
+*/
+bool ProjectIndexDialog::isIndex(QetGraphicsTableItem *table)
+{
+	while (table && table->previousTable())
+		table = table->previousTable();
+	auto model = table ? dynamic_cast<ProjectDBModel *>(table->model()) : nullptr;
+	return model && ProjectIndex::recognize(model->queryString());
+}
+
+/**
+	@brief ProjectIndexDialog::editIndex
+	Edit the index table shows, when it shows one
+	@return false when table is not an index
+*/
+bool ProjectIndexDialog::editIndex(QetGraphicsTableItem *table, QWidget *parent)
+{
+	if (!isIndex(table) || !table->diagram() || table->diagram()->isReadOnly())
+		return false;
+	ProjectIndexDialog dialog(table, parent);
+	dialog.exec();
+	return true;
+}
+
+/**
+	@brief ProjectIndexDialog::updateTable
+	Give the index edited its new query and name, as one undo step: its
+	tables are fitted to their folios again, and new folios carry the rows
+	that no longer fit, when asked
+*/
+void ProjectIndexDialog::updateTable()
+{
+	auto model = dynamic_cast<ProjectDBModel *>(m_table->model());
+	QETProject *project = m_current ? m_current->project() : nullptr;
+	if (!model || !project) return;
+
+	QList<QetGraphicsTableItem *> tables;
+	for (QetGraphicsTableItem *table = m_table; table; table = table->nextTable())
+		tables << table;
+	const QString base = m_name->text().trimmed().isEmpty() ? ProjectIndex::defaultName(kind())
+								: m_name->text().trimmed();
+	QStringList old_names, new_names;
+	for (int i = 0; i < tables.size(); ++i) {
+		old_names << tables.at(i)->tableName();
+		new_names << (tables.size() > 1 ? QStringLiteral("%1 %2").arg(base).arg(i + 1) : base);
+	}
+
+	QUndoStack *undo = project->undoStack();
+	undo->beginMacro(tr("Editar índice"));
+	auto command = new EditIndexCommand(model, model->queryString(), currentQuery(), tables, old_names, new_names);
+		//The folio named after the index follows its new name
+	if (m_current->title() == baseName() && base != baseName())
+		command->setFolioTitle(m_current, m_current->title(), base);
+	undo->push(command);
+
+	if (m_adjust->isChecked())
+		for (QetGraphicsTableItem *table : std::as_const(tables))
+			QetGraphicsTableItem::adjustTableToFolio(table);
+
+		//The rows that no longer fit go on new folios
+	QetGraphicsTableItem *last = tables.last();
+	int number = int(tables.size());
+	while (m_more_folios->isChecked() && last->displayNRow() > 0
+	       && model->rowCount() > last->displayNRowOffset() && number < 100)
+	{
+		if (number == 1)
+			m_table->setTableName(base + QStringLiteral(" 1"));
+		Diagram *folio = project->addNewDiagram(project->folioIndex(last->diagram()) + 1);
+		if (!folio) break;
+		TitleBlockProperties properties = folio->border_and_titleblock.exportTitleBlock();
+		properties.title = QStringLiteral("%1 (%2)").arg(base).arg(++number);
+		folio->border_and_titleblock.importTitleBlock(properties);
+		auto table = new QetGraphicsTableItem();
+		table->setTableName(QStringLiteral("%1 %2").arg(base).arg(number));
+		table->setPreviousTable(last);
+		folio->addItem(table);
+		table->setPos(50, 50);
+		QetGraphicsTableItem::adjustTableToFolio(table);
+		last = table;
+	}
+	undo->endMacro();
 }

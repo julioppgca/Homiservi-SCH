@@ -24,6 +24,9 @@
 #include <QHash>
 
 class Diagram;
+class QetGraphicsTableItem;
+class QGroupBox;
+class QPushButton;
 class QCheckBox;
 class QLabel;
 class QLineEdit;
@@ -46,6 +49,10 @@ class ProjectIndexDialog : public QDialog
 
 	public:
 		explicit ProjectIndexDialog(Diagram *current, QWidget *parent = nullptr);
+		explicit ProjectIndexDialog(QetGraphicsTableItem *table, QWidget *parent = nullptr);
+
+		static bool isIndex(QetGraphicsTableItem *table);
+		static bool editIndex(QetGraphicsTableItem *table, QWidget *parent = nullptr);
 
 		void accept() override;
 		QString currentQuery() const;
@@ -59,8 +66,15 @@ class ProjectIndexDialog : public QDialog
 		void advanced();
 		Diagram *targetFolio();
 		void saveChoices() const;
+		void build(Diagram *current);
+		void updateTable();
+		QString baseName() const;
 
-		Diagram *m_current;
+		Diagram *m_current = nullptr;
+			///The first table of the index edited, null to insert one
+		QetGraphicsTableItem *m_table = nullptr;
+		QGroupBox *m_where_box = nullptr;
+		QPushButton *m_advanced = nullptr;
 		QRadioButton *m_folios = nullptr;
 		QRadioButton *m_sections = nullptr;
 		QListWidget *m_columns = nullptr;

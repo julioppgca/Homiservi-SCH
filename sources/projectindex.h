@@ -49,6 +49,8 @@ namespace ProjectIndex
 	QString columnTitle(Kind kind, const QString &key);
 	QString defaultName(Kind kind);
 	QString query(Kind kind, const QStringList &keys, bool grouped = true);
+	bool recognize(const QString &query, Kind *kind = nullptr, QStringList *keys = nullptr,
+		       bool *grouped = nullptr);
 
 	bool hasSections(QETProject *project);
 	Diagram *addIndexFolio(QETProject *project, Kind kind, Diagram *after = nullptr);

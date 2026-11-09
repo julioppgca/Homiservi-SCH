@@ -16,6 +16,9 @@
 	along with QElectroTech. If not, see <http://www.gnu.org/licenses/>.
 */
 #include "projectdbmodelpropertieswidget.h"
+#include "../../../diagram.h"
+#include "../qetgraphicstableitem.h"
+#include "../../../ui/projectindexdialog.h"
 
 #include "../../../dataBase/ui/elementquerywidget.h"
 #include "../../../dataBase/ui/summaryquerywidget.h"
@@ -64,6 +67,16 @@ void ProjectDBModelPropertiesWidget::setModel(ProjectDBModel *model)
 */
 void ProjectDBModelPropertiesWidget::on_m_edit_query_pb_clicked()
 {
+		//Homiservi-SCH: an index is edited in its own dialog
+	if (m_model && m_model->project()) {
+		for (Diagram *diagram : m_model->project()->diagrams())
+			for (QGraphicsItem *item : diagram->items())
+				if (auto table = dynamic_cast<QetGraphicsTableItem *>(item))
+					if (table->model() == m_model && !table->previousTable()
+					    && ProjectIndexDialog::editIndex(table, this))
+						return;
+	}
+
 	QDialog d(this);
 	auto l = new QVBoxLayout;
 	d.setLayout(l);
