@@ -73,6 +73,7 @@ class projectDataBase : public QObject
 			*/
 		void setUpdateBlocked(bool blocked);
 		QETProject *project() const;
+		void diagramsInfoChanged();
 		QSqlQuery newQuery(const QString &query = QString(), QString *error = nullptr);
 		static bool isReadOnlySelect(const QString &query, QString *error = nullptr);
 
@@ -134,12 +135,14 @@ class projectDataBase : public QObject
 		bool createDataBase();
 		void createElementNomenclatureView();
 		void createSummaryView();
+		void createSectionsView();
 		void createWiringListView();
 		void createDrawingItemView();
 		void populateDiagramTable();
 		void populateElementTable();
 		void populateElementInfoTable();
 		void populateDiagramInfoTable();
+		void populateSectionTables();
 		void populateConductorTable();
 		void populateDrawingItemTables();
 		bool populateFromDocument(const QDomDocument &document, QString *why = nullptr);

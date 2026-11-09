@@ -437,6 +437,8 @@ class QETProject : public QObject
 		QList<TextStyles::Style> m_text_styles;
 		bool m_text_styles_scheduled = false;
 		ProjectNumbering::Settings m_numbering;
+			///A refresh of the folios in the database is on its way
+		bool m_folio_db_refresh_scheduled = false;
 	bool m_auto_break_conductor = false;
 		XmlElementCollection *m_elements_collection = nullptr;
 		bool m_freeze_new_elements = false;

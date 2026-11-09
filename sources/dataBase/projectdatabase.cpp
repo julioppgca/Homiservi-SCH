@@ -16,6 +16,7 @@
 		along with QElectroTech.  If not, see <http://www.gnu.org/licenses/>.
 */
 #include "projectdatabase.h"
+#include "../projectnumbering.h"
 
 #include "sqlreadonly.h"
 
@@ -127,6 +128,7 @@ void projectDataBase::updateDB()
 
 	populateDiagramTable();
 	populateDiagramInfoTable();
+	populateSectionTables();
 	populateElementTable();
 	populateElementInfoTable();
 	populateConductorTable();
@@ -1686,8 +1688,22 @@ bool projectDataBase::createDataBase()
 		}
 	}
 
+		//Homiservi-SCH: the sections of the project (ProjectNumbering) and
+		//the section of every folio, for the indexes
+	for (const QString &table : {
+			QStringLiteral("CREATE TABLE project_section (code VARCHAR(20) PRIMARY KEY NOT NULL,"
+				       " name VARCHAR(200), heading VARCHAR(250), rank INTEGER)"),
+			QStringLiteral("CREATE TABLE diagram_section (diagram_uuid VARCHAR(50) PRIMARY KEY NOT NULL,"
+				       " code VARCHAR(20))") })
+	{
+		if (!query_.exec(table)) {
+			qDebug() << "section table query : " << query_.lastError();
+		}
+	}
+
 	createElementNomenclatureView();
 	createSummaryView();
+	createSectionsView();
 	createWiringListView();
 	createDrawingItemView();
 	prepareQuery();
@@ -1819,14 +1835,109 @@ void projectDataBase::createSummaryView()
 						 "di.indexrev AS indexrev,"
 						 "di.date AS date,"
 						 "di.variant AS variant,"
-						 "d.pos AS pos"
-						 " FROM diagram_info di, diagram d"
-						 " WHERE di.diagram_uuid = d.uuid");
+						 "d.pos AS pos,"
+							//Homiservi-SCH: the section of the folio
+						 "ps.code AS section_code,"
+						 "ps.name AS section_name,"
+						 "ps.heading AS section_heading,"
+						 "ps.rank AS section_rank"
+						 " FROM diagram_info di"
+						 " JOIN diagram d ON di.diagram_uuid = d.uuid"
+						 " LEFT JOIN diagram_section ds ON ds.diagram_uuid = d.uuid"
+						 " LEFT JOIN project_section ps ON ps.code = ds.code");
 
 	QSqlQuery query(m_data_base);
 	if (!query.exec(create_view)) {
 		qDebug() << query.lastError();
 	}
+}
+
+/**
+	@brief projectDataBase::createSectionsView
+	Homiservi-SCH: project_sections_view, one row per section of the
+	project in its order: its code, name and heading ("02 - DISTRIBUIÇÃO DE
+	FORÇA"), its first and last folio and how many folios it has.
+*/
+void projectDataBase::createSectionsView()
+{
+	const QString folio_of = QStringLiteral(
+			"(SELECT di.folio FROM diagram_section x"
+			" JOIN diagram d ON d.uuid = x.diagram_uuid"
+			" JOIN diagram_info di ON di.diagram_uuid = x.diagram_uuid"
+			" WHERE x.code = s.code ORDER BY d.pos %1 LIMIT 1)");
+	const QString create_view = QStringLiteral(
+			"CREATE VIEW project_sections_view AS SELECT"
+			" s.code AS code, s.name AS name, s.heading AS heading, s.rank AS rank,"
+			" %1 AS first_folio, %2 AS last_folio,"
+			" (SELECT COUNT(*) FROM diagram_section x WHERE x.code = s.code) AS folio_count"
+			" FROM project_section s")
+			.arg(folio_of.arg(QStringLiteral("ASC")), folio_of.arg(QStringLiteral("DESC")));
+
+	QSqlQuery query(m_data_base);
+	if (!query.exec(create_view)) {
+		qDebug() << query.lastError();
+	}
+}
+
+/**
+	@brief projectDataBase::populateSectionTables
+	Homiservi-SCH: fill project_section with the sections of the project
+	numbering and diagram_section with the section of every folio; both
+	stay empty when the project has no sections.
+*/
+void projectDataBase::populateSectionTables()
+{
+	QSqlQuery query(m_data_base);
+	query.exec(QStringLiteral("DELETE FROM project_section"));
+	query.exec(QStringLiteral("DELETE FROM diagram_section"));
+
+	const ProjectNumbering::Settings numbering = m_project->numbering();
+	if (numbering.sections.isEmpty())
+		return;
+
+	QSqlQuery section(m_data_base);
+	section.prepare(QStringLiteral("INSERT INTO project_section (code, name, heading, rank)"
+				       " VALUES (:code, :name, :heading, :rank)"));
+	for (int rank = 0; rank < numbering.sections.size(); ++rank) {
+		const ProjectNumbering::Section &s = numbering.sections.at(rank);
+		section.bindValue(QStringLiteral(":code"), s.code);
+		section.bindValue(QStringLiteral(":name"), s.name);
+		section.bindValue(QStringLiteral(":heading"), s.name.isEmpty()
+				  ? s.code : QStringLiteral("%1 \u2013 %2").arg(s.code, s.name.toUpper()));
+		section.bindValue(QStringLiteral(":rank"), rank);
+		if (!section.exec())
+			qDebug() << "projectDataBase::populateSectionTables section error : " << section.lastError();
+	}
+
+	const QList<Diagram *> diagrams = m_project->diagrams();
+	const QStringList codes = ProjectNumbering::sectionCodes(numbering, m_project->numberingFolios());
+	QSqlQuery folio(m_data_base);
+	folio.prepare(QStringLiteral("INSERT INTO diagram_section (diagram_uuid, code) VALUES (:uuid, :code)"));
+	for (int i = 0; i < diagrams.size() && i < codes.size(); ++i) {
+		folio.bindValue(QStringLiteral(":uuid"), diagrams.at(i)->uuid());
+		folio.bindValue(QStringLiteral(":code"), codes.at(i));
+		if (!folio.exec())
+			qDebug() << "projectDataBase::populateSectionTables folio error : " << folio.lastError();
+	}
+}
+
+/**
+	@brief projectDataBase::diagramsInfoChanged
+	Homiservi-SCH: the title block of every folio and the sections may have
+	changed (the folios numbered again, their titles): update diagram_info
+	and the section tables at once, then tell the tables and models.
+*/
+void projectDataBase::diagramsInfoChanged()
+{
+	m_data_base.transaction();
+	for (Diagram *diagram : m_project->diagrams()) {
+		bindDiagramInfoValues(m_update_diagram_info_query, diagram);
+		if (!m_update_diagram_info_query.exec())
+			qDebug() << "projectDataBase::diagramsInfoChanged update error : " << m_update_diagram_info_query.lastError();
+	}
+	populateSectionTables();
+	m_data_base.commit();
+	emit dataBaseUpdated();
 }
 
 /**

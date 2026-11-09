@@ -3230,6 +3230,17 @@ void QETProject::updateDiagramsFolioData()
 	for (const auto &diagram_ : std::as_const(m_diagrams_list)) {
 		diagram_->update();
 	}
+
+		//Homiservi-SCH: the folio numbers and titles, and the sections, in
+		//the database too, once the current work is over: the indexes
+		//(project_summary_view, project_sections_view) follow them
+	if (!m_folio_db_refresh_scheduled) {
+		m_folio_db_refresh_scheduled = true;
+		QTimer::singleShot(0, this, [this]() {
+			m_folio_db_refresh_scheduled = false;
+			m_data_base.diagramsInfoChanged();
+		});
+	}
 }
 
 /**
