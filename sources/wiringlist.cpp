@@ -108,6 +108,9 @@ QString WiringList::terminalText(Terminal *terminal)
 	if (!terminal) return QString();
 	if (WireJunction::isJunction(terminal)) return tr("(junção)");
 	Element *element = terminal->parentElement();
+		//A folio report is no terminal of the panel: where the wire goes on
+	if (element && (element->linkType() & Element::AllReport))
+		return ConductorEndLabeling::terminalCrossRefId(terminal);
 	const QString label = element ? element->actualLabel() : QString();
 	const QString name = terminal->name();
 	if (name.isEmpty() || name == QLatin1String("_"))
