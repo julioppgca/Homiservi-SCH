@@ -40,6 +40,31 @@
 #include <algorithm>
 
 namespace {
+	Element *reportOf(Terminal *terminal)
+	{
+		Element *element = terminal ? terminal->parentElement() : nullptr;
+		return element && (element->linkType() & Element::AllReport) ? element : nullptr;
+	}
+
+		///The wire on the other side of the folio report at at_report (its
+		///only wire), and in far its end away from the report; nullptr when
+		///the report is not such a one-to-one continuation
+	Conductor *across(Terminal *at_report, Terminal **far)
+	{
+		Element *report = reportOf(at_report);
+		if (!report || report->linkedElements().size() != 1) return nullptr;
+		Element *other = report->linkedElements().first();
+		QList<Conductor *> wires;
+		for (Terminal *terminal : other->terminals()) wires << terminal->conductors();
+		if (wires.size() != 1) return nullptr;
+		Conductor *wire = wires.first();
+		Terminal *end = wire->terminal1 && wire->terminal1->parentElement() == other
+				? wire->terminal2 : wire->terminal1;
+		if (!end || reportOf(end)) return nullptr;
+		*far = end;
+		return wire;
+	}
+
 	QString tr(const char *text)
 	{
 		return QCoreApplication::translate("WiringList", text);
@@ -149,6 +174,7 @@ QList<WiringList::Wire> WiringList::wires(QETProject *project)
 	QList<Wire> list;
 	if (!project) return list;
 	QSet<Element *> done;
+	QSet<Conductor *> continued;
 	QCollator collator;
 	collator.setNumericMode(true);
 	for (Diagram *diagram : project->diagrams()) {
@@ -161,7 +187,29 @@ QList<WiringList::Wire> WiringList::wires(QETProject *project)
 					: WireJunction::isJunction(conductor->terminal2) ? conductor->terminal2
 					: nullptr;
 			if (!joint) {
-				list << wire(conductor);
+				if (continued.contains(conductor)) continue;
+					//A wire drawn in two halves on two folios, joined by
+					//folio reports (a terminal strip and the circuit it
+					//feeds): one wire of the panel, from end to end
+				Terminal *at_report = reportOf(conductor->terminal1) ? conductor->terminal1
+						: reportOf(conductor->terminal2) ? conductor->terminal2 : nullptr;
+				Terminal *far = nullptr;
+				Conductor *other = at_report && !(reportOf(conductor->terminal1) && reportOf(conductor->terminal2))
+						? across(at_report, &far) : nullptr;
+				Wire w = wire(conductor);
+				if (other) {
+					continued << other;
+					const bool end1 = at_report == conductor->terminal1;
+					const QString text = terminalText(far);
+					const QString label = ConductorEndLabeling::shownLabel(other, other->terminal1 == far);
+					if (end1) { w.from = text; w.from_label = label; }
+					else { w.to = text; w.to_label = label; }
+					const Wire o = wire(other);
+					if (w.cable.isEmpty()) w.cable = o.cable;
+					if (w.color.isEmpty()) w.color = o.color;
+					if (w.section.isEmpty()) w.section = o.section;
+				}
+				list << w;
 				continue;
 			}
 				//The wires of a junction, once: the wires of the panel
