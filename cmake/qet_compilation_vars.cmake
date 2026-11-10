@@ -416,6 +416,8 @@ set(QET_SRC_FILES
   ${QET_DIR}/sources/diagramevent/diagrameventaddshape.h
   ${QET_DIR}/sources/diagramevent/diagrameventfillet.cpp
   ${QET_DIR}/sources/diagramevent/diagrameventfillet.h
+  ${QET_DIR}/sources/diagramevent/diagrameventaddconductor.cpp
+  ${QET_DIR}/sources/diagramevent/diagrameventaddconductor.h
   ${QET_DIR}/sources/diagramevent/diagrameventaddpath.cpp
   ${QET_DIR}/sources/diagramevent/diagrameventaddpath.h
   ${QET_DIR}/sources/diagramevent/diagrameventaddtext.cpp

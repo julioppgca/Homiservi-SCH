@@ -19,6 +19,7 @@
 #include "projecthistory.h"
 #include "ui/projectdiffdock.h"
 #include "ui/wiringeditordock.h"
+#include "diagramevent/diagrameventaddconductor.h"
 #include "QPropertyUndoCommand/qpropertyundocommand.h"
 #include "qetgraphicsitem/independenttextitem.h"
 #include "undocommand/addgraphicsobjectcommand.h"
@@ -1445,6 +1446,7 @@ void QETDiagramEditor::setUpActions()
 	// checked, which is required for "click the active tool to turn it
 	// off" to mean anything at the QAction level at all.
 	m_add_item_actions_group.setExclusionPolicy(QActionGroup::ExclusionPolicy::ExclusiveOptional);
+	QAction *add_conductor = m_add_item_actions_group.addAction(QET::Icons::Conductor, tr("Desenhar fio"));
 	QAction *add_text      = m_add_item_actions_group.addAction(QET::Icons::PartTextField, tr("Ajouter un champ de texte"));
 	QAction *add_image	   = m_add_item_actions_group.addAction(QET::Icons::adding_image,  tr("Ajouter une image"));
 #ifdef QET_HAS_QTPDF
@@ -1460,6 +1462,7 @@ void QETDiagramEditor::setUpActions()
 	QAction *add_fillet    = m_add_item_actions_group.addAction(QET::Icons::DrawFillet,   tr("Ajouter un congé"));
 	QAction *add_terminal_strip = m_add_item_actions_group.addAction(QET::Icons::TerminalStrip, tr("Ajouter un plan de bornes"));
 
+	add_conductor->setStatusTip(tr("Desenha fios com cliques, sem segurar o botão: clique num borne, clique para cada dobra e clique no outro borne"));
 	add_text     ->setStatusTip(tr("Ajoute un champ de texte sur le folio actuel"));
 	add_image    ->setStatusTip(tr("Ajoute une image sur le folio actuel"));
 #ifdef QET_HAS_QTPDF
@@ -1475,6 +1478,7 @@ void QETDiagramEditor::setUpActions()
 	add_fillet   ->setStatusTip(tr("Arrondit le coin entre deux lignes du folio actuel"));
 	add_terminal_strip->setStatusTip(tr("Ajoute un plan de bornier sur le folio actuel"));
 
+	add_conductor->setData(QStringLiteral("conductor"));
 	add_text     ->setData(QStringLiteral("text"));
 	add_image    ->setData(QStringLiteral("image"));
 #ifdef QET_HAS_QTPDF
@@ -1490,6 +1494,7 @@ void QETDiagramEditor::setUpActions()
 	add_fillet   ->setData(QStringLiteral("fillet"));
 	add_terminal_strip->setData(QStringLiteral("terminal_strip"));
 
+	add_conductor->setCheckable(true);
 	add_text->setCheckable(true);
 	add_line->setCheckable(true);
 	add_rectangle->setCheckable(true);
@@ -1507,7 +1512,8 @@ void QETDiagramEditor::setUpActions()
 	for (QAction *action : m_add_item_actions_group.actions()) {
 		ShortcutManager::instance().registerAction(
 			action, "diagrameditor.add_" + action->data().toString(),
-			tr("Éditeur de schémas"), QKeySequence());
+			tr("Éditeur de schémas"),
+			action == add_conductor ? QKeySequence(Qt::Key_W) : QKeySequence());
 	}
 
 		//Depth action
@@ -3135,7 +3141,9 @@ void QETDiagramEditor::addItemGroupTriggered(QAction *action)
 
 	DiagramEventInterface *diagram_event = nullptr;
 
-	if (value == "line")
+	if (value == QLatin1String("conductor"))
+		diagram_event = new DiagramEventAddConductor (d);
+	else if (value == "line")
 		diagram_event = new DiagramEventAddShape (d, QetShapeItem::Line);
 	else if (value == "rectangle")
 		diagram_event = new DiagramEventAddShape (d, QetShapeItem::Rectangle);

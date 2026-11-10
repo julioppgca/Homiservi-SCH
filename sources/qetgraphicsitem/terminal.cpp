@@ -27,6 +27,8 @@
 #include "../qetgraphicsitem/element.h"
 #include "conductortextitem.h"
 #include "../wiringrules.h"
+#include "../diagramevent/diagrameventaddconductor.h"
+#include <QApplication>
 
 #include <QToolTip>
 
@@ -631,6 +633,16 @@ void Terminal::mouseReleaseEvent(QGraphicsSceneMouseEvent *e)
 
 	//Get item under cursor
 	QGraphicsItem *qgi = diagram() -> itemAt(e -> scenePos(), QTransform());
+
+		//Homiservi-SCH: a click on a terminal, without dragging, starts
+		//a wire drawn by clicks (DiagramEventAddConductor): the next
+		//clicks place its bends and a click on another terminal ends it
+	if ((qgi == this || (qgi && qgi->parentItem() == this)) && !diagram()->isReadOnly()
+		&& (e->screenPos() - e->buttonDownScreenPos(Qt::LeftButton)).manhattanLength()
+			< QApplication::startDragDistance()) {
+		diagram()->setEventInterface(new DiagramEventAddConductor(diagram(), this, true));
+		return;
+	}
 	if (!qgi) return;
 
 	//Element must be a terminal
@@ -657,9 +669,31 @@ void Terminal::mouseReleaseEvent(QGraphicsSceneMouseEvent *e)
 		}
 		return;
 	}
+	connectTo(other_terminal);
+}
+
+/**
+	@brief Terminal::connectTo
+	Create a conductor from this terminal to other_terminal as one undo
+	step: numbered by the autonumbering, or with the properties of the
+	potential it joins when they all agree.
+	@param path_points : the path of the conductor in scene coordinates,
+	from this terminal's docking point to other_terminal's through the
+	bends drawn by the user, every segment horizontal or vertical; empty
+	(or two points) for the path drawn by the application.
+	@return the new conductor, nullptr if the terminals can't be linked
+*/
+Conductor *Terminal::connectTo(Terminal *other_terminal, const QList<QPointF> &path_points)
+{
+	if (!diagram() || !canBeLinkedTo(other_terminal)) return nullptr;
 
 	//Create conductor
 	Conductor *new_conductor = new Conductor(this, other_terminal);
+		//Drawn by clicks: the path through the bends the user placed,
+		//saved as a modified path. Set before the conductor is on the
+		//folio, so it is part of the same undo step.
+	if (path_points.size() > 2)
+		new_conductor->setPathPoints(path_points);
 
 	//Get all conductors at the same potential of new conductors
 	QSet <Conductor *> conductors_list = new_conductor->relatedPotentialConductors();
@@ -702,6 +736,7 @@ void Terminal::mouseReleaseEvent(QGraphicsSceneMouseEvent *e)
 		Conductor *other = conductors_list.values().first();
 		new_conductor->setProperties(other->properties());
 	}
+	return new_conductor;
 }
 
 /**

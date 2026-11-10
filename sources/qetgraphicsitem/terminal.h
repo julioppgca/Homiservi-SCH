@@ -92,6 +92,8 @@ class Terminal : public QGraphicsObject
 		void updateConductor();
 		bool isLinkedTo(Terminal *);
 		bool canBeLinkedTo(Terminal *);
+		Conductor *connectTo(Terminal *other_terminal,
+				     const QList<QPointF> &path_points = QList<QPointF>());
 		int wireLimit() const;
 		bool hasRoomForWire() const;
 
