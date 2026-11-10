@@ -25,6 +25,7 @@
 #include "qetgraphicsitem/conductortextitem.h"
 #include "qetgraphicsitem/element.h"
 #include "qetgraphicsitem/terminal.h"
+#include "wirejunction.h"
 
 /**
 	@param terminal a terminal belonging to some element on the diagram
@@ -89,8 +90,20 @@ QString ConductorEndLabeling::endLabel(Conductor *conductor, bool end1, Potentia
 {
 	if (!conductor) return QString();
 	Terminal *own = end1 ? conductor->terminal1 : conductor->terminal2;
-	Terminal *other = end1 ? conductor->terminal2 : conductor->terminal1;
+		//No ferrule at a junction: the wire of the panel goes on to the
+		//terminal on the other side of it (WireJunction::partner())
+	if (WireJunction::isJunction(own)) return QString();
+	return label(own, WireJunction::partner(conductor, end1), conductor, rule);
+}
 
+/**
+	@return the label of the end at own of a wire like conductor (its
+	number and voltage) going to other, as rule says
+*/
+QString ConductorEndLabeling::label(Terminal *own, Terminal *other, Conductor *conductor,
+				    PotentialRules::EndLabels rule)
+{
+	if (!conductor) return QString();
 	const QString tension = conductor->properties().m_tension_protocol.trimmed();
 	if (!tension.isEmpty() && own && own->parentElement()
 	    && (own->parentElement()->linkType() & Element::AllReport))

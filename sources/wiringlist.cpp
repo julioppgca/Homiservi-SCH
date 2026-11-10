@@ -24,8 +24,10 @@
 #include "qetgraphicsitem/terminal.h"
 #include "qetmessagebox.h"
 #include "qetproject.h"
+#include "wirejunction.h"
 
 #include <QCollator>
+#include <QSet>
 #include <QCoreApplication>
 #include <QFileDialog>
 #include <QFileInfo>
@@ -98,8 +100,13 @@ QString WiringList::folioLabel(Diagram *diagram)
 */
 QString WiringList::terminalText(Conductor *conductor, bool end1)
 {
-	Terminal *terminal = conductor ? (end1 ? conductor->terminal1 : conductor->terminal2) : nullptr;
+	return terminalText(conductor ? (end1 ? conductor->terminal1 : conductor->terminal2) : nullptr);
+}
+
+QString WiringList::terminalText(Terminal *terminal)
+{
 	if (!terminal) return QString();
+	if (WireJunction::isJunction(terminal)) return tr("(junção)");
 	Element *element = terminal->parentElement();
 	const QString label = element ? element->actualLabel() : QString();
 	const QString name = terminal->name();
@@ -138,6 +145,7 @@ QList<WiringList::Wire> WiringList::wires(QETProject *project)
 {
 	QList<Wire> list;
 	if (!project) return list;
+	QSet<Element *> done;
 	QCollator collator;
 	collator.setNumericMode(true);
 	for (Diagram *diagram : project->diagrams()) {
@@ -145,8 +153,44 @@ QList<WiringList::Wire> WiringList::wires(QETProject *project)
 		std::sort(conductors.begin(), conductors.end(), [&collator](Conductor *a, Conductor *b) {
 			return collator.compare(a->properties().text, b->properties().text) < 0;
 		});
-		for (Conductor *conductor : std::as_const(conductors))
-			list << wire(conductor);
+		for (Conductor *conductor : std::as_const(conductors)) {
+			Terminal *joint = WireJunction::isJunction(conductor->terminal1) ? conductor->terminal1
+					: WireJunction::isJunction(conductor->terminal2) ? conductor->terminal2
+					: nullptr;
+			if (!joint) {
+				list << wire(conductor);
+				continue;
+			}
+				//The wires of a junction, once: the wires of the panel
+				//between the terminals it joins, one after the other
+			if (done.contains(joint->parentElement())) continue;
+			QList<Element *> junctions;
+			const QList<WireJunction::End> ends = WireJunction::ends(joint, &junctions);
+			for (Element *junction : std::as_const(junctions)) done << junction;
+			if (ends.size() < 2) {
+				if (!ends.isEmpty()) list << wire(ends.first().conductor);
+				continue;
+			}
+			for (int i = 0 ; i + 1 < ends.size() ; ++i) {
+				const WireJunction::End &from = ends.at(i);
+				const WireJunction::End &to = ends.at(i + 1);
+				Wire w = wire(from.conductor);
+				w.from = terminalText(from.terminal);
+				w.to = terminalText(to.terminal);
+				if (ends.size() == 2) {
+						//The labels drawn at the two ends
+					w.from_label = ConductorEndLabeling::shownLabel(from.conductor,
+							from.conductor->terminal1 == from.terminal);
+					w.to_label = ConductorEndLabeling::shownLabel(to.conductor,
+							to.conductor->terminal1 == to.terminal);
+				} else {
+					const PotentialRules::EndLabels rule = ConductorEndLabeling::rule(from.conductor);
+					w.from_label = ConductorEndLabeling::label(from.terminal, to.terminal, from.conductor, rule);
+					w.to_label = ConductorEndLabeling::label(to.terminal, from.terminal, to.conductor, rule);
+				}
+				list << w;
+			}
+		}
 	}
 	return list;
 }

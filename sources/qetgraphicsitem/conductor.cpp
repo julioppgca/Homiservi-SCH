@@ -16,6 +16,7 @@
 	along with QElectroTech.  If not, see <http://www.gnu.org/licenses/>.
 */
 #include "../qetgraphicsitem/conductor.h"
+#include "../wirejunction.h"
 #include "../shownkinds.h"
 #include "../lastusedstyle.h"
 #include "../qetproject.h"
@@ -428,6 +429,28 @@ void Conductor::generateConductorPath(const QPointF &p1, Qet::Orientation o1, co
 
 	// s'assure qu'il n'y a ni points
 	QList<QPointF> points;
+
+		//Homiservi-SCH: a junction is a dot, no side to leave it by: an L
+		//(or a straight line) to it, along the axis of the terminal at
+		//the other end
+	const bool junction1 = WireJunction::isJunction(terminal1);
+	const bool junction2 = WireJunction::isJunction(terminal2);
+	if (junction1 || junction2) {
+		const QPointF a = mapFromScene(p1);
+		const QPointF b = mapFromScene(p2);
+		const auto vertical = [](Qet::Orientation o) { return o == Qet::North || o == Qet::South; };
+		points << a;
+		if (qAbs(a.x() - b.x()) > 0.01 && qAbs(a.y() - b.y()) > 0.01) {
+			bool vertical_first = false;
+			if (!junction1) vertical_first = vertical(o1);
+			else if (!junction2) vertical_first = !vertical(o2);
+			points << (vertical_first ? QPointF(a.x(), b.y()) : QPointF(b.x(), a.y()));
+		}
+		points << b;
+		pointsToSegments(points);
+		segmentsToPath();
+		return;
+	}
 
 	// mappe les points par rapport a la scene
 	sp1 = mapFromScene(p1);

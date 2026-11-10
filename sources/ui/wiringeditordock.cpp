@@ -28,6 +28,7 @@
 #include "../qetproject.h"
 #include "../conductorendlabeling.h"
 #include "../wiringlist.h"
+#include "../wirejunction.h"
 
 #include <QAbstractItemView>
 #include <QApplication>
@@ -61,6 +62,7 @@ namespace {
 	QString terminalName(Terminal *terminal)
 	{
 		if (!terminal) return QString();
+		if (WireJunction::isJunction(terminal)) return WiringList::terminalText(terminal);
 		Element *element = terminal->parentElement();
 		const QString label = element ? element->actualLabel() : QString();
 		const QString name = terminal->name();

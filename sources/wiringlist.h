@@ -22,6 +22,7 @@
 #include <QString>
 
 class Conductor;
+class Terminal;
 class Diagram;
 class QETProject;
 class QWidget;
@@ -59,6 +60,7 @@ namespace WiringList
 
 	QString folioLabel(Diagram *diagram);
 	QString terminalText(Conductor *conductor, bool end1);
+	QString terminalText(Terminal *terminal);
 	Wire wire(Conductor *conductor);
 	QList<Wire> wires(QETProject *project);
 

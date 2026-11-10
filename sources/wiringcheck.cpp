@@ -27,6 +27,7 @@
 #include "qetproject.h"
 #include "wiringlist.h"
 #include "wiringrules.h"
+#include "wirejunction.h"
 
 #include <QCollator>
 #include <QCoreApplication>
@@ -165,6 +166,7 @@ QList<WiringCheck::Issue> WiringCheck::check(QETProject *project)
 	const bool master = WiringRules::masterEnabled();
 	for (Diagram *diagram : project->diagrams()) {
 		for (Element *element : diagram->elements()) {
+			if (WireJunction::isJunction(element)) continue;
 			const bool report = element->linkType() & Element::AllReport;
 			const int limit = WiringRules::limit(rules, master, report);
 			if (limit <= 0) continue;

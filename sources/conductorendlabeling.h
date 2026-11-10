@@ -50,6 +50,9 @@ namespace ConductorEndLabeling
 	QString endLabel(Conductor *conductor, bool end1, PotentialRules::EndLabels rule);
 		///The label of that end as drawn on the folio, else as rule gives it
 	QString shownLabel(Conductor *conductor, bool end1);
+		///The label at own of a wire like conductor going to other
+	QString label(Terminal *own, Terminal *other, Conductor *conductor,
+		      PotentialRules::EndLabels rule);
 
 	/**
 		Compute and apply both end labels of @p conductor, pushing one

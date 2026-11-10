@@ -177,6 +177,8 @@ set(QET_SRC_FILES
   ${QET_DIR}/sources/conductorendlabeling.cpp
   ${QET_DIR}/sources/conductorendlabeling.h
   ${QET_DIR}/sources/wiringlist.cpp
+  ${QET_DIR}/sources/wirejunction.cpp
+  ${QET_DIR}/sources/wirejunction.h
   ${QET_DIR}/sources/wiringlist.h
   ${QET_DIR}/sources/wiringcheck.cpp
   ${QET_DIR}/sources/wiringcheck.h

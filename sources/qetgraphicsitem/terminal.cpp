@@ -27,6 +27,7 @@
 #include "../qetgraphicsitem/element.h"
 #include "conductortextitem.h"
 #include "../wiringrules.h"
+#include "../wirejunction.h"
 #include "../diagramevent/diagrameventaddconductor.h"
 #include <QApplication>
 
@@ -801,6 +802,10 @@ int Terminal::wireLimit() const
 		return 0;
 	}
 	const Element *element = parentElement();
+		//A junction is where wires branch: it takes any number of them
+	if (WireJunction::isJunction(element)) {
+		return 0;
+	}
 	const bool is_report = element
 			&& (element->linkType() & (Element::NextReport | Element::PreviousReport));
 	return WiringRules::limit(parent_diagram->project()->wiringRules(),
