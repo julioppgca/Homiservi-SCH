@@ -22,6 +22,7 @@
 #include <QDockWidget>
 #include <QPersistentModelIndex>
 #include <QPointer>
+#include <QSet>
 
 class Conductor;
 class QAction;
@@ -93,6 +94,7 @@ class WiringEditorDock : public QDockWidget
 		explicit WiringEditorDock(QWidget *parent = nullptr);
 		void setProject(QETProject *project);
 		void addTools(const QList<QAction *> &actions);
+		void selectConductors(const QSet<Conductor *> &conductors);
 
 	signals:
 			///A double click on a function: edit the wiring rules
@@ -112,6 +114,8 @@ class WiringEditorDock : public QDockWidget
 		QMetaObject::Connection m_undo_connection;
 		QTimer *m_function_click = nullptr;
 		QPersistentModelIndex m_function_index;
+			///showConductor() is selecting a wire on its folio
+		bool m_showing = false;
 };
 
 #endif // WIRINGEDITORDOCK_H

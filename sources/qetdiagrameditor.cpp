@@ -4630,6 +4630,19 @@ void QETDiagramEditor::selectionChanged()
 	DiagramView *dv = currentDiagramView();
 	if (dv && dv->diagram())
 		m_selection_properties_editor->setDiagram(dv->diagram());
+
+		//The wires clicked on the folio (or their number) are selected
+		//in the wiring editor too
+	auto diagram = qobject_cast<Diagram *>(sender());
+	if (diagram && m_wiring_editor_dock && m_wiring_editor_dock->isVisible()
+	    && diagram->project() == currentProject()) {
+		QSet<Conductor *> conductors = diagram->selectedConductors();
+		for (QGraphicsItem *item : diagram->selectedItems())
+			if (auto text = qgraphicsitem_cast<ConductorTextItem *>(item))
+				if (Conductor *c = text->parentConductor())
+					conductors << c;
+		m_wiring_editor_dock->selectConductors(conductors);
+	}
 }
 
 

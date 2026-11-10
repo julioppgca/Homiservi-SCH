@@ -43,6 +43,7 @@
 #include <QGraphicsView>
 #include <QHBoxLayout>
 #include <QHeaderView>
+#include <QItemSelection>
 #include <QLabel>
 #include <QLineEdit>
 #include <QSaveFile>
@@ -487,7 +488,8 @@ WiringEditorDock::WiringEditorDock(QWidget *parent) :
 	m_summary->setText(tr("Dica: selecione várias linhas e edite uma célula para"
 			      " mudar todas de uma vez. Clique duas vezes no fólio,"
 			      " na origem ou no destino para ver o fio no esquema;"
-			      " na função, para abrir as regras de fiação."));
+			      " na função, para abrir as regras de fiação. Um fio"
+			      " selecionado na folha é selecionado aqui."));
 	m_summary->setWordWrap(true);
 	layout->addWidget(m_summary);
 	setWidget(widget);
@@ -563,11 +565,40 @@ void WiringEditorDock::showConductor(const QModelIndex &proxy_index)
 	Conductor *c = m_model->conductor(m_proxy->mapToSource(proxy_index).row());
 	if (!c || !c->diagram()) return;
 	Diagram *diagram = c->diagram();
+		//The rows selected in the table stay as they are
+	m_showing = true;
 	diagram->showMe();
 	diagram->clearSelection();
 	c->setSelected(true);
+	m_showing = false;
 	for (QGraphicsView *view : diagram->views())
 		view->centerOn(c->sceneBoundingRect().center());
+}
+
+/**
+	@brief WiringEditorDock::selectConductors
+	Select the rows of conductors, the wires selected on a folio, and
+	scroll to the first one. Nothing changes when none of them is shown
+	(no wire selected, or hidden by the filter).
+*/
+void WiringEditorDock::selectConductors(const QSet<Conductor *> &conductors)
+{
+	if (m_showing || conductors.isEmpty() || !m_view->selectionModel()) return;
+	QItemSelection selection;
+	QModelIndex first;
+	for (int row = 0 ; row < m_model->rowCount() ; ++row) {
+		Conductor *c = m_model->conductor(row);
+		if (!c || !conductors.contains(c)) continue;
+		const QModelIndex index = m_proxy->mapFromSource(m_model->index(row, 0));
+		if (!index.isValid()) continue;
+		selection.select(index, index);
+		if (!first.isValid() || index.row() < first.row()) first = index;
+	}
+	if (selection.isEmpty()) return;
+	m_view->selectionModel()->select(selection, QItemSelectionModel::ClearAndSelect
+					 | QItemSelectionModel::Rows);
+	m_view->selectionModel()->setCurrentIndex(first, QItemSelectionModel::NoUpdate);
+	m_view->scrollTo(first);
 }
 
 void WiringEditorDock::exportCsv()
