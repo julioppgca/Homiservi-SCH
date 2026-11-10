@@ -864,6 +864,8 @@ void QETDiagramEditor::setUpActions()
 							m_label_all_wire_ends, m_project_print_wire_tags,
 							m_project_export_wire_tags_csv});
 			addDockWidget(Qt::BottomDockWidgetArea, m_wiring_editor_dock);
+			connect(m_wiring_editor_dock, &WiringEditorDock::rulesRequested,
+				this, &QETDiagramEditor::showPotentialRules);
 			connect(m_wiring_editor_dock, &QDockWidget::visibilityChanged,
 				m_wiring_editor, &QAction::setChecked);
 		}

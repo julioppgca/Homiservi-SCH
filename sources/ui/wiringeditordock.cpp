@@ -29,7 +29,14 @@
 #include "../conductorendlabeling.h"
 #include "../wiringlist.h"
 
+#include <QAbstractItemView>
+#include <QApplication>
 #include <QCheckBox>
+#include <QComboBox>
+#include <QPainter>
+#include <QPalette>
+#include <QPixmap>
+#include <QTimer>
 #include <QCollator>
 #include <QFileDialog>
 #include <QFileInfo>
@@ -103,11 +110,105 @@ namespace {
 				QStyledItemDelegate(view), m_view(view), m_proxy(proxy), m_model(model)
 			{}
 
+			/**
+				The function column chooses among the function rules of
+				the project (and the functions its wires already have);
+				a function can still be typed.
+			*/
+			QWidget *createEditor(QWidget *parent, const QStyleOptionViewItem &option,
+					      const QModelIndex &index) const override
+			{
+				if (index.column() != WiringTableModel::Function || !m_model->project())
+					return QStyledItemDelegate::createEditor(parent, option, index);
+				auto combo = new QComboBox(parent);
+				combo->setEditable(true);
+				combo->setInsertPolicy(QComboBox::NoInsert);
+				combo->addItem(tr("(sem função)"), QString());
+				QStringList known;
+				for (const PotentialRules::Rule &rule : m_model->project()->potentialRules().rules) {
+					if (rule.field != PotentialRules::Function || rule.pattern.isEmpty()
+					    || rule.pattern.contains(QLatin1Char('*'))
+					    || rule.pattern.contains(QLatin1Char('?'))
+					    || known.contains(rule.pattern, Qt::CaseInsensitive))
+						continue;
+					known << rule.pattern;
+					QStringList details;
+					if (!rule.color.isEmpty())   details << PotentialRules::colorName(rule.color);
+					if (!rule.section.isEmpty()) details << PotentialRules::sectionText(rule.section);
+					combo->addItem(details.isEmpty() ? rule.pattern
+						       : QStringLiteral("%1  (%2)").arg(rule.pattern, details.join(QStringLiteral(", "))),
+						       rule.pattern);
+					const QList<QColor> colors = PotentialRules::drawingColors(rule.color);
+					if (!colors.isEmpty()) {
+						QPixmap swatch(12, 12);
+						swatch.fill(colors.first());
+						if (colors.size() > 1) {
+							QPainter painter(&swatch);
+							painter.fillRect(0, 6, 12, 6, colors.at(1));
+						}
+						combo->setItemIcon(combo->count() - 1, QIcon(swatch));
+					}
+				}
+				const int rules_end = combo->count();
+				QStringList used;
+				for (int row = 0 ; row < m_model->rowCount() ; ++row)
+					if (Conductor *c = m_model->conductor(row)) {
+						const QString function = c->properties().m_function.trimmed();
+						if (!function.isEmpty() && !known.contains(function, Qt::CaseInsensitive)
+						    && !used.contains(function, Qt::CaseInsensitive))
+							used << function;
+					}
+				used.sort(Qt::CaseInsensitive);
+				if (!used.isEmpty()) {
+					combo->insertSeparator(rules_end);
+					for (const QString &function : std::as_const(used))
+						combo->addItem(function, function);
+				}
+					//The cell is narrow: the list is as wide as its items
+				combo->view()->setMinimumWidth(combo->view()->sizeHintForColumn(0)
+							       + combo->iconSize().width() + 24);
+				combo->setToolTip(tr("As funções das regras de fiação, com a cor e a seção"
+						     " que dão ao fio; abaixo, as outras funções já usadas"
+						     " no projeto. Também se pode digitar."));
+					//Choosing an item is the edit: commit it at once
+				connect(combo, QOverload<int>::of(&QComboBox::activated), combo, [this, combo]() {
+					auto self = const_cast<WiringDelegate *>(this);
+					emit self->commitData(combo);
+					emit self->closeEditor(combo);
+				});
+				return combo;
+			}
+
+			void setEditorData(QWidget *editor, const QModelIndex &index) const override
+			{
+				auto combo = qobject_cast<QComboBox *>(editor);
+				if (!combo) {
+					QStyledItemDelegate::setEditorData(editor, index);
+					return;
+				}
+				const QString value = index.data(Qt::EditRole).toString();
+				const int found = combo->findData(value, Qt::UserRole, Qt::MatchFixedString);
+				if (found >= 0) combo->setCurrentIndex(found);
+				else combo->setEditText(value);
+				QTimer::singleShot(0, combo, &QComboBox::showPopup);
+			}
+
 			void setModelData(QWidget *editor, QAbstractItemModel *,
 					  const QModelIndex &index) const override
 			{
-				auto line = qobject_cast<QLineEdit *>(editor);
-				if (!line) return;
+				QString value;
+				if (auto combo = qobject_cast<QComboBox *>(editor)) {
+						//The text of a chosen item shows its colour too:
+						//write the function only
+					const int current = combo->currentIndex();
+					value = current >= 0 && combo->currentText() == combo->itemText(current)
+							? combo->itemData(current).toString()
+							: combo->currentText();
+				} else if (auto line = qobject_cast<QLineEdit *>(editor)) {
+					value = line->text();
+				} else {
+					return;
+				}
 				QList<int> rows;
 				const QModelIndexList selected = m_view->selectionModel()->selectedRows();
 				const QModelIndex source = m_proxy->mapToSource(index);
@@ -118,7 +219,7 @@ namespace {
 					if (source_row == source.row()) edited_row_selected = true;
 				}
 				if (!edited_row_selected) rows = {source.row()};
-				m_model->setValues(rows, source.column(), line->text().trimmed(),
+				m_model->setValues(rows, source.column(), value.trimmed(),
 						   m_model->m_whole_potential);
 			}
 
@@ -246,6 +347,19 @@ QVariant WiringTableModel::data(const QModelIndex &index, int role) const
 			return c->diagram() ? c->diagram()->folioIndex() : 0;
 		return data(index, Qt::DisplayRole);
 	}
+		//The function links to the wiring rules
+	if (c && index.column() == Function) {
+		if (role == Qt::ForegroundRole)
+			return QApplication::palette().brush(QPalette::Link);
+		if (role == Qt::FontRole) {
+			QFont font;
+			font.setUnderline(true);
+			return font;
+		}
+		if (role == Qt::ToolTipRole)
+			return tr("Clique para escolher entre as funções das regras de fiação;"
+				  " clique duas vezes para abrir as regras de fiação");
+	}
 	if (!c || (role != Qt::DisplayRole && role != Qt::EditRole && role != Qt::ToolTipRole))
 		return QVariant();
 
@@ -358,8 +472,9 @@ WiringEditorDock::WiringEditorDock(QWidget *parent) :
 	m_view->sortByColumn(WiringTableModel::Folio, Qt::AscendingOrder);
 	m_view->setSelectionBehavior(QAbstractItemView::SelectRows);
 	m_view->setSelectionMode(QAbstractItemView::ExtendedSelection);
-	m_view->setEditTriggers(QAbstractItemView::DoubleClicked
-				| QAbstractItemView::EditKeyPressed
+		//Double clicks are handled below: the function column opens
+		//the wiring rules on a double click
+	m_view->setEditTriggers(QAbstractItemView::EditKeyPressed
 				| QAbstractItemView::AnyKeyPressed);
 	m_view->setAlternatingRowColors(true);
 	m_view->verticalHeader()->hide();
@@ -371,7 +486,8 @@ WiringEditorDock::WiringEditorDock(QWidget *parent) :
 	m_summary = new QLabel(widget);
 	m_summary->setText(tr("Dica: selecione várias linhas e edite uma célula para"
 			      " mudar todas de uma vez. Clique duas vezes no fólio,"
-			      " na origem ou no destino para ver o fio no esquema."));
+			      " na origem ou no destino para ver o fio no esquema;"
+			      " na função, para abrir as regras de fiação."));
 	m_summary->setWordWrap(true);
 	layout->addWidget(m_summary);
 	setWidget(widget);
@@ -383,9 +499,32 @@ WiringEditorDock::WiringEditorDock(QWidget *parent) :
 		m_model->m_whole_potential = checked;
 	});
 	connect(export_button, &QToolButton::clicked, this, &WiringEditorDock::exportCsv);
+		//A click on a function opens its list, unless it is the first
+		//click of a double click
+	m_function_click = new QTimer(this);
+	m_function_click->setSingleShot(true);
+	m_function_click->setInterval(QApplication::doubleClickInterval());
+	connect(m_function_click, &QTimer::timeout, this, [this]() {
+		if (m_function_index.isValid() && m_function_index == m_view->currentIndex())
+			m_view->edit(m_function_index);
+	});
+	connect(m_view, &QTableView::clicked, this, [this](const QModelIndex &index) {
+		if (index.column() != WiringTableModel::Function
+		    || !(index.flags() & Qt::ItemIsEditable)
+		    || QApplication::keyboardModifiers() & (Qt::ControlModifier | Qt::ShiftModifier))
+			return;
+		m_function_index = index;
+		m_function_click->start();
+	});
 	connect(m_view, &QTableView::doubleClicked, this, [this](const QModelIndex &index) {
-		if (!WiringTableModel::isEditable(index.column()))
+		if (index.column() == WiringTableModel::Function) {
+			m_function_click->stop();
+			emit rulesRequested();
+		} else if (!WiringTableModel::isEditable(index.column())) {
 			showConductor(index);
+		} else {
+			m_view->edit(index);
+		}
 	});
 }
 

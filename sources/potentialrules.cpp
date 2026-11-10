@@ -116,13 +116,6 @@ namespace {
 		return rx.match(value).hasMatch();
 	}
 
-		///A plain number is in mm2
-	QString sectionText(const QString &section)
-	{
-		static const QRegularExpression number(QStringLiteral("^\\d+([.,]\\d+)?$"));
-		return number.match(section.trimmed()).hasMatch()
-				? section.trimmed() + QStringLiteral(" mm²") : section.trimmed();
-	}
 }
 
 QString PotentialRules::fieldName(Field field)
@@ -287,6 +280,16 @@ bool PotentialRules::applyOnEdit(const Settings &settings, const ConductorProper
 	if (!rule.section.isEmpty() && before.m_wire_section == after.m_wire_section)
 		after.m_wire_section = rule.section;
 	return after != edited;
+}
+
+/**
+	@return section as shown: a plain number is in mm2 (0,75 mm²)
+*/
+QString PotentialRules::sectionText(const QString &section)
+{
+	static const QRegularExpression number(QStringLiteral("^\\d+([.,]\\d+)?$"));
+	return number.match(section.trimmed()).hasMatch()
+			? section.trimmed() + QStringLiteral(" mm²") : section.trimmed();
 }
 
 /**

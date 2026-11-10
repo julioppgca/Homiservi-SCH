@@ -20,6 +20,7 @@
 
 #include <QAbstractTableModel>
 #include <QDockWidget>
+#include <QPersistentModelIndex>
 #include <QPointer>
 
 class Conductor;
@@ -30,6 +31,7 @@ class QLabel;
 class QETProject;
 class QSortFilterProxyModel;
 class QTableView;
+class QTimer;
 
 /**
 	@brief The WiringTableModel class
@@ -92,6 +94,10 @@ class WiringEditorDock : public QDockWidget
 		void setProject(QETProject *project);
 		void addTools(const QList<QAction *> &actions);
 
+	signals:
+			///A double click on a function: edit the wiring rules
+		void rulesRequested();
+
 	private:
 		void showConductor(const QModelIndex &proxy_index);
 		void exportCsv();
@@ -104,6 +110,8 @@ class WiringEditorDock : public QDockWidget
 		QHBoxLayout *m_tools = nullptr;
 		QCheckBox *m_whole_potential = nullptr;
 		QMetaObject::Connection m_undo_connection;
+		QTimer *m_function_click = nullptr;
+		QPersistentModelIndex m_function_index;
 };
 
 #endif // WIRINGEDITORDOCK_H

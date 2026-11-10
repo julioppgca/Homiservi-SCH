@@ -103,6 +103,7 @@ namespace PotentialRules
 
 	QList<QColor> drawingColors(const QString &text);
 	QString colorName(const QString &text);
+	QString sectionText(const QString &section);
 	void setWireColor(ConductorProperties &properties, const QString &text);
 }
 
