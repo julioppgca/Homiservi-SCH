@@ -189,6 +189,11 @@ else()
     )
 endif()
 
+# Homiservi-SCH: the program is homiservi-sch (homiservi-sch.exe on
+# Windows). The target keeps its upstream name, so $<TARGET_FILE:qelectrotech>
+# in the tests and the share/qelectrotech data folders stay as they are.
+set_target_properties(${PROJECT_NAME} PROPERTIES OUTPUT_NAME homiservi-sch)
+
 if(QET_SPACEMOUSE_BACKEND_SPNAV_ENABLED)
     list(APPEND QET_SPACEMOUSE_LIBRARIES PkgConfig::SPNAV)
 endif()
@@ -385,7 +390,15 @@ if (NOT MINGW)
     install(FILES misc/qet-mcp/README.md DESTINATION share/qelectrotech/mcp)
     install(FILES LICENSE ELEMENTS.LICENSE CREDIT README ChangeLog DESTINATION share/doc/qelectrotech)
     if(UNIX AND NOT APPLE)
-        install(FILES misc/org.qelectrotech.qelectrotech.desktop DESTINATION share/applications)
+        # Homiservi-SCH: its own menu entry and icon. The desktop file name
+        # is also the Wayland app id (see main.cpp), from which the window
+        # icon is taken.
+        install(FILES misc/homiservi-sch.desktop DESTINATION share/applications)
+        foreach(size 16 24 32 48 64 128 256)
+            install(FILES ico/homiservi/homiservi-${size}.png
+                    DESTINATION ${QET_ICONS_PATH}/${size}x${size}/apps
+                    RENAME homiservi-sch.png)
+        endforeach()
         install(FILES misc/qelectrotech.xml    DESTINATION ${QET_MIME_PACKAGE_PATH})
         install(FILES misc/qelectrotech.appdata.xml DESTINATION ${QET_APPDATA_PATH})
     endif()

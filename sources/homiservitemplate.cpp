@@ -18,11 +18,12 @@
 #include "homiservitemplate.h"
 
 #include "dataBase/ui/elementquerywidget.h"
-#include "dataBase/ui/summaryquerywidget.h"
 #include "diagram.h"
 #include "factory/qetgraphicstablefactory.h"
 #include "factory/ui/addtabledialog.h"
 #include "potentialrules.h"
+#include "dataBase/projectdatabase.h"
+#include "projectindex.h"
 #include "projectrevisions.h"
 #include "projectvariants.h"
 #include "properties/elementdata.h"
@@ -35,6 +36,8 @@
 
 #include <QCoreApplication>
 #include <QFile>
+
+#include <functional>
 #include <QUuid>
 
 const QString HomiserviTemplate::TitleBlockName = QStringLiteral("Homiservi_Legenda");
@@ -67,11 +70,57 @@ namespace {
 		return border;
 	}
 
+		///The cross references and folio reports of project show the
+		///number of the folio (%F, 02.04-E9), not its position (%f, 8-E9)
+	void useFolioNumbers(QETProject *project)
+	{
+		QHash<QString, XRefProperties> xrefs = project->defaultXRefProperties();
+		for (auto it = xrefs.begin(); it != xrefs.end(); ++it) {
+			it->setMasterLabel(ProjectNumbering::withFolioNumber(it->masterLabel()));
+			it->setSlaveLabel(ProjectNumbering::withFolioNumber(it->slaveLabel()));
+		}
+		project->setDefaultXRefProperties(xrefs);
+		project->setDefaultReportProperties(ProjectNumbering::withFolioNumber(project->defaultReportProperties()));
+	}
+
 	void embedTitleBlock(QETProject *project, const QString &name)
 	{
 		TitleBlockTemplatesProjectCollection *collection = project->embeddedTitleBlockTemplatesCollection();
 		if (collection->templates().contains(name))
+		{
+				//The first Homiservi title block showed the position of
+				//the folio (4/9), not its number (01.04, %{folio}): only
+				//that cell is brought up to date, any other change made to
+				//the embedded title block stays
+			const QString old_cell = QStringLiteral("%{folio-id}/%{folio-total}");
+				//The description of a project read from its file belongs to
+				//the document of that file, gone once the project is read:
+				//its nodes can be read, not saved nor changed. Look for the
+				//old cell by reading, then change a copy of it.
+			std::function<bool(const QDomNode &, bool)> visit = [&](const QDomNode &node, bool change) {
+				bool found = false;
+				for (QDomNode child = node.firstChild(); !child.isNull(); child = child.nextSibling()) {
+					if (child.isText() && child.nodeValue().contains(old_cell)) {
+						found = true;
+						if (change) {
+							QString text = child.nodeValue();
+							child.setNodeValue(text.replace(old_cell, QStringLiteral("%{folio}")));
+						}
+					}
+					found |= visit(child, change);
+				}
+				return found;
+			};
+			const QDomElement description = collection->getTemplateXmlDescription(name);
+			if (description.isNull() || !visit(description, false))
+				return;
+			QDomDocument document;
+			QDomElement copy = document.importNode(description, true).toElement();
+			document.appendChild(copy);
+			visit(copy, true);
+			collection->setTemplateXmlDescription(name, copy);
 			return;
+		}
 		QFile file(QStringLiteral(":/ico/homiservi/%1.titleblock").arg(name));
 		QDomDocument document;
 		if (file.open(QIODevice::ReadOnly) && document.setContent(&file))
@@ -303,14 +352,23 @@ void HomiserviTemplate::prepare(QETProject *project, Layout layout, bool styles)
 			if (diagram->border_and_titleblock.exportBorder() != border)
 				diagram->border_and_titleblock.importBorder(border);
 
+			//The references written folio.rowcolumn, with the number of the
+			//folio when the folios are numbered by section; a format that
+			//already gives the number of the folio (%F) is the project's
+			//own and stays
+		const QString reference = project->numbering().enabled
+				? ProjectNumbering::withFolioNumber(revisions_reference) : revisions_reference;
 		QHash<QString, XRefProperties> xrefs = project->defaultXRefProperties();
 		for (auto it = xrefs.begin(); it != xrefs.end(); ++it)
 		{
-			it->setMasterLabel(revisions_reference);
-			it->setSlaveLabel(revisions_reference);
+			if (!it->masterLabel().contains(QLatin1String("%F")))
+				it->setMasterLabel(reference);
+			if (!it->slaveLabel().contains(QLatin1String("%F")))
+				it->setSlaveLabel(reference);
 		}
 		project->setDefaultXRefProperties(xrefs);
-		project->setDefaultReportProperties(revisions_reference);
+		if (!project->defaultReportProperties().contains(QLatin1String("%F")))
+			project->setDefaultReportProperties(reference);
 		ProjectRevisions::ensureTable(project);
 	}
 
@@ -364,42 +422,67 @@ void HomiserviTemplate::apply(QETProject *project, const Data &data, bool use_ti
 */
 void HomiserviTemplate::createFolios(QETProject *project, const Data &data, const Folios &folios)
 {
+		//The section each new folio starts: "02" for the first folio of
+		//the second section
+	ProjectNumbering::Settings settings = numbering();
+	auto start_section = [&settings, project](const QString &name) {
+		const QString code = QString::number(settings.sections.size() + 1)
+				.rightJustified(settings.section_digits, QLatin1Char('0'));
+		settings.sections << ProjectNumbering::Section {code, name};
+		const QList<Diagram *> diagrams = project->diagrams();
+		settings.starts.insert(diagrams.last()->uuid().toString(), code);
+	};
+
 	if (folios.cover)
 	{
 		Diagram *diagram = project->addNewDiagram();
 		setTitle(diagram, tr("Capa"));
 		createCover(diagram, data);
+		start_section(tr("Geral"));
 	}
+		//The index folios; their tables are added at the end, once the
+		//database knows the sections and the folio numbers: a table is
+		//sized by the rows it has when it is added
+	Diagram *section_index = nullptr;
+	Diagram *folio_index = nullptr;
 	if (folios.contents)
 	{
-		Diagram *diagram = project->addNewDiagram();
-		setTitle(diagram, tr("Índice"));
-		auto query = new SummaryQueryWidget();
-		if (data.layout == Revisions)
-		{
-			query->setQuery(QStringLiteral("SELECT title AS \"%1\", folio AS \"%2\", indexrev AS \"%3\","
-						       " COALESCE(NULLIF(variant, ''), '%4') AS \"%5\""
-						       " FROM project_summary_view ORDER BY pos")
-					.arg(tr("Assunto"), tr("Folha"), tr("Ed."), ProjectVariants::Standard,
-					     tr("Tipo")));
-			addVariantLegend(diagram);
+		if (folios.numbering) {
+			section_index = project->addNewDiagram();
+			setTitle(section_index, ProjectIndex::defaultName(ProjectIndex::Sections));
+			if (!folios.cover)
+				start_section(tr("Geral"));
 		}
-		else
-			query->setQuery(QStringLiteral("SELECT folio, title, plant, locmach, indexrev, date"
-						       " FROM project_summary_view ORDER BY pos"));
-		addTable(diagram, query, tr("Índice"));
+		folio_index = project->addNewDiagram();
+		setTitle(folio_index, ProjectIndex::defaultName(ProjectIndex::Folios));
+		if (!folios.cover && !section_index)
+			start_section(tr("Geral"));
 	}
 	for (const QString &title : folios.schematics)
 	{
 		Diagram *diagram = project->addNewDiagram();
 		setTitle(diagram, title);
+		start_section(title);
 	}
 	if (folios.materials && data.layout == Revisions)
+	{
+		const int first = int(project->diagrams().size());
 		addComponentList(project);
+			//The component list may take several folios: the section
+			//starts at the first one
+		const QList<Diagram *> diagrams = project->diagrams();
+		if (diagrams.size() > first) {
+			const QString code = QString::number(settings.sections.size() + 1)
+					.rightJustified(settings.section_digits, QLatin1Char('0'));
+			settings.sections << ProjectNumbering::Section {code, tr("Listas")};
+			settings.starts.insert(diagrams.at(first)->uuid().toString(), code);
+		}
+	}
 	else if (folios.materials)
 	{
 		Diagram *diagram = project->addNewDiagram();
 		setTitle(diagram, tr("Lista de materiais"));
+		start_section(tr("Listas"));
 		auto query = new ElementQueryWidget();
 		query->setQuery(QStringLiteral("SELECT label, designation, description, manufacturer,"
 					       " manufacturer_reference, location"
@@ -411,9 +494,58 @@ void HomiserviTemplate::createFolios(QETProject *project, const Data &data, cons
 				     ElementData::typeToString(ElementData::Terminal)));
 		addTable(diagram, query, tr("Lista de materiais"));
 	}
-	if (project->diagrams().isEmpty())
+	if (project->diagrams().isEmpty()) {
 		project->addNewDiagram();
+		start_section(tr("Geral"));
+	}
 	apply(project, data);
+		//Last: it numbers every folio
+	if (folios.numbering) {
+		project->setNumbering(settings);
+		useFolioNumbers(project);
+	}
+
+		//The two indexes (ProjectIndex): the sections, then the folios
+		//grouped by section; they follow the project as it changes
+	project->dataBase()->diagramsInfoChanged();
+	if (section_index)
+		ProjectIndex::insert(section_index, ProjectIndex::query(ProjectIndex::Sections,
+				     ProjectIndex::defaultColumns(ProjectIndex::Sections)),
+				     ProjectIndex::defaultName(ProjectIndex::Sections), true, false);
+	if (folio_index) {
+		const bool revisions = data.layout == Revisions;
+		ProjectIndex::insert(folio_index, ProjectIndex::query(ProjectIndex::Folios,
+				     ProjectIndex::defaultColumns(ProjectIndex::Folios, revisions), folios.numbering),
+				     ProjectIndex::defaultName(ProjectIndex::Folios), true, false);
+		if (revisions)
+			addVariantLegend(folio_index);
+	}
+}
+
+/**
+	@brief HomiserviTemplate::numbering
+	@return the numbering of a Homiservi project, without sections: folios
+	02.01 by section, tags -KA21 (the second -KA of section 02... the
+	section without its zeros, then one digit, as Homiservi projects do),
+	wires 02.01-01 by folio with their number near the component they
+	come from
+*/
+ProjectNumbering::Settings HomiserviTemplate::numbering()
+{
+	ProjectNumbering::Settings settings;
+	settings.enabled = true;
+	settings.format = ProjectNumbering::SectionPage;
+	settings.separator = QStringLiteral(".");
+	settings.section_digits = 2;
+	settings.page_digits = 2;
+	settings.strip_titles = true;
+	settings.tag_mode = ProjectNumbering::TagsBySectionCompact;
+	settings.tag_digits = 1;
+	settings.wire_mode = ProjectNumbering::WiresByFolio;
+	settings.wire_digits = 2;
+	settings.wire_separator = QStringLiteral("-");
+	settings.wire_text_near_terminal = true;
+	return settings;
 }
 
 /**

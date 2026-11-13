@@ -30,6 +30,8 @@
 #include "titleblockproperties.h"
 #include "wirehops.h"
 #include "potentialrules.h"
+#include "projectnumbering.h"
+#include "projectrevisions.h"
 #include "textstyles.h"
 #include "wiringrules.h"
 #include "diagram.h"
@@ -241,6 +243,17 @@ class QETProject : public QObject
 		QList<TextStyles::Style> textStyles() const {return m_text_styles;}
 		void setTextStyles(const QList<TextStyles::Style> &styles);
 		void scheduleTextStyles();
+		QList<ProjectRevisions::Revision> revisions() const {return m_revisions;}
+		void setRevisions(const QList<ProjectRevisions::Revision> &revisions) {m_revisions = revisions;}
+		ProjectNumbering::Settings numbering() const {return m_numbering;}
+		void setNumbering(const ProjectNumbering::Settings &numbering);
+		QList<ProjectNumbering::FolioInfo> numberingFolios() const;
+		QList<ProjectNumbering::ComponentInfo> numberingComponents(QList<Element *> *elements) const;
+		void completeComponentTag(Element *element);
+		QList<ProjectNumbering::PotentialInfo> numberingPotentials(QList<QList<Conductor *>> *wires) const;
+		QString newWireNumber(Diagram *diagram, const QPointF &start) const;
+		void completeWireNumber(Conductor *conductor);
+		bool wireTextNearTerminal() const {return m_numbering.wire_text_near_terminal;}
 		void setAutoBreakConductor (bool abc);
 		void setAutoElement (bool ae);
 		void autoFolioNumberingNewFolios ();
@@ -342,6 +355,8 @@ class QETProject : public QObject
 		void readWiringRulesXml(QDomDocument &xml_project);
 		void readPotentialRulesXml(QDomDocument &xml_project);
 		void readTextStylesXml(QDomDocument &xml_project);
+		void readNumberingXml(QDomDocument &xml_project);
+		void readRevisionsXml(QDomDocument &xml_project);
 
 		void writeProjectPropertiesXml(QDomElement &);
 		void writeDefaultPropertiesXml(QDomElement &);
@@ -351,6 +366,9 @@ class QETProject : public QObject
 		void writeWiringRulesXml(QDomElement &);
 		void writePotentialRulesXml(QDomElement &);
 		void writeTextStylesXml(QDomElement &);
+		void writeNumberingXml(QDomElement &);
+		void writeRevisionsXml(QDomElement &);
+		void applyFolioNumbering();
 		void addDiagram(Diagram *diagram, int pos = -1);
 		void detachDiagram(Diagram *diagram);
 		void writeBackup();
@@ -368,7 +386,8 @@ class QETProject : public QObject
 			/// File path this project is saved to
 		QString m_file_path;
 			/// Current state of the project
-		ProjectState m_state;
+			/// Ok for a project made from scratch: only opening a file sets it
+		ProjectState m_state = Ok;
 			/// Diagrams carried by the project
 		QList<Diagram *> m_diagrams_list;
 			/// Project title
@@ -422,6 +441,10 @@ class QETProject : public QObject
 		PotentialRules::Settings m_potential_rules;
 		QList<TextStyles::Style> m_text_styles;
 		bool m_text_styles_scheduled = false;
+		ProjectNumbering::Settings m_numbering;
+		QList<ProjectRevisions::Revision> m_revisions;
+			///A refresh of the folios in the database is on its way
+		bool m_folio_db_refresh_scheduled = false;
 	bool m_auto_break_conductor = false;
 		XmlElementCollection *m_elements_collection = nullptr;
 		bool m_freeze_new_elements = false;

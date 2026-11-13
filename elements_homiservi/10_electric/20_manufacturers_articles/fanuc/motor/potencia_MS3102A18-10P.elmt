@@ -1,4 +1,4 @@
-<definition height="60" hotspot_x="10" hotspot_y="15" link_type="simple" type="element" version="0.200.1" width="50">
+<definition height="80" hotspot_x="10" hotspot_y="17" link_type="simple" type="element" version="0.200.1" width="50">
     <uuid uuid="{11097e83-9aee-594b-8174-13467d7c53f6}"/>
     <names>
         <name lang="en">Motor</name>

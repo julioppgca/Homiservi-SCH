@@ -22,6 +22,7 @@
 #include <Qt>
 
 class QMainWindow;
+class QPalette;
 
 /**
 	@brief How every window's toolbars look: icon size, text with the
@@ -40,6 +41,7 @@ class ToolbarSettings
 			/// Whether the Homiservi line icons replace QET's (the default)
 		static bool homiserviIcons();
 		static void setHomiserviIcons(bool homiservi);
+		static void applyIconTheme(const QPalette &palette);
 
 		static void applyTo(QMainWindow *window);
 		static void applyToAll();

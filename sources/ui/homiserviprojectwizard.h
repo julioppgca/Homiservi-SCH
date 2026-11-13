@@ -73,6 +73,7 @@ class HomiserviProjectWizard : public QWizard
 		QCheckBox *m_cover = nullptr;
 		QCheckBox *m_contents = nullptr;
 		QCheckBox *m_materials = nullptr;
+		QCheckBox *m_numbering = nullptr;
 		QPlainTextEdit *m_schematics = nullptr;
 		QCheckBox *m_use_title_block = nullptr;
 		QCheckBox *m_load_styles = nullptr;

@@ -1,4 +1,4 @@
-<definition height="80" hotspot_x="10" hotspot_y="65" link_type="simple" type="element" version="0.200.1" width="510">
+<definition height="100" hotspot_x="10" hotspot_y="82" link_type="simple" type="element" version="0.200.1" width="510">
     <uuid uuid="{fdcc62d5-f7bc-5330-a0c9-fb183f61820c}"/>
     <names>
         <name lang="en">CM52</name>

@@ -18,6 +18,11 @@
 
 #include "qetproject.h"
 #include "ioaddress.h"
+#include "QPropertyUndoCommand/qpropertyundocommand.h"
+
+#include <tuple>
+#include "undocommand/changeelementinformationcommand.h"
+#include "diagramposition.h"
 
 #include "ElementsCollection/xmlelementcollection.h"
 #include "autoNum/assignvariables.h"
@@ -27,6 +32,8 @@
 #include "autoNum/elementautonumschemecommand.h"
 #include "diagram.h"
 #include "qetgraphicsitem/element.h"
+#include "qetgraphicsitem/conductor.h"
+#include "qetgraphicsitem/terminal.h"
 #include "qetapp.h"
 #include "qetmessagebox.h"
 #include "qetresult.h"
@@ -1469,6 +1476,257 @@ void QETProject::setTextStyles(const QList<TextStyles::Style> &styles)
 }
 
 /**
+	@brief QETProject::setNumbering
+	Set the sections and the folio numbering of this project; when enabled,
+	every folio gets its number at once (see applyFolioNumbering()).
+*/
+void QETProject::setNumbering(const ProjectNumbering::Settings &numbering)
+{
+	const bool text_moves = numbering.wire_text_near_terminal != m_numbering.wire_text_near_terminal;
+	m_numbering = numbering;
+	updateDiagramsFolioData();
+	if (text_moves)
+		for (Diagram *diagram : std::as_const(m_diagrams_list))
+			for (Conductor *conductor : diagram->conductors())
+				conductor->calculateTextItemPosition();
+}
+
+/**
+	@brief QETProject::numberingFolios
+	@return the folios of this project, in order, as ProjectNumbering
+	works on them
+*/
+QList<ProjectNumbering::FolioInfo> QETProject::numberingFolios() const
+{
+	QList<ProjectNumbering::FolioInfo> folios;
+	for (Diagram *diagram : m_diagrams_list)
+		folios << ProjectNumbering::FolioInfo {diagram->uuid().toString(),
+						     diagram->border_and_titleblock.folio(),
+						     diagram->title()};
+	return folios;
+}
+
+/**
+	@brief QETProject::numberingComponents
+	@return the components of this project that can get a tag, as
+	ProjectNumbering works on them, their folio as it is now. A contact
+	shows the tag of its coil and a report or a picture has none: only the
+	simple, master and terminal elements are listed, but not the ones whose
+	tag is frozen.
+	@param elements : filled with the element of every component listed
+*/
+QList<ProjectNumbering::ComponentInfo> QETProject::numberingComponents(QList<Element *> *elements) const
+{
+	QList<ProjectNumbering::ComponentInfo> components;
+	const QStringList sections = ProjectNumbering::sectionCodes(m_numbering, numberingFolios());
+	for (int folio = 0; folio < m_diagrams_list.size(); ++folio) {
+		Diagram *diagram = m_diagrams_list.at(folio);
+		for (Element *element : diagram->elements()) {
+			const auto type = element->elementData().m_type;
+			if (element->isFreezeLabel()
+			    || !(type == ElementData::Simple || type == ElementData::Master || type == ElementData::Terminal))
+				continue;
+			ProjectNumbering::ComponentInfo info;
+			info.id = QString::number(components.size());
+			info.label = element->elementInformations().value(QStringLiteral("label")).toString();
+			info.folio = folio;
+			info.folio_label = diagram->border_and_titleblock.finalfolio();
+			info.section = sections.value(folio);
+			info.column = int(diagram->convertPosition(element->scenePos()).number());
+			info.x = element->scenePos().x();
+			info.y = element->scenePos().y();
+			info.terminal = type == ElementData::Terminal;
+			components << info;
+			if (elements) *elements << element;
+		}
+	}
+	return components;
+}
+
+/**
+	@brief QETProject::numberingPotentials
+	@return the potentials of this project, the wires connected together
+	through the folios, as ProjectNumbering works on them: their number
+	(the most common one of their numbered wires) and where their first
+	wire starts.
+	A potential with a frozen wire number is left out.
+	@param wires : filled with the wires of every potential listed
+*/
+QList<ProjectNumbering::PotentialInfo> QETProject::numberingPotentials(QList<QList<Conductor *>> *wires) const
+{
+	QList<ProjectNumbering::PotentialInfo> potentials;
+	QHash<Diagram *, int> folios;
+	for (int i = 0; i < m_diagrams_list.size(); ++i)
+		folios.insert(m_diagrams_list.at(i), i);
+	QSet<Conductor *> done;
+	for (Diagram *diagram : m_diagrams_list) {
+		for (Conductor *conductor : diagram->conductors()) {
+			if (done.contains(conductor)) continue;
+			QSet<Conductor *> set = conductor->relatedPotentialConductors(true);
+			set.insert(conductor);
+			done.unite(set);
+
+			QList<Conductor *> list(set.begin(), set.end());
+			bool frozen = false;
+			QHash<QString, int> numbers;
+			ProjectNumbering::PotentialInfo info;
+			bool first = true;
+			for (Conductor *wire : std::as_const(list)) {
+				frozen |= wire->isFreezeLabel();
+				const QString number = wire->properties().text.trimmed();
+				if (!ProjectNumbering::isNoWireNumber(number)) ++numbers[number];
+				Diagram *wire_diagram = wire->diagram();
+				if (!wire_diagram || !wire->terminal1) continue;
+				const QPointF start = wire->terminal1->dockConductor();
+				const int folio = folios.value(wire_diagram, 0);
+				const int column = int(wire_diagram->convertPosition(start).number());
+				if (first || std::make_tuple(folio, column, start.y(), start.x())
+				    < std::make_tuple(info.folio, info.column, info.y, info.x)) {
+					info.folio = folio;
+					info.column = column;
+					info.x = start.x();
+					info.y = start.y();
+					info.folio_label = wire_diagram->border_and_titleblock.finalfolio();
+					first = false;
+				}
+			}
+			if (frozen) continue;
+			int best = -1;
+			for (auto it = numbers.constBegin(); it != numbers.constEnd(); ++it)
+				if (it.value() > best || (it.value() == best && it.key() < info.number)) {
+					best = it.value();
+					info.number = it.key();
+				}
+			info.id = QString::number(potentials.size());
+			potentials << info;
+			if (wires) *wires << list;
+		}
+	}
+	return potentials;
+}
+
+/**
+	@brief QETProject::newWireNumber
+	@return the number the project numbering gives a wire drawn on diagram
+	from start that makes a potential of its own, empty when the project
+	does not number its wires
+*/
+QString QETProject::newWireNumber(Diagram *diagram, const QPointF &start) const
+{
+	if (m_numbering.wire_mode == ProjectNumbering::WiresUnchanged || !diagram)
+		return QString();
+	QList<ProjectNumbering::PotentialInfo> potentials = numberingPotentials(nullptr);
+	ProjectNumbering::PotentialInfo wire;
+	wire.id = QStringLiteral("new");
+	wire.folio = int(m_diagrams_list.indexOf(diagram));
+	wire.folio_label = diagram->border_and_titleblock.finalfolio();
+	wire.column = int(diagram->convertPosition(start).number());
+	wire.x = start.x();
+	wire.y = start.y();
+	potentials << wire;
+	return ProjectNumbering::wireNumbers(m_numbering, potentials, ProjectNumbering::CompleteOnly)
+			.value(wire.id);
+}
+
+/**
+	@brief QETProject::completeWireNumber
+	When the project numbers its wires and the potential of conductor has
+	no number (a wire drawn to a potential without number, pasted, split),
+	give it the next one; when some of its wires have one, give it to the
+	others. One more undo step; never while undoing.
+*/
+void QETProject::completeWireNumber(Conductor *conductor)
+{
+	if (!conductor || !conductor->diagram() || m_state != Ok || isReadOnly()
+	    || m_numbering.wire_mode == ProjectNumbering::WiresUnchanged || m_undo_stack->canRedo())
+		return;
+	QList<QList<Conductor *>> wires;
+	const QList<ProjectNumbering::PotentialInfo> potentials = numberingPotentials(&wires);
+	int index = -1;
+	for (int i = 0; i < wires.size() && index < 0; ++i)
+		if (wires.at(i).contains(conductor)) index = i;
+	if (index < 0) return;
+
+	QString number = potentials.at(index).number.trimmed();
+	if (number.isEmpty())
+		number = ProjectNumbering::wireNumbers(m_numbering, potentials, ProjectNumbering::CompleteOnly)
+				.value(potentials.at(index).id);
+	if (number.isEmpty()) return;
+
+	auto undo = new QUndoCommand(tr("Numerar os fios"));
+	for (Conductor *wire : wires.at(index)) {
+		ConductorProperties properties = wire->properties();
+		if (properties.text == number) continue;
+		if (!ProjectNumbering::isNoWireNumber(properties.text) && !potentials.at(index).number.trimmed().isEmpty())
+			continue;	//A wire numbered otherwise in a mixed potential stays
+		properties.text = number;
+		properties.m_formula = number;
+		QVariant old_value, new_value;
+		old_value.setValue(wire->properties());
+		new_value.setValue(properties);
+		new QPropertyUndoCommand(wire, "properties", old_value, new_value, undo);
+	}
+	if (undo->childCount())
+		m_undo_stack->push(undo);
+	else
+		delete undo;
+}
+
+/**
+	@brief QETProject::completeComponentTag
+	When the project tags its components (ProjectNumbering::TagMode) and
+	element has a tag without number ("-KA", typed by hand), give it the
+	next free number of its prefix, as one more undo step of its folio:
+	called when the informations of an element change.
+*/
+void QETProject::completeComponentTag(Element *element)
+{
+	if (!element || !element->diagram() || m_state != Ok || isReadOnly()
+	    || m_numbering.tag_mode == ProjectNumbering::TagsUnchanged)
+		return;
+		//Something to redo: the change comes from an undo, and a new step
+		//would throw the redo away
+	if (m_undo_stack->canRedo())
+		return;
+	const QString label = element->elementInformations().value(QStringLiteral("label")).toString().trimmed();
+	if (ProjectNumbering::tagPrefix(label) != label || label.isEmpty())
+		return;	//Not a prefix alone
+
+	QList<Element *> elements;
+	const QList<ProjectNumbering::ComponentInfo> components = numberingComponents(&elements);
+	const int index = int(elements.indexOf(element));
+	if (index < 0) return;
+	ProjectNumbering::Settings tags_only = m_numbering;
+	tags_only.renumber_terminals = false;
+	const QString tag = ProjectNumbering::componentLabels(tags_only, components, ProjectNumbering::CompleteOnly)
+			.value(components.at(index).id);
+	if (tag.isEmpty()) return;
+
+	const DiagramContext old_info = element->elementInformations();
+	DiagramContext new_info = old_info;
+	new_info.addValue(QStringLiteral("label"), tag);
+	if (!old_info.value(QStringLiteral("formula")).toString().isEmpty())
+		new_info.addValue(QStringLiteral("formula"), tag);
+	element->diagram()->undoStack().push(new ChangeElementInformationCommand(element, old_info, new_info));
+}
+
+/**
+	@brief QETProject::applyFolioNumbering
+	When the numbering of the project is enabled, write its number in the
+	folio field of every folio whose number is not that one: called on
+	every change of the folios (added, moved, removed), before the folio
+	data, so the cross references follow.
+*/
+void QETProject::applyFolioNumbering()
+{
+	if (!m_numbering.enabled) return;
+	const QStringList labels = ProjectNumbering::folioLabels(m_numbering, numberingFolios());
+	for (int i = 0; i < m_diagrams_list.size() && i < labels.size(); ++i)
+		if (m_diagrams_list.at(i)->border_and_titleblock.folio() != labels.at(i))
+			m_diagrams_list.at(i)->border_and_titleblock.setFolio(labels.at(i));
+}
+
+/**
 	@brief QETProject::scheduleTextStyles
 	Bring every text to its style once the current work is over: called
 	for each text or element added to a folio, it runs once after a whole
@@ -1599,6 +1857,8 @@ QDomDocument QETProject::toXml()
 	writeWiringRulesXml(project_root);
 	writePotentialRulesXml(project_root);
 	writeTextStylesXml(project_root);
+	writeNumberingXml(project_root);
+	writeRevisionsXml(project_root);
 
 	// Properties for news diagrams
 	QDomElement new_diagrams_properties = xml_doc.createElement("newdiagrams");
@@ -2113,6 +2373,8 @@ void QETProject::readProjectXml(QDomDocument &xml_project)
 	readWiringRulesXml(xml_project);
 	readPotentialRulesXml(xml_project);
 	readTextStylesXml(xml_project);
+	readNumberingXml(xml_project);
+	readRevisionsXml(xml_project);
 
 		//Load the default properties for the new diagrams
 	readDefaultPropertiesXml(xml_project);
@@ -2347,6 +2609,31 @@ void QETProject::readTextStylesXml(QDomDocument &xml_project)
 }
 
 /**
+	@brief QETProject::readRevisionsXml
+	Read the revisions (<project_revisions>); a project saved before has
+	them as project properties (rev1_ed...), read as revisions of every
+	folio. Called after the project properties are read.
+	@param xml_project : the xml description of the project
+*/
+void QETProject::readRevisionsXml(QDomDocument &xml_project)
+{
+	bool found = false;
+	m_revisions = ProjectRevisions::fromXml(xml_project.documentElement(), &found);
+	if (!found)
+		m_revisions = ProjectRevisions::readLegacy(this);
+}
+
+/**
+	@brief QETProject::readNumberingXml
+	Read the sections and the folio numbering (<project_numbering>).
+	@param xml_project : the xml description of the project
+*/
+void QETProject::readNumberingXml(QDomDocument &xml_project)
+{
+	m_numbering = ProjectNumbering::fromXml(xml_project.documentElement());
+}
+
+/**
 	@brief QETProject::readPotentialRulesXml
 	Read the colour and section rules of the wires (<potential_rules>).
 	@param xml_project : the xml description of the project
@@ -2571,6 +2858,27 @@ void QETProject::writeWiringRulesXml(QDomElement &xml_element)
 void QETProject::writeTextStylesXml(QDomElement &xml_element)
 {
 	TextStyles::toXml(m_text_styles, xml_element);
+}
+
+/**
+	@brief QETProject::writeRevisionsXml
+	Export the revisions as a <project_revisions> child of xml_element,
+	only when there is one
+*/
+void QETProject::writeRevisionsXml(QDomElement &xml_element)
+{
+	if (!m_revisions.isEmpty())
+		ProjectRevisions::toXml(m_revisions, xml_element);
+}
+
+/**
+	@brief QETProject::writeNumberingXml
+	Export the sections and the folio numbering as a <project_numbering>
+	child of xml_element, only when there is one.
+*/
+void QETProject::writeNumberingXml(QDomElement &xml_element)
+{
+	ProjectNumbering::toXml(m_numbering, xml_element);
 }
 
 /**
@@ -2913,6 +3221,8 @@ DiagramContext QETProject::projectWideProperties()
 
 void QETProject::updateDiagramsFolioData()
 {
+	applyFolioNumbering();
+
 	int total_folio = m_diagrams_list.count();
 
 	const DiagramContext project_wide_properties = projectWideProperties();
@@ -2949,6 +3259,17 @@ void QETProject::updateDiagramsFolioData()
 
 	for (const auto &diagram_ : std::as_const(m_diagrams_list)) {
 		diagram_->update();
+	}
+
+		//Homiservi-SCH: the folio numbers and titles, and the sections, in
+		//the database too, once the current work is over: the indexes
+		//(project_summary_view, project_sections_view) follow them
+	if (!m_folio_db_refresh_scheduled) {
+		m_folio_db_refresh_scheduled = true;
+		QTimer::singleShot(0, this, [this]() {
+			m_folio_db_refresh_scheduled = false;
+			m_data_base.diagramsInfoChanged();
+		});
 	}
 }
 

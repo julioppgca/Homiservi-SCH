@@ -22,6 +22,8 @@
 #include "qetgraphicsitem/dynamicelementtextitem.h"
 #include "qetgraphicsitem/element.h"
 #include "qetgraphicsitem/elementtextitemgroup.h"
+#include "qetgraphicsitem/ViewItem/qetgraphicstableitem.h"
+#include "qetproject.h"
 
 // Private Qt PDF engine for drawHyperlink() — not public API.
 // Availability of Qt::GuiPrivate is verified at configure time in CMakeLists.txt.
@@ -31,6 +33,7 @@
 #include <QCryptographicHash>
 #include <QFile>
 #include <QGraphicsTextItem>
+#include <QHash>
 #include <QList>
 #include <QRegularExpression>
 #include <QUrl>
@@ -113,7 +116,62 @@ void injectCrossRefLinks(QPdfEngine *engine, Diagram *diagram,
 		links.append({devRect, url});
 	};
 
+		//Homiservi-SCH: a link to a whole folio, for the rows of the tables
+		//naming one (the indexes)
+	auto injectFolioLink = [&](const QRectF &sceneRect, Diagram *targetDiagram) {
+		const int targetPage = pageMap.value(targetDiagram, -1);
+		if (targetPage < 1) return;
+		const QRectF devRect = fit.mapRect(sceneRect);
+		if (!devRect.isValid() || !pageBounds.intersects(devRect)) return;
+		QUrl url = QUrl::fromLocalFile(outputFileName);
+		url.setFragment(QString("page=%1").arg(targetPage));
+		links.append({devRect, url});
+	};
+
+		//The folio a cell of a table names: its number ("02.04"), the code
+		//of a section ("02") or a section heading ("02 - COMANDO"), for its
+		//first folio
+	QHash<QString, Diagram *> folio_of;
+	if (QETProject *project = diagram->project()) {
+		const ProjectNumbering::Settings numbering = project->numbering();
+		const QList<Diagram *> diagrams = project->diagrams();
+		const QStringList codes = ProjectNumbering::sectionCodes(numbering, project->numberingFolios());
+		for (int i = diagrams.size() - 1; i >= 0; --i) {
+			folio_of.insert(diagrams.at(i)->border_and_titleblock.finalfolio(), diagrams.at(i));
+			if (!numbering.sections.isEmpty() && i < codes.size())
+				folio_of.insert(QStringLiteral("section:") + codes.at(i), diagrams.at(i));
+		}
+	}
+		//A section code alone ("02") counts in the first column only, as in
+		//the section index: anywhere else it may be a quantity
+	auto folioNamedBy = [&folio_of](const QString &cell, bool first_column) -> Diagram * {
+		const QString text = cell.trimmed();
+		if (text.isEmpty()) return nullptr;
+		if (Diagram *d = folio_of.value(text)) return d;
+		if (first_column)
+			if (Diagram *d = folio_of.value(QStringLiteral("section:") + text)) return d;
+		const int dash = text.indexOf(QChar(0x2013));
+		if (dash > 0)
+			return folio_of.value(QStringLiteral("section:") + text.left(dash).trimmed());
+		return nullptr;
+	};
+
 	for (auto *item : diagram->items()) {
+
+		// --- Table rows naming a folio (indexes) ---
+		if (auto *table = dynamic_cast<QetGraphicsTableItem*>(item)) {
+			QAbstractItemModel *model = table->model();
+			if (!model) continue;
+			for (int row = 0; row < table->displayedRowCount(); ++row) {
+				const int model_row = table->modelRow(row);
+				Diagram *target = nullptr;
+				for (int column = 0; column < model->columnCount() && !target; ++column)
+					target = folioNamedBy(model->index(model_row, column).data().toString(), column == 0);
+				if (target)
+					injectFolioLink(table->mapRectToScene(table->displayedRowRect(row)), target);
+			}
+			continue;
+		}
 
 		// --- CrossRefItem links ---
 		if (auto *xref = dynamic_cast<CrossRefItem*>(item)) {

@@ -51,7 +51,7 @@
 
     <!-- ============================================================
          Desktop + Start Menu shortcuts
-         Point directly to qelectrotech.exe with all required arguments.
+         Point directly to homiservi-sch.exe with all required arguments.
          No .bat wrapper needed.
          ============================================================ -->
     <ComponentGroup Id="CG_Shortcuts" Directory="INSTALLDIR">
@@ -60,7 +60,7 @@
         <Shortcut Id="DesktopShortcut"
                   Directory="DesktopFolder"
                   Name="QElectroTech"
-                  Target="[INSTALLDIR]bin\qelectrotech.exe"
+                  Target="[INSTALLDIR]bin\homiservi-sch.exe"
                   Arguments="--common-elements-dir=&quot;[INSTALLDIR]elements/&quot; --common-tbt-dir=&quot;[INSTALLDIR]titleblocks/&quot; --lang-dir=&quot;[INSTALLDIR]lang/&quot; $(var.QtPlatformArgs)"
                   Icon="qet.ico"
                   WorkingDirectory="INSTALLDIR" />
@@ -75,7 +75,7 @@
         <Shortcut Id="StartMenuShortcut"
                   Directory="ProgramMenuFolder"
                   Name="QElectroTech"
-                  Target="[INSTALLDIR]bin\qelectrotech.exe"
+                  Target="[INSTALLDIR]bin\homiservi-sch.exe"
                   Arguments="--common-elements-dir=&quot;[INSTALLDIR]elements/&quot; --common-tbt-dir=&quot;[INSTALLDIR]titleblocks/&quot; --lang-dir=&quot;[INSTALLDIR]lang/&quot; $(var.QtPlatformArgs)"
                   Icon="qet.ico"
                   WorkingDirectory="INSTALLDIR" />
@@ -103,7 +103,7 @@
              lang-dir argument the UI falls back to the source language, which
              is French. See issue #554. -->
         <RegistryValue Root="HKCR" Key="QElectroTech.Document\shell\open\command" Type="string"
-                       Value="&quot;[INSTALLDIR]bin\qelectrotech.exe&quot; --common-elements-dir=&quot;[INSTALLDIR]elements/&quot; --common-tbt-dir=&quot;[INSTALLDIR]titleblocks/&quot; --lang-dir=&quot;[INSTALLDIR]lang/&quot; $(var.QtPlatformArgs) &quot;%1&quot;" />
+                       Value="&quot;[INSTALLDIR]bin\homiservi-sch.exe&quot; --common-elements-dir=&quot;[INSTALLDIR]elements/&quot; --common-tbt-dir=&quot;[INSTALLDIR]titleblocks/&quot; --lang-dir=&quot;[INSTALLDIR]lang/&quot; $(var.QtPlatformArgs) &quot;%1&quot;" />
       </Component>
     </ComponentGroup>
 

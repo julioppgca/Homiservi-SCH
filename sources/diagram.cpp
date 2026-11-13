@@ -15,6 +15,8 @@
 	You should have received a copy of the GNU General Public License
 	along with QElectroTech.  If not, see <http://www.gnu.org/licenses/>.
 */
+#include <QPointer>
+#include <QTimer>
 #include "diagram.h"
 #include "autoNum/elementautonumschemecommand.h"
 
@@ -2053,9 +2055,22 @@ void Diagram::addItem(QGraphicsItem *item)
 	{
 		case Element::Type:
 		{
-			m_project->dataBase()->addElement(
-						static_cast<Element *>(item));
+			auto element = static_cast<Element *>(item);
+			m_project->dataBase()->addElement(element);
 			m_project->scheduleTextStyles();
+				//Homiservi-SCH: a tag typed without number ("-KA") gets
+				//the next free one, once the edit is over
+			if (!element->property("homiservi_tag_watch").toBool()) {
+				element->setProperty("homiservi_tag_watch", true);
+				QPointer<Element> watched(element);
+				QPointer<QETProject> project(m_project);
+				connect(element, &Element::elementInfoChange, this, [watched, project]() {
+					if (!project || project->state() != QETProject::Ok) return;
+					QTimer::singleShot(0, project, [watched, project]() {
+						if (watched && project) project->completeComponentTag(watched);
+					});
+				});
+			}
 			break;
 		}
 		case Conductor::Type:
@@ -2063,6 +2078,15 @@ void Diagram::addItem(QGraphicsItem *item)
 			Conductor *conductor = static_cast<Conductor *>(item);
 			conductor->terminal1->addConductor(conductor);
 			conductor->terminal2->addConductor(conductor);
+				//Homiservi-SCH: a potential left without number gets one,
+				//once the edit is over (QETProject::completeWireNumber())
+			if (m_project && m_project->state() == QETProject::Ok) {
+				QPointer<Conductor> watched(conductor);
+				QPointer<QETProject> project(m_project);
+				QTimer::singleShot(0, project, [watched, project]() {
+					if (watched && project) project->completeWireNumber(watched);
+				});
+			}
 			conductor->calculateTextItemPosition();
 			m_project->dataBase()->addConductor(conductor);
 			break;

@@ -182,9 +182,14 @@ set(QET_SRC_FILES
   ${QET_DIR}/sources/projecthistory.h
   ${QET_DIR}/sources/potentialrules.cpp
   ${QET_DIR}/sources/potentialrules.h
+  ${QET_DIR}/sources/projectnumbering.cpp
+  ${QET_DIR}/sources/projectnumbering.h
+  ${QET_DIR}/sources/projectindex.cpp
+  ${QET_DIR}/sources/projectindex.h
   ${QET_DIR}/sources/homiservitemplate.cpp
   ${QET_DIR}/sources/homiservitemplate.h
   ${QET_DIR}/sources/projectrevisions.cpp
+  ${QET_DIR}/sources/projectrevisionlist.cpp
   ${QET_DIR}/sources/projectrevisions.h
   ${QET_DIR}/sources/projectvariants.cpp
   ${QET_DIR}/sources/projectvariants.h
@@ -867,6 +872,10 @@ set(QET_SRC_FILES
   ${QET_DIR}/sources/ui/wiringeditordock.h
   ${QET_DIR}/sources/ui/potentialrulesdialog.cpp
   ${QET_DIR}/sources/ui/potentialrulesdialog.h
+  ${QET_DIR}/sources/ui/projectnumberingdialog.cpp
+  ${QET_DIR}/sources/ui/projectnumberingdialog.h
+  ${QET_DIR}/sources/ui/projectindexdialog.cpp
+  ${QET_DIR}/sources/ui/projectindexdialog.h
   ${QET_DIR}/sources/ui/homiserviprojectwizard.cpp
   ${QET_DIR}/sources/ui/homiserviprojectwizard.h
   ${QET_DIR}/sources/ui/projectrevisionsdialog.cpp
@@ -979,6 +988,10 @@ set(QET_SRC_FILES
   ${QET_DIR}/sources/undocommand/linkelementcommand.h
   ${QET_DIR}/sources/undocommand/movediagramcommand.cpp
   ${QET_DIR}/sources/undocommand/movediagramcommand.h
+  ${QET_DIR}/sources/undocommand/projectnumberingcommand.cpp
+  ${QET_DIR}/sources/undocommand/projectnumberingcommand.h
+  ${QET_DIR}/sources/undocommand/projectrevisionscommand.cpp
+  ${QET_DIR}/sources/undocommand/projectrevisionscommand.h
   ${QET_DIR}/sources/undocommand/removediagramcommand.cpp
   ${QET_DIR}/sources/undocommand/removediagramcommand.h
   ${QET_DIR}/sources/undocommand/setautonumcontextcommand.cpp

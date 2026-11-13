@@ -31,6 +31,8 @@
 #include "../ui/conductorpropertiesdialog.h"
 #include "conductortextitem.h"
 #include "dynamicelementtextitem.h"
+#include "crossrefitem.h"
+#include "independenttextitem.h"
 #include "element.h"
 #include "../QetGraphicsItemModeler/qetgraphicshandleritem.h"
 #include "../utils/qetutils.h"
@@ -1593,6 +1595,102 @@ QPointF Conductor::posForText(Qt::Orientations &flag)
 }
 
 /**
+	@brief Conductor::posForTextNearTerminal
+	Homiservi-SCH: where the text of this conductor goes when the project
+	puts the wire numbers near the component a wire comes from: on the
+	first segment out of a terminal long enough for the text, just past
+	the terminal, then further along it until the text is clear of the
+	other texts (tags, texts of the elements, cross references, numbers of
+	other wires), or where it covers the least of them. Terminal 1, where the wire was drawn from, unless other
+	wires start there too (a junction, where their numbers would meet) and
+	terminal 2 is the wire's alone.
+	@param flag : the orientation of that segment
+	@param found : false when no segment is long enough
+	@return the middle of the text
+*/
+QPointF Conductor::posForTextNearTerminal(Qt::Orientations &flag, bool *found)
+{
+	*found = false;
+	if (!segments || !m_text_item || !terminal1 || !terminal2) return QPointF();
+
+	QList<ConductorSegment *> list;
+	ConductorSegment *segment = segments;
+	while (!segment->isFirstSegment())
+		segment = segment->previousSegment();
+	for (; segment; segment = segment->hasNextSegment() ? segment->nextSegment() : nullptr)
+		list << segment;
+
+	const bool from_end = terminal1->conductors().size() > 1 && terminal2->conductors().size() <= 1;
+	if (from_end)
+		std::reverse(list.begin(), list.end());
+
+	const QRectF text_rect = m_text_item->boundingRect();
+	const qreal margin = 10, step = 5;
+		//How much of the text, centred on point of a segment so oriented,
+		//lies on the other texts of the folio: 0 when it is clear of them
+	auto overlap = [this, &text_rect](const QPointF &point, bool horizontal) {
+		const int rotation = int(horizontal ? m_properties.horiz_rotate_text : m_properties.verti_rotate_text);
+		const bool turned = rotation % 180 != 0;
+		const QSizeF size = turned ? QSizeF(text_rect.height(), text_rect.width()) : text_rect.size();
+			//Either side of the wire: the alignment decides which
+		const QRectF area = horizontal
+				? QRectF(point.x() - size.width() / 2, point.y() - size.height(), size.width(), 2 * size.height())
+				: QRectF(point.x() - size.width(), point.y() - size.height() / 2, 2 * size.width(), size.height());
+		const QRectF scene_area = mapRectToScene(area.adjusted(1, 1, -1, -1));
+		qreal covered = 0;
+		for (QGraphicsItem *item : diagram()->items(scene_area)) {
+			if (item == m_text_item || !item->isVisible()) continue;
+			const int type = item->type();
+			if (type == ConductorTextItem::Type || type == DynamicElementTextItem::Type
+			    || type == IndependentTextItem::Type || type == CrossRefItem::Type) {
+				const QRectF common = scene_area.intersected(item->sceneBoundingRect());
+				covered += common.width() * common.height();
+			}
+		}
+		return covered;
+	};
+
+	QPointF best;
+	Qt::Orientations best_flag = Qt::Horizontal;
+	qreal best_overlap = 0;
+		//From the chosen end, then from the other one: the first place
+		//clear of other texts
+	for (const bool reversed : {from_end, !from_end}) {
+		QList<ConductorSegment *> ordered = list;
+		if (reversed != from_end)
+			std::reverse(ordered.begin(), ordered.end());
+		for (ConductorSegment *s : std::as_const(ordered)) {
+			const bool horizontal = s->isHorizontal();
+			const int rotation = int(horizontal ? m_properties.horiz_rotate_text : m_properties.verti_rotate_text);
+				//The room the text takes along the wire
+			const qreal along = (rotation % 180 != 0) == horizontal ? text_rect.height() : text_rect.width();
+			const qreal length = qAbs(s->length());
+			if (length < along + 2 * margin) continue;
+
+			const QLineF line = reversed ? QLineF(s->secondPoint(), s->firstPoint())
+						     : QLineF(s->firstPoint(), s->secondPoint());
+			for (qreal d = margin + along / 2; d <= length - margin - along / 2; d += step) {
+				const QPointF point = line.pointAt(d / length);
+				const qreal covered = overlap(point, horizontal);
+				if (!*found || covered < best_overlap) {
+					best = point;
+					best_flag = horizontal ? Qt::Horizontal : Qt::Vertical;
+					best_overlap = covered;
+					*found = true;
+				}
+				if (covered <= 0) {
+					flag = best_flag;
+					return point;
+				}
+			}
+		}
+	}
+		//No clear place: where the text covers the least of the others
+	flag = best_flag;
+	return best;
+}
+
+/**
 	@brief Conductor::updateTextVisibility
 	Show the text of this conductor if its properties ask for it and wire
 	numbers are not hidden (View > Show). With "one text per potential",
@@ -1663,7 +1761,13 @@ void Conductor::calculateTextItemPosition()
 			rotation = m_cable_text_vertical ? Qt::Vertical : Qt::Horizontal;
 		}
 		else
-			text_pos = posForText(rotation);
+		{
+			bool near_terminal = false;
+			if (diagram()->project() && diagram()->project()->wireTextNearTerminal())
+				text_pos = posForTextNearTerminal(rotation, &near_terminal);
+			if (!near_terminal)
+				text_pos = posForText(rotation);
+		}
 
 		if (!m_text_item -> wasRotatedByUser())
 		{

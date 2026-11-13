@@ -1,4 +1,4 @@
-<definition height="80" hotspot_x="10" hotspot_y="65" link_type="simple" type="element" version="0.200.1" width="80">
+<definition height="100" hotspot_x="10" hotspot_y="83" link_type="simple" type="element" version="0.200.1" width="80">
     <uuid uuid="{b05ca672-bc76-59ab-89f0-d46628f636a8}"/>
     <names>
         <name lang="en">CM65</name>

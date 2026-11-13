@@ -25,6 +25,9 @@
 #include "ui/potentialrulesdialog.h"
 #include "ui/textstylesdialog.h"
 #include "ui/homiserviprojectwizard.h"
+#include "ui/projectindexdialog.h"
+#include "undocommand/projectrevisionscommand.h"
+#include "ui/projectnumberingdialog.h"
 #include "ui/projectrevisionsdialog.h"
 #include "projectvariants.h"
 #include "terminalsheet.h"
@@ -777,6 +780,15 @@ void QETDiagramEditor::setUpActions()
 	m_project_revisions->setStatusTip(tr("Edita as revisões mostradas no quadro de revisões da legenda", "status bar tip"));
 	connect(m_project_revisions, &QAction::triggered, this, &QETDiagramEditor::showProjectRevisions);
 
+	m_project_numbering = new QAction(tr("Configurar seções e numeração..."), this);
+	ShortcutManager::instance().registerAction(m_project_numbering, "diagrameditor.project_numbering", tr("Éditeur de schémas"), QKeySequence());
+	m_project_numbering->setStatusTip(tr("Define as seções do projeto e como as folhas são numeradas", "status bar tip"));
+	connect(m_project_numbering, &QAction::triggered, this, [this]() { showProjectNumbering(false); });
+	m_project_renumber = new QAction(tr("Reaplicar numeração"), this);
+	ShortcutManager::instance().registerAction(m_project_renumber, "diagrameditor.project_renumber", tr("Éditeur de schémas"), QKeySequence());
+	m_project_renumber->setStatusTip(tr("Mostra o que muda e aplica de novo a numeração do projeto", "status bar tip"));
+	connect(m_project_renumber, &QAction::triggered, this, [this]() { showProjectNumbering(true); });
+
 	m_add_component_list = new QAction(tr("Adicionar lista de componentes"), this);
 	ShortcutManager::instance().registerAction(m_add_component_list, "diagrameditor.add_component_list", tr("Éditeur de schémas"), QKeySequence());
 	m_add_component_list->setStatusTip(tr("Adiciona no fim do projeto a lista de componentes: símbolo, posição, função, fornecedor e códigos", "status bar tip"));
@@ -846,10 +858,23 @@ void QETDiagramEditor::setUpActions()
 
 		//Add a summary item
 	m_add_summary = new QAction(QET::Icons::TableOfContent, tr("Ajouter un sommaire"), this);
+		//Homiservi-SCH: the indexes come from m_add_index; this one is the
+		//table of folios of one's own
+	m_add_summary->setText(tr("Tabela personalizada de folhas..."));
 	ShortcutManager::instance().registerAction(m_add_summary, "diagrameditor.add_summary", tr("Éditeur de schémas"), QKeySequence());
 	connect(m_add_summary, &QAction::triggered, this, [this]() {
 		if(this->currentDiagramView()) {
 			QetGraphicsTableFactory::createAndAddSummary(this->currentDiagramView()->diagram());
+		}
+	});
+
+	m_add_index = new QAction(QET::Icons::TableOfContent, tr("Índice do projeto..."), this);
+	ShortcutManager::instance().registerAction(m_add_index, "diagrameditor.add_index", tr("Éditeur de schémas"), QKeySequence());
+	m_add_index->setStatusTip(tr("Insere o índice de folhas ou o índice de seções do projeto", "status bar tip"));
+	connect(m_add_index, &QAction::triggered, this, [this]() {
+		if (DiagramView *view = currentDiagramView()) {
+			ProjectIndexDialog dialog(view->diagram(), this);
+			dialog.exec();
 		}
 	});
 
@@ -1721,21 +1746,32 @@ void QETDiagramEditor::setUpMenu()
 		//Thirty entries in one column did not fit on a laptop screen: the
 		//families sit one level down, as in the Edit menu. Every action and
 		//its shortcut is unchanged.
+		//Homiservi-SCH: grouped by the order of the work: the data of the
+		//project, its folios, the rules it follows, then wiring and lists
 	menu_project -> addAction(m_project_edit_properties);
 	menu_project -> addAction(m_homiservi_data);
 	menu_project -> addAction(m_project_revisions);
 	menu_project -> addSeparator();
+
 	menu_project -> addAction(m_project_add_diagram);
 	menu_project -> addAction(m_remove_diagram_from_project);
-	menu_project -> addSeparator();
-
 	QMenu *generated_menu = menu_project -> addMenu(QET::Icons::TableOfContent, tr("Folhas automáticas"));
+	generated_menu -> addAction(m_add_index);
 	generated_menu -> addAction(m_add_summary);
 	generated_menu -> addAction(m_add_nomenclature);
 	generated_menu -> addAction(m_add_component_list);
 	generated_menu -> addSeparator();
 	generated_menu -> addAction(m_terminal_sheets);
 	generated_menu -> addAction(m_io_maps);
+	menu_project -> addSeparator();
+
+	QMenu *numbering_menu = menu_project -> addMenu(QET::Icons::TableOfContent, tr("Numeração"));
+	numbering_menu -> addAction(m_project_numbering);
+	numbering_menu -> addAction(m_project_renumber);
+	QMenu *standards_menu = menu_project -> addMenu(tr("Padrões do projeto"));
+	standards_menu -> addAction(m_text_styles);
+	standards_menu -> addAction(m_potential_rules);
+	menu_project -> addSeparator();
 
 	QMenu *wiring_menu = menu_project -> addMenu(QET::Icons::Conductor, tr("Fiação e condutores"));
 	wiring_menu -> addAction(m_auto_conductor);
@@ -1745,7 +1781,6 @@ void QETDiagramEditor::setUpMenu()
 	wiring_menu -> addSeparator();
 	wiring_menu -> addAction(m_wiring_editor);
 	wiring_menu -> addAction(m_project_wiring_list_view);
-	wiring_menu -> addAction(m_potential_rules);
 
 	QMenu *terminal_menu = menu_project -> addMenu(QET::Icons::TerminalStrip, tr("Bornes"));
 	terminal_menu -> addAction(m_terminal_strip_dialog);
@@ -1763,7 +1798,6 @@ void QETDiagramEditor::setUpMenu()
 	export_menu -> addSeparator();
 	export_menu -> addAction(m_export_project_db);
 #endif
-	menu_project -> addAction(m_text_styles);
 	menu_project -> addSeparator();
 
 	QMenu *maintenance_menu = menu_project -> addMenu(QET::Icons::EditClear, tr("Manutenção"));
@@ -1971,6 +2005,24 @@ void QETDiagramEditor::showHomiserviData()
 }
 
 /**
+	@brief QETDiagramEditor::showProjectNumbering
+	Set the sections and the numbering of the folios, tags and wires of the
+	current project (ProjectNumberingDialog), which applies them itself.
+	@param reapply : open on what changes, to apply the settings of the
+	project again (on the sections when the project has none)
+*/
+void QETDiagramEditor::showProjectNumbering(bool reapply)
+{
+	QETProject *project = currentProject();
+	ProjectView *project_view = currentProjectView();
+	if (!project || !project_view || project->isReadOnly()) {
+		return;
+	}
+	ProjectNumberingDialog dialog(project, project_view, reapply && !project->numbering().isEmpty(), this);
+	dialog.exec();
+}
+
+/**
 	@brief QETDiagramEditor::showProjectRevisions
 	Edit the revisions of the current project, shown by the revision table
 	of its title block (ProjectRevisions).
@@ -1981,9 +2033,13 @@ void QETDiagramEditor::showProjectRevisions()
 	if (!project || project->isReadOnly()) {
 		return;
 	}
-	ProjectRevisionsDialog dialog(ProjectRevisions::read(project), this);
+	DiagramView *view = currentDiagramView();
+	ProjectRevisionsDialog dialog(project, view ? view->diagram() : nullptr, this);
 	if (dialog.exec() == QDialog::Accepted) {
-		ProjectRevisions::write(project, dialog.revisions());
+		const QList<ProjectRevisions::Revision> revisions = dialog.revisions();
+		if (revisions != project->revisions() || !project->projectProperties()
+			    .contains(QStringLiteral("rev%1_ed").arg(ProjectRevisions::TableRows)))
+			project->undoStack()->push(new ProjectRevisionsCommand(project, revisions));
 	}
 }
 
@@ -3297,12 +3353,15 @@ void QETDiagramEditor::slot_updateActions()
 	m_text_styles                 -> setEnabled(editable_project);
 	m_homiservi_data              -> setEnabled(editable_project);
 	m_project_revisions           -> setEnabled(editable_project);
+	m_project_numbering           -> setEnabled(editable_project);
+	m_project_renumber            -> setEnabled(editable_project);
 	m_add_component_list          -> setEnabled(editable_project);
 	m_terminal_sheets             -> setEnabled(editable_project);
 	m_io_maps                     -> setEnabled(editable_project);
 	if (m_wiring_editor_dock && m_wiring_editor_dock->isVisible())
 		m_wiring_editor_dock->setProject(currentProject());
 	m_add_summary                 -> setEnabled(editable_project);
+	m_add_index                   -> setEnabled(editable_project);
 	m_add_nomenclature            -> setEnabled(editable_project);
 	m_csv_export                  -> setEnabled(editable_project);
 	m_project_export_conductor_num-> setEnabled(opened_project);

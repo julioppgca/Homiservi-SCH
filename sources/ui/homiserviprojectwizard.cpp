@@ -76,11 +76,11 @@ QWizardPage *HomiserviProjectWizard::projectPage(const HomiserviTemplate::Data &
 	page->setTitle(tr("Dados do projeto"));
 	page->setSubTitle(tr("Aparecem na legenda de todas as folhas e na capa."));
 	auto form = new QFormLayout(page);
-	m_title = lineEdit(data.title, tr("ex.: Torno 1 (GL240 – 016-014335)"), page);
-	m_client = lineEdit(data.client, tr("ex.: Indumavi"), page);
+	m_title = lineEdit(data.title, tr("ex.: Painel de comando da máquina 01"), page);
+	m_client = lineEdit(data.client, tr("ex.: Homiservi"), page);
 	m_plant = lineEdit(data.plant, tr("ex.: Painel Elétrico"), page);
-	m_location = lineEdit(data.location, tr("ex.: T1 – GL240 016-014335"), page);
-	m_drawing_number = lineEdit(data.drawing_number, tr("ex.: 092026"), page);
+	m_location = lineEdit(data.location, tr("ex.: Máquina 01 – Usinagem"), page);
+	m_drawing_number = lineEdit(data.drawing_number, tr("ex.: HS-0001"), page);
 	m_filename = lineEdit(data.filename, tr("referência do documento (opcional)"), page);
 	m_layout = new QComboBox(page);
 	m_layout->addItem(tr("Simples"), HomiserviTemplate::Simple);
@@ -110,7 +110,7 @@ QWizardPage *HomiserviProjectWizard::peoplePage(const HomiserviTemplate::Data &d
 			      QString(), page);
 	m_author = lineEdit(data.author.isEmpty()
 			    ? settings.value(QStringLiteral("homiservi/author")).toString() : data.author,
-			    tr("ex.: Eng. Júlio"), page);
+			    tr("ex.: Eng. Responsável"), page);
 	m_checker = lineEdit(data.checker.isEmpty()
 			     ? settings.value(QStringLiteral("homiservi/checker")).toString() : data.checker,
 			     QString(), page);
@@ -140,10 +140,17 @@ QWizardPage *HomiserviProjectWizard::foliosPage()
 		box->setChecked(true);
 	layout->addWidget(m_cover);
 	layout->addWidget(m_contents);
-	layout->addWidget(new QLabel(tr("Folhas de esquema, um título por linha:"), page));
+	layout->addWidget(new QLabel(tr("Seções de esquema, uma por linha (cada uma começa com uma folha"
+					 " com esse título):"), page));
 	m_schematics = new QPlainTextEdit(defaultSchematics(), page);
 	layout->addWidget(m_schematics, 1);
 	layout->addWidget(m_materials);
+	m_numbering = new QCheckBox(tr("Numerar no padrão Homiservi: folhas por seção (02.01), tags por seção"
+				       " (-KA21) e fios por folha (02.01-01), perto do componente"), page);
+	m_numbering->setToolTip(tr("A capa e o índice ficam na seção 01 – Geral e as listas na última."
+				   " Tudo pode ser mudado depois em Projeto > Numeração."));
+	m_numbering->setChecked(true);
+	layout->addWidget(m_numbering);
 	return page;
 }
 
@@ -192,6 +199,7 @@ HomiserviTemplate::Folios HomiserviProjectWizard::folios() const
 	folios.cover = m_cover->isChecked();
 	folios.contents = m_contents->isChecked();
 	folios.materials = m_materials->isChecked();
+	folios.numbering = m_numbering->isChecked();
 	for (const QString &line : m_schematics->toPlainText().split(QLatin1Char('\n')))
 		if (!line.trimmed().isEmpty())
 			folios.schematics << line.trimmed();

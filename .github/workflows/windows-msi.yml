@@ -193,12 +193,12 @@ jobs:
       - name: Check artifact structure
         shell: pwsh
         run: |
-          $exe = Get-ChildItem -Path "artifact\files" -Filter "qelectrotech.exe" -Recurse | Select-Object -First 1
+          $exe = Get-ChildItem -Path "artifact\files" -Filter "homiservi-sch.exe" -Recurse | Select-Object -First 1
           if (-not $exe) {
             $exe = Get-ChildItem -Path "artifact\files" -Filter "QElectroTech.exe" -Recurse | Select-Object -First 1
           }
           if (-not $exe) {
-            Write-Error "qelectrotech.exe not found in artifact"
+            Write-Error "homiservi-sch.exe not found in artifact"
             exit 1
           }
           Write-Host "Executable: $($exe.FullName) ($([math]::Round($exe.Length/1MB,1)) MB)"
@@ -245,7 +245,7 @@ jobs:
         run: |
           $qtArgs  = "${{ steps.version.outputs.QT_ARGS }}"
           $bat     = "$env:FILES_DIR\Lancer QET.bat"
-          $content = "@echo off`r`nstart `"`" `"%~dp0bin\qelectrotech.exe`" --common-elements-dir=`"%~dp0elements/`" --common-tbt-dir=`"%~dp0titleblocks/`" --lang-dir=`"%~dp0lang/`" $qtArgs`r`n"
+          $content = "@echo off`r`nstart `"`" `"%~dp0bin\homiservi-sch.exe`" --common-elements-dir=`"%~dp0elements/`" --common-tbt-dir=`"%~dp0titleblocks/`" --lang-dir=`"%~dp0lang/`" $qtArgs`r`n"
           [System.IO.File]::WriteAllText($bat, $content, [System.Text.Encoding]::ASCII)
           Write-Host "Lancer QET.bat replaced for MSI installation (qtArgs: '$qtArgs')."
 

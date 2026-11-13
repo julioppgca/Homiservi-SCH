@@ -18,6 +18,8 @@
 #ifndef HOMISERVITEMPLATE_H
 #define HOMISERVITEMPLATE_H
 
+#include "projectnumbering.h"
+
 #include <QDate>
 #include <QString>
 #include <QStringList>
@@ -31,7 +33,9 @@ class QETProject;
 	and the data of a project (client, place, drawing number...) written
 	in the title block of every folio. createFolios() adds the usual
 	folios of a new project: cover, table of contents, schematics and bill
-	of materials.
+	of materials, each schematic title starting a section of the project
+	numbering (ProjectNumbering), the cover and the table of contents in
+	01 - Geral and the lists in the last one.
 
 	The data shared by every folio is kept as project properties (client,
 	drawing number, checker; the title is the project title), the rest in
@@ -72,6 +76,8 @@ namespace HomiserviTemplate
 		bool contents = true;
 		QStringList schematics;
 		bool materials = true;
+			///Sections and numbering of folios, tags and wires (numbering())
+		bool numbering = true;
 	};
 
 	Data fromProject(QETProject *project);
@@ -80,6 +86,7 @@ namespace HomiserviTemplate
 	void apply(QETProject *project, const Data &data, bool use_title_block = true);
 	void createFolios(QETProject *project, const Data &data, const Folios &folios);
 	bool hasCover(QETProject *project);
+	ProjectNumbering::Settings numbering();
 	QString componentListQuery();
 	void addComponentList(QETProject *project);
 }

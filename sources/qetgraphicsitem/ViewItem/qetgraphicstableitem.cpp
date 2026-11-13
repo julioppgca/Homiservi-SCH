@@ -16,6 +16,8 @@
 	along with QElectroTech. If not, see <http://www.gnu.org/licenses/>.
 */
 #include "qetgraphicstableitem.h"
+#include "../../ui/projectindexdialog.h"
+#include "../../projectindex.h"
 #include "../../shownkinds.h"
 #include "../../qetproject.h"
 #include "../../QPropertyUndoCommand/qpropertyundocommand.h"
@@ -248,7 +250,8 @@ void QetGraphicsTableItem::paint(
 	pen.setWidthF(0.7);
 	pen.setColor(Qt::black);
 	painter->setPen(pen);
-	painter->drawRect(0,0, m_header_item->rect().width(), m_current_size.height());
+	if (m_style == Grid)
+		painter->drawRect(0,0, m_header_item->rect().width(), m_current_size.height());
 
 	if (isSelected())
 	{
@@ -263,6 +266,11 @@ void QetGraphicsTableItem::paint(
 
 	if(!m_model)
 	{
+		painter->restore();
+		return;
+	}
+	if (m_style == Clean) {
+		paintClean(painter);
 		painter->restore();
 		return;
 	}
@@ -447,6 +455,8 @@ void QetGraphicsTableItem::setPreviousTable(QetGraphicsTableItem *table)
 	{
 		m_previous_table->setNextTable(this);
 		setModel(m_previous_table->m_model);
+			//A continuation table is drawn as the table it continues
+		m_style = m_previous_table->m_style;
 	}
 	else //Copie the model of old previous table
 	{
@@ -508,6 +518,45 @@ int QetGraphicsTableItem::displayNRowOffset() const
 		offset_ += m_previous_table->displayNRowOffset();
 
 	return offset_;
+}
+
+/**
+	@brief QetGraphicsTableItem::mouseDoubleClickEvent
+	Homiservi-SCH: a double click on an index edits it
+	(ProjectIndexDialog)
+*/
+void QetGraphicsTableItem::mouseDoubleClickEvent(QGraphicsSceneMouseEvent *event)
+{
+	QWidget *parent = scene() && !scene()->views().isEmpty() ? scene()->views().first() : nullptr;
+	if (ProjectIndexDialog::editIndex(this, parent)) {
+		event->accept();
+		return;
+	}
+	QetGraphicsItem::mouseDoubleClickEvent(event);
+}
+
+/**
+	@brief QetGraphicsTableItem::displayedRowRect
+	@return the rectangle of the row-th row this table displays, from 0, in
+	its own coordinates, as paint() draws it
+*/
+QRectF QetGraphicsTableItem::displayedRowRect(int row) const
+{
+	const int rows = displayedRowCount();
+	if (row < 0 || row >= rows) return QRectF();
+	const qreal cell_height = static_cast<qreal>(m_current_size.height()) / rows;
+	return QRectF(m_header_item->rect().left(), cell_height * row,
+		      m_header_item->rect().width(), cell_height);
+}
+
+/**
+	@brief QetGraphicsTableItem::modelRow
+	@return the row of the model the row-th row this table displays shows:
+	the previous tables display the rows before
+*/
+int QetGraphicsTableItem::modelRow(int row) const
+{
+	return m_previous_table ? row + m_previous_table->displayNRowOffset() : row;
 }
 
 /**
@@ -592,6 +641,8 @@ QDomElement QetGraphicsTableItem::toXml(QDomDocument &dom_document) const
 	dom_table.setAttribute("uuid", m_uuid.toString());
 	dom_table.setAttribute("name", m_name);
 	dom_table.setAttribute("display_n_row", QString::number(m_number_of_row_to_display));
+	if (m_style == Clean)
+		dom_table.setAttribute("style", "clean");
 
 		//Add the header xml
 	dom_table.appendChild(m_header_item->toXml(dom_document));
@@ -652,6 +703,7 @@ void QetGraphicsTableItem::fromXml(const QDomElement &dom_element)
 	m_number_of_row_to_display = dom_element.attribute(
 				"display_n_row",
 				QString::number(0)).toInt();
+	m_style = dom_element.attribute("style") == QLatin1String("clean") ? Clean : Grid;
 
 	auto vector_ = QETXML::directChild(dom_element, "previous_table");
 	if (vector_.size()) { //Table have a previous table
@@ -692,11 +744,12 @@ bool QetGraphicsTableItem::toDXF(const QString &filepath)
 	//QRectF rect = boundingRect();
 	QRectF rect(0,0, m_header_item->rect().width(), m_current_size.height());
 	QPolygonF poly(rect);
-	Createdxf::drawPolygon(filepath,mapToScene(poly),0);
+	if (m_style == Grid)
+		Createdxf::drawPolygon(filepath,mapToScene(poly),0);
 
 	//Draw vertical lines
 	auto offset= 0;
-	for(auto i=0 ; i<m_model->columnCount() ; ++i)
+	for(auto i=0 ; m_style == Grid && i<m_model->columnCount() ; ++i)
 	{
 		QPointF p1(offset+m_header_item->sectionSize(i), 0);
 		QPointF p2(
@@ -721,6 +774,9 @@ bool QetGraphicsTableItem::toDXF(const QString &filepath)
 	auto cell_height =  static_cast<double>(m_current_size.height())/static_cast<double>(row_count);
 	for(auto i= 1 ; i-1<row_count ; ++i)
 	{
+			//Clean: a line under each row but the section rows
+		if (m_style == Clean && isHeadingRow(modelRow(i - 1)))
+			continue;
 		QPointF p1(m_header_item->rect().left(), cell_height*i);
 		QPointF p2(m_header_item->rect().right(), cell_height*i);
 		Createdxf::drawLine(
@@ -754,13 +810,181 @@ bool QetGraphicsTableItem::toDXF(const QString &filepath)
 
 			int valign = 2;
 
+				//Clean: the text of a section row in its first cell
+			QString text = m_model->index(index_row, j).data().toString();
+			if (m_style == Clean && isHeadingRow(index_row))
+				text = j == 0 ? m_model->index(index_row, m_heading_column).data().toString() : QString();
+
 			Createdxf::drawTextAligned(
 						filepath,
-						m_model->index(index_row, j).data().toString(),
+						text,
 						x,y,h1,0,0,0,valign,x,0,0);
 		}
 	}
 	return true;
+}
+
+/**
+	@brief QetGraphicsTableItem::setTableStyle
+	Draw this table and the tables that continue it in style
+*/
+void QetGraphicsTableItem::setTableStyle(TableStyle style)
+{
+	for (QetGraphicsTableItem *table = this; table; table = table->m_next_table) {
+		table->m_style = style;
+		table->m_header_item->update();
+		table->update();
+	}
+}
+
+/**
+	@brief QetGraphicsTableItem::updateCleanLayout
+	Read again what the query of an index tells the clean style, when it
+	changed: the keys of its columns, its section rows, the column with
+	the dots (the title)
+*/
+void QetGraphicsTableItem::updateCleanLayout() const
+{
+	auto db_model = dynamic_cast<ProjectDBModel *>(m_model.data());
+	const QString query = db_model ? db_model->queryString() : QString();
+	if (query == m_layout_query && !query.isNull())
+		return;
+	m_layout_query = query;
+	m_layout_keys.clear();
+	m_heading_column = -1;
+	m_leader_column = -1;
+	ProjectIndex::Kind kind = ProjectIndex::Folios;
+	bool grouped = false;
+	if (query.isEmpty() || !ProjectIndex::recognize(query, &kind, &m_layout_keys, &grouped))
+		return;
+	if (grouped) {
+		m_layout_keys.removeAll(QStringLiteral("section"));
+		m_heading_column = qMax(0, int(m_layout_keys.indexOf(QStringLiteral("title"))));
+	}
+	const QString leader = kind == ProjectIndex::Sections ? QStringLiteral("name")
+			     : kind == ProjectIndex::Revisions ? QStringLiteral("description")
+							       : QStringLiteral("title");
+	const int column = int(m_layout_keys.indexOf(leader));
+	if (column >= 0 && column < m_layout_keys.size() - 1)
+		m_leader_column = column;
+}
+
+/**
+	@brief QetGraphicsTableItem::columnAlignment
+	@return the horizontal alignment of the text of column: in the clean
+	style, the short columns of an index (revision, date, count...) are
+	centred, the others on the left; else the alignment of the table
+*/
+Qt::Alignment QetGraphicsTableItem::columnAlignment(int column) const
+{
+	const Qt::Alignment table_alignment = m_model
+		? Qt::Alignment(m_model->data(m_model->index(0,0), Qt::TextAlignmentRole).toInt()) & Qt::AlignHorizontal_Mask
+		: Qt::AlignLeft;
+	if (m_style != Clean)
+		return table_alignment;
+	updateCleanLayout();
+	if (m_layout_keys.isEmpty())
+		return table_alignment;
+	static const QStringList centred {QStringLiteral("indexrev"), QStringLiteral("folio_count"),
+		QStringLiteral("edition"), QStringLiteral("date"), QStringLiteral("variant")};
+	return centred.contains(m_layout_keys.value(column)) ? Qt::AlignHCenter : Qt::AlignLeft;
+}
+
+/**
+	@brief QetGraphicsTableItem::isHeadingRow
+	@return true if the row model_row of the model is the row of a section,
+	before its folios, in a folio index grouped by section: its only text
+	is the name of the section
+*/
+bool QetGraphicsTableItem::isHeadingRow(int model_row) const
+{
+	if (!m_model) return false;
+	updateCleanLayout();
+	if (m_heading_column < 0 || m_model->columnCount() < 2)
+		return false;
+	for (int column = 0; column < m_model->columnCount(); ++column) {
+		const bool empty = m_model->index(model_row, column).data().toString().isEmpty();
+		if (empty == (column == m_heading_column))
+			return false;
+	}
+	return true;
+}
+
+/**
+	@brief QetGraphicsTableItem::paintClean
+	Draw the rows in the clean style: a thin line under each, the rows of
+	the sections in bold, their code in blue, the folios under them a bit
+	to the right, dots from the title to the next column
+*/
+void QetGraphicsTableItem::paintClean(QPainter *painter)
+{
+	const int row_count = displayedRowCount();
+	if (row_count <= 0)
+		return;
+	const qreal width = m_header_item->rect().width();
+	const qreal cell_height = static_cast<qreal>(m_current_size.height()) / row_count;
+	const QFont font = m_model->data(m_model->index(0,0), Qt::FontRole).value<QFont>();
+	QFont bold = font;
+	bold.setBold(true);
+	const QMargins margin = QETUtils::marginsFromString(m_model->index(0,0).data(Qt::UserRole+1).toString());
+	updateCleanLayout();
+		//The folios a bit to the right of the row of their section
+	const qreal indent = m_heading_column >= 0 ? QFontMetricsF(font).horizontalAdvance(QStringLiteral("00")) : 0;
+
+	QPen rule(QColor(180, 180, 180));
+	rule.setWidthF(0.4);
+	QPen dots(QColor(130, 130, 130));
+	dots.setWidthF(0.7);
+	dots.setCapStyle(Qt::RoundCap);
+	const QColor blue(0, 74, 159);
+	for (int i = 0; i < row_count; ++i)
+	{
+		const int model_row = modelRow(i);
+		const QRectF row_rect(0, cell_height * i, width, cell_height);
+
+		if (isHeadingRow(model_row)) {
+				//"02 – DISTRIBUIÇÃO DE FORÇA": the code in blue
+			const QString text = m_model->index(model_row, m_heading_column).data().toString();
+			const QRectF text_rect = row_rect.adjusted(margin.left(), margin.top(), -margin.right(), -margin.bottom());
+			painter->setFont(bold);
+				//A section without a name: its code alone
+			const int separator = int(text.indexOf(QStringLiteral(" – ")));
+			const QString code = separator > 0 ? text.left(separator) : text;
+			painter->setPen(blue);
+			painter->drawText(text_rect, Qt::AlignLeft | Qt::AlignVCenter, code);
+			painter->setPen(Qt::black);
+			painter->drawText(text_rect.adjusted(QFontMetricsF(bold).horizontalAdvance(code), 0, 0, 0),
+					  Qt::AlignLeft | Qt::AlignVCenter, separator > 0 ? text.mid(separator) : QString());
+			continue;
+		}
+
+		painter->setFont(font);
+		qreal x = 0;
+		for (int j = 0; j < m_model->columnCount(); ++j)
+		{
+			const qreal section = m_header_item->sectionSize(j);
+			QRectF cell(x + margin.left(), row_rect.top() + margin.top(),
+				    section - margin.left() - margin.right(),
+				    cell_height - margin.top() - margin.bottom());
+			if (j == 0) cell.setLeft(cell.left() + indent);
+			const QString text = m_model->index(model_row, j).data().toString();
+			painter->setPen(Qt::black);
+			painter->drawText(cell, columnAlignment(j) | Qt::AlignVCenter, text);
+
+			if (j == m_leader_column && !text.isEmpty()) {
+				const QFontMetricsF metrics(font);
+				const qreal step = metrics.horizontalAdvance(QLatin1Char('.')) * 1.6;
+				const qreal y = cell.center().y() + metrics.ascent() / 2 - 0.5;
+				painter->setPen(dots);
+				for (qreal dot = cell.left() + metrics.horizontalAdvance(text) + step;
+				     dot < cell.right() + margin.right() - step / 2; dot += step)
+					painter->drawPoint(QPointF(dot, y));
+			}
+			x += section;
+		}
+		painter->setPen(rule);
+		painter->drawLine(QPointF(0, row_rect.bottom()), QPointF(width, row_rect.bottom()));
+	}
 }
 
 /**

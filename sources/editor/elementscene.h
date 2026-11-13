@@ -146,6 +146,7 @@ class ElementScene : public QGraphicsScene
 		virtual ElementContent selectedContent() const;
 		virtual void getPasteArea(const QRectF &);
 		QRectF elementSceneGeometricRect () const;
+		QRectF elementDefinitionRect () const;
 		bool containsTerminals() const;
 		QUndoStack &undoStack();
 		QGIManager &qgiManager();

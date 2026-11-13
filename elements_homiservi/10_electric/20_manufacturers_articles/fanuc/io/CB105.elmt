@@ -1,4 +1,4 @@
-<definition height="90" hotspot_x="10" hotspot_y="18" link_type="simple" type="element" version="0.200.1" width="470">
+<definition height="100" hotspot_x="10" hotspot_y="15" link_type="simple" type="element" version="0.200.1" width="470">
     <uuid uuid="{b2201701-50ef-56d5-a8a6-bedbbac1fe77}"/>
     <names>
         <name lang="en">CB105</name>

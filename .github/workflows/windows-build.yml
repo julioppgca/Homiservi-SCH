@@ -140,9 +140,9 @@ jobs:
         shell: msys2 {0}
         run: |
           set -euo pipefail
-          EXE=$(find "$GITHUB_WORKSPACE/build" -maxdepth 3 -iname "qelectrotech.exe" | head -1)
+          EXE=$(find "$GITHUB_WORKSPACE/build" -maxdepth 3 -iname "homiservi-sch.exe" | head -1)
           if [ -z "$EXE" ]; then
-            echo "ERROR: no qelectrotech.exe found in build/"
+            echo "ERROR: no homiservi-sch.exe found in build/"
             find "$GITHUB_WORKSPACE/build" -maxdepth 3 -name "*.exe" || true
             exit 1
           fi
@@ -164,16 +164,16 @@ jobs:
           BIN="$FILES/bin"
           mkdir -p "$BIN"
 
-          EXE=$(find "$GITHUB_WORKSPACE/build" -maxdepth 3 -iname "qelectrotech.exe" | head -1)
-          echo "Copying exe: $EXE -> $BIN/QElectroTech.exe"
-          cp "$EXE" "$BIN/QElectroTech.exe"
+          EXE=$(find "$GITHUB_WORKSPACE/build" -maxdepth 3 -iname "homiservi-sch.exe" | head -1)
+          echo "Copying exe: $EXE -> $BIN/homiservi-sch.exe"
+          cp "$EXE" "$BIN/homiservi-sch.exe"
 
           cd "$BIN"
           /ucrt64/bin/windeployqt6 \
             --release \
             --no-translations \
             --no-compiler-runtime \
-            ./QElectroTech.exe || true
+            ./homiservi-sch.exe || true
 
           echo "=== 3-pass transitive DLL scan ==="
           set +e
@@ -197,9 +197,9 @@ jobs:
 
           DLL_COUNT=$(find "$BIN" -name "*.dll" | wc -l)
           echo "=== $DLL_COUNT DLLs present after scan ==="
-          ls -lh "$BIN/QElectroTech.exe" || { echo "ERROR: exe missing from bin/"; exit 1; }
+          ls -lh "$BIN/homiservi-sch.exe" || { echo "ERROR: exe missing from bin/"; exit 1; }
           [ "$DLL_COUNT" -gt 5 ] || { echo "ERROR: too few DLLs"; exit 1; }
-          # Without it QElectroTech.exe would not start at all.
+          # Without it homiservi-sch.exe would not start at all.
           [ -f "$BIN/libhidapi-0.dll" ] || { echo "ERROR: libhidapi-0.dll not deployed"; exit 1; }
           cd "$GITHUB_WORKSPACE"
 
@@ -223,11 +223,13 @@ jobs:
           curl -fsSL \
             "https://raw.githubusercontent.com/qelectrotech/qelectrotech-source-mirror/refs/heads/master/misc/Lancer%20QET_qt6.bat" \
             -o "$FILES/Lancer QET_qt6.bat"
+          # Homiservi-SCH: the program is bin\homiservi-sch.exe
+          sed -i 's/qelectrotech\.exe/homiservi-sch.exe/g' "$FILES/Lancer QET_qt6.bat"
           cp -r "$GITHUB_WORKSPACE/elements"    "$FILES/elements"    || true
           cp -r "$GITHUB_WORKSPACE/titleblocks" "$FILES/titleblocks" || true
           cp -r "$GITHUB_WORKSPACE/examples"    "$FILES/examples"    || true
           cp -r "$GITHUB_WORKSPACE/fonts"       "$FILES/fonts"       || true
-          # The MCP server finds bin/QElectroTech.exe and elements/ from mcp/.
+          # The MCP server finds bin/homiservi-sch.exe and elements/ from mcp/.
           mkdir -p "$FILES/mcp"
           cp "$GITHUB_WORKSPACE/misc/qet-mcp/qet_mcp.py" "$GITHUB_WORKSPACE/misc/qet-mcp/README.md" "$FILES/mcp/"
           # Python for it, so Windows users need not install one: the official

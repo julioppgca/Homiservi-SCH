@@ -5960,7 +5960,7 @@ def resolve_binary() -> Path | None:
     """The QElectroTech this server launches, found without asking the client.
 
     QET_BINARY first, then the install this script ships in, then
-    qelectrotech on PATH. None when there is none; the tools that launch
+    homiservi-sch or qelectrotech on PATH. None when there is none; the tools that launch
     QElectroTech then say how to set it.
     """
     env = os.environ.get("QET_BINARY", "").strip()
@@ -5970,11 +5970,12 @@ def resolve_binary() -> Path | None:
     if install is not None:
         # The Windows build names it QElectroTech.exe; only a case-sensitive
         # file system tells the spellings apart.
-        for name in ("qelectrotech", "qelectrotech.exe", "QElectroTech.exe"):
+        for name in ("homiservi-sch", "homiservi-sch.exe", "qelectrotech",
+                     "qelectrotech.exe", "QElectroTech.exe"):
             cand = install[0] / name
             if cand.is_file():
                 return cand.resolve()
-    found = shutil.which("qelectrotech")
+    found = shutil.which("homiservi-sch") or shutil.which("qelectrotech")
     return Path(found).resolve() if found else None
 
 

@@ -1,4 +1,4 @@
-<definition height="60" hotspot_x="10" hotspot_y="42" link_type="simple" type="element" version="0.200.1" width="30">
+<definition height="70" hotspot_x="16" hotspot_y="54" link_type="simple" type="element" version="0.200.1" width="40">
     <uuid uuid="{83c63683-d1c1-5094-8906-5ddc66efdbbd}"/>
     <names>
         <name lang="en">CA64</name>
