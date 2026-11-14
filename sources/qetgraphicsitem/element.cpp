@@ -1642,6 +1642,7 @@ void Element::initLink(QETProject *prj)
 		}
 	}
 	tmp_uuids_link.clear();
+	syncPlcSlaves();
 }
 
 /**
@@ -1669,6 +1670,55 @@ void Element::initLink(const QList<Element *> &candidates)
 		}
 	}
 	tmp_uuids_link.clear();
+	syncPlcSlaves();
+}
+
+/**
+	@brief Element::syncPlcSlaves
+	Homiservi-SCH: the PLC variables of a slave (address, function,
+	comment, label, cross reference, terminals) are copied from the IO
+	entry of its master when the link is made by hand. A project written
+	by a script, or one whose master moved while the slaves stayed, has
+	them missing or stale: they are given again from the master when the
+	links are made on loading. Only the slaves whose data differ change.
+*/
+void Element::syncPlcSlaves()
+{
+	if (m_data.m_type != ElementData::Master || m_data.m_master_type != ElementData::PLC
+	    || m_group_index_map.isEmpty())
+		return;
+	const auto &plc = m_data.plcMasterData();
+	QString cross_ref;
+	if (diagram() && diagram()->project()) {
+		XRefProperties xrp = diagram()->project()->defaultXRefProperties("plc");
+		autonum::sequentialNumbers seq;
+		cross_ref = autonum::AssignVariables::formulaToLabel(xrp.slaveLabel(), seq, diagram(), this);
+	}
+	for (auto it = m_group_index_map.constBegin(); it != m_group_index_map.constEnd(); ++it) {
+		Element *slave = it.key();
+		const int io_idx = it.value();
+		if (!slave || io_idx < 0 || io_idx >= plc.ios.size()) continue;
+		const auto &io = plc.ios.at(io_idx);
+		DiagramContext ctx = slave->elementInformations();
+		ctx.addValue(QETInformation::ELMT_PLC_TYPE, ElementData::translatedPlcIOType(io.type));
+		ctx.addValue(QETInformation::ELMT_PLC_ADDRESS, io.address);
+		ctx.addValue(QETInformation::ELMT_PLC_FUNCTION, io.functionText);
+		ctx.addValue(QETInformation::ELMT_PLC_COMMENT, io.comment);
+		ctx.addValue(QETInformation::ELMT_PLC_CROSSREF, cross_ref);
+		ctx.addValue(QETInformation::ELMT_LABEL, actualLabel());
+		ctx.addValue(QETInformation::ELMT_PLC_TC, QString::number(io.terminalCount));
+		const QStringList terminals = io.effectiveTerminals();
+		for (int t = 0; t < io.terminalCount && t < 4; ++t)
+			ctx.addValue(plcTerminalKeys[t], t < terminals.size() ? terminals.at(t) : QString());
+		if (!(ctx == slave->elementInformations()))
+			slave->setElementInformations(ctx);
+		const QList<Terminal *> slave_terms = slave->terminals();
+		for (int t = 0; t < slave_terms.size(); ++t) {
+			const bool use = t < terminals.size();
+			if (slave_terms.at(t)->useMasterLabel() != use) slave_terms.at(t)->setUseMasterLabel(use);
+			if (use && slave_terms.at(t)->masterLabelIndex() != t) slave_terms.at(t)->setMasterLabelIndex(t);
+		}
+	}
 }
 
 /**

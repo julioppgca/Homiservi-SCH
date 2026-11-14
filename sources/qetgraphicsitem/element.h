@@ -244,6 +244,9 @@ class Element : public QetGraphicsItem
 		QList<Element *> linkedElements ();
 
 		int groupIndexForElement(Element *elmt) const;
+			///Homiservi-SCH: give each slave of a PLC master the data of
+			///its IO entry (address, function, label, cross reference)
+		void syncPlcSlaves();
 		void setGroupIndexForElement(Element *elmt, int index);
 
 		/**
