@@ -287,6 +287,9 @@ class Element : public QetGraphicsItem
 				const QStyleOptionGraphicsItem *,
 				QWidget *) override;
 		QRectF boundingRect() const override;
+			///Homiservi-SCH: the rectangle of the IO table a PLC master
+			///draws around itself, empty if it draws none
+		QRectF plcTableRect() const;
 	protected:
 		void mouseMoveEvent(QGraphicsSceneMouseEvent *event) override;
 		void mouseReleaseEvent(

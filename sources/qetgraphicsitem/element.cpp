@@ -519,8 +519,55 @@ void Element::paint(
 */
 QRectF Element::boundingRect() const
 {
-	return(QRectF(QPointF(-hotspot_coord.x(), -hotspot_coord.y()),
-			  dimensions));
+	const QRectF symbol(QPointF(-hotspot_coord.x(), -hotspot_coord.y()), dimensions);
+		//A PLC master draws its IO table outside its symbol: the view
+		//must repaint (and erase) it with the element, or the table
+		//vanishes where the mouse passes over it
+	const QRectF table = plcTableRect();
+	return table.isNull() ? symbol : symbol.united(table);
+}
+
+/**
+	@brief Element::plcTableRect
+	The same geometry drawPlcTable() draws with: visible columns, row
+	height, header, blocks side by side at the break positions.
+*/
+QRectF Element::plcTableRect() const
+{
+	if (m_data.m_type != ElementData::Master || m_data.m_master_type != ElementData::PLC)
+		return QRectF();
+	const auto &plc = m_data.plcMasterData();
+	if (plc.ios.isEmpty())
+		return QRectF();
+	static const qreal default_widths[5] = {35, 25, 50, 40, 30};
+	qreal width = 0;
+	for (int col = 0; col < 5; ++col) {
+		if (!plc.colVisible.value(col, true)) continue;
+		width += plc.colWidths.value(col, 0) > 0 ? plc.colWidths.value(col) : default_widths[col];
+	}
+	if (width <= 0)
+		return QRectF();
+	const qreal row_h = plc.rowHeight > 0 ? plc.rowHeight : 8.0;
+	const qreal header_h = plc.showHeaders ? (row_h + 2.0) : 0;
+	const int total = int(plc.ios.size());
+	QList<int> starts {0};
+	QList<int> breaks;
+	for (int bp : plc.breakPositions)
+		if (bp > 0 && bp < total && !breaks.contains(bp)) breaks << bp;
+	std::sort(breaks.begin(), breaks.end());
+	starts << breaks;
+	int rows = 0;
+	for (int b = 0; b < starts.size(); ++b)
+		rows = qMax(rows, (b + 1 < starts.size() ? starts.at(b + 1) : total) - starts.at(b));
+	const QSizeF size(starts.size() * width + (starts.size() - 1) * 3, header_h + rows * row_h);
+	QList<QPointF> positions = m_plc_table_positions;
+	if (positions.isEmpty())
+		positions << QPointF(0, 0);
+	QRectF rect;
+		//A little margin for the border pen
+	for (const QPointF &pos : positions)
+		rect = rect.united(QRectF(pos, size).adjusted(-1, -1, 1, 1));
+	return rect;
 }
 
 /**
@@ -1877,6 +1924,8 @@ void Element::setElementData(ElementData data)
 	auto old_info = m_data.m_informations;
 	auto old_plc = m_data.m_type == ElementData::Master && m_data.m_master_type == ElementData::PLC
 		? m_data.plcMasterData() : ElementData::PlcMasterData();
+		//The IO table of a PLC master may change size
+	prepareGeometryChange();
 	m_data = data;
 
 	if (old_info != m_data.m_informations) {
