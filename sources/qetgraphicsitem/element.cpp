@@ -16,6 +16,7 @@
 	along with QElectroTech.  If not, see <http://www.gnu.org/licenses/>.
 */
 #include "element.h"
+#include <QFontMetricsF>
 #include "../qetapp.h"
 #include "../qetproject.h"
 #include "../PropertiesEditor/propertieseditordialog.h"
@@ -2655,7 +2656,21 @@ void Element::drawPlcTable(QPainter *painter)
 					QRectF text_rect = cr.adjusted(1, 0, -1, 0);
 					painter->save();
 					painter->setClipRect(text_rect, Qt::IntersectClip);
-					painter->drawText(text_rect, Qt::AlignLeft | Qt::AlignVCenter | Qt::TextWordWrap, cell_text);
+						//One line in the row: a text too long for its cell
+						//is drawn smaller (down to 60 %), then cut with "…",
+						//instead of wrapping onto a line the row has no room for
+					QFont fit_font = painter->font();
+					const qreal full_size = fit_font.pointSizeF() > 0 ? fit_font.pointSizeF() : 6.0;
+					qreal size = full_size;
+					while (size > full_size * 0.6
+					       && QFontMetricsF(fit_font).horizontalAdvance(cell_text) > text_rect.width()) {
+						size -= 0.25;
+						fit_font.setPointSizeF(size);
+					}
+					painter->setFont(fit_font);
+					const QString shown = QFontMetricsF(fit_font).elidedText(
+						cell_text, Qt::ElideRight, text_rect.width());
+					painter->drawText(text_rect, Qt::AlignLeft | Qt::AlignVCenter, shown);
 					painter->restore();
 
 					cx += col_widths[col];
