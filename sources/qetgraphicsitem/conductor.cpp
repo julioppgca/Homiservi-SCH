@@ -1227,6 +1227,9 @@ bool Conductor::fromXml(QDomElement &dom_element)
 	m_freeze_label = dom_element.attribute("freezeLabel") == "true" ? true : false;
 
 	setProperties(pr);
+		//The end labels were placed when the conductor was added to the
+		//folio, before their text was read: their size was not known yet
+	calculateEndLabelsPosition();
 
 	return retval;
 }
@@ -1894,13 +1897,20 @@ void Conductor::calculateEndLabelsPosition()
 
 		QPointF anchor = terminal->dockConductor();
 		QPointF offset;
+			// On a vertical end the label runs along the wire, like a
+			// ferrule: horizontal labels of side by side pins overlap
+		const bool vertical = terminal->orientation() == Qet::North
+				|| terminal->orientation() == Qet::South;
+		if (!item->wasRotatedByUser())
+			item->setRotation(vertical ? 270 : 0);
 		switch (terminal->orientation())
 		{
 			case Qet::North:
-				offset = QPointF(3, -(item->boundingRect().height() + 2));
+					//rotated by 270: the text goes up from its position
+				offset = QPointF(1, -2);
 				break;
 			case Qet::South:
-				offset = QPointF(3, 2);
+				offset = QPointF(1, 2 + item->boundingRect().width());
 				break;
 			case Qet::East:
 				offset = QPointF(3, -(item->boundingRect().height() / 2));
