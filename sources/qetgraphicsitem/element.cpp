@@ -531,6 +531,22 @@ QRectF Element::boundingRect() const
 }
 
 /**
+	@brief Element::shape
+	Where the element takes the mouse: its symbol and, for a PLC master,
+	its IO table, not the empty space between them (boundingRect()
+	spans both): the texts and elements there stay clickable.
+*/
+QPainterPath Element::shape() const
+{
+	QPainterPath path;
+	path.addRect(QRectF(QPointF(-hotspot_coord.x(), -hotspot_coord.y()), dimensions));
+	const QRectF table = plcTableRect();
+	if (!table.isNull())
+		path.addRect(table);
+	return path;
+}
+
+/**
 	@brief Element::plcTableRect
 	The same geometry drawPlcTable() draws with: visible columns, row
 	height, header, blocks side by side at the break positions.
@@ -2725,6 +2741,19 @@ QString Element::childNameAt(const QPointF &pos)
 	const QString label = actualLabel();
 	if (label.isEmpty())
 		return QString();
+	for (const auto &text : namedTexts())
+		if (text.second.containsPoint(pos, Qt::OddEvenFill))
+			return label + QLatin1Char(':') + text.first;
+	return QString();
+}
+
+/**
+	@brief Element::namedTexts
+	@return the texts of the symbol (read once from its definition) with
+	the polygon each one covers, in the coordinates of this element
+*/
+const QList<QPair<QString, QPolygonF>> &Element::namedTexts()
+{
 	if (!m_named_texts_done)
 	{
 		m_named_texts_done = true;
@@ -2756,10 +2785,7 @@ QString Element::childNameAt(const QPointF &pos)
 			m_named_texts << qMakePair(name, transform.map(QPolygonF(rect)));
 		}
 	}
-	for (const auto &text : std::as_const(m_named_texts))
-		if (text.second.containsPoint(pos, Qt::OddEvenFill))
-			return label + QLatin1Char(':') + text.first;
-	return QString();
+	return m_named_texts;
 }
 
 /**

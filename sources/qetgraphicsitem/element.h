@@ -287,6 +287,7 @@ class Element : public QetGraphicsItem
 				const QStyleOptionGraphicsItem *,
 				QWidget *) override;
 		QRectF boundingRect() const override;
+		QPainterPath shape() const override;
 			///Homiservi-SCH: the rectangle of the IO table a PLC master
 			///draws around itself, empty if it draws none
 		QRectF plcTableRect() const;
@@ -295,6 +296,9 @@ class Element : public QetGraphicsItem
 			///labelled "-A33" (a connector drawn on its own folio)
 		Element *childAt(const QPointF &pos);
 		QString childNameAt(const QPointF &pos);
+			///the texts of the symbol and where they are drawn, in the
+			///coordinates of this element
+		const QList<QPair<QString, QPolygonF>> &namedTexts();
 		Element *labelParent();
 	protected:
 		void mouseDoubleClickEvent(QGraphicsSceneMouseEvent *event) override;

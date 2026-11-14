@@ -142,6 +142,17 @@ void injectCrossRefLinks(QPdfEngine *engine, Diagram *diagram,
 				folio_of.insert(QStringLiteral("section:") + codes.at(i), diagrams.at(i));
 		}
 	}
+		//Homiservi-SCH: parent and part by label ("-A33" and "-A33:CB104",
+		//see Element::childAt()): the elements of the project by label
+	QHash<QString, Element *> by_label;
+	if (QETProject *project = diagram->project())
+		for (Diagram *d : project->diagrams())
+			for (Element *e : d->elements()) {
+				const QString label = e->actualLabel();
+				if (!label.isEmpty() && !by_label.contains(label))
+					by_label.insert(label, e);
+			}
+
 		//A section code alone ("02") counts in the first column only, as in
 		//the section index: anywhere else it may be a quantity
 	auto folioNamedBy = [&folio_of](const QString &cell, bool first_column) -> Diagram * {
@@ -169,6 +180,18 @@ void injectCrossRefLinks(QPdfEngine *engine, Diagram *diagram,
 					target = folioNamedBy(model->index(model_row, column).data().toString(), column == 0);
 				if (target)
 					injectFolioLink(table->mapRectToScene(table->displayedRowRect(row)), target);
+			}
+			continue;
+		}
+
+		// --- Name of a part drawn on its own folio ("CB104" in -A33) ---
+		if (auto *elmt = dynamic_cast<Element*>(item)) {
+			const QString label = elmt->actualLabel();
+			if (label.isEmpty()) continue;
+			for (const auto &text : elmt->namedTexts()) {
+				Element *child = by_label.value(label + QLatin1Char(':') + text.first);
+				if (child && child != elmt)
+					injectLink(elmt->mapToScene(text.second).boundingRect(), child);
 			}
 			continue;
 		}
@@ -218,6 +241,18 @@ void injectCrossRefLinks(QPdfEngine *engine, Diagram *diagram,
 				}
 				continue;
 			}
+
+			// (c) Part drawn on its own folio: its label "-A33:CB104" ->
+			// the element it is a part of
+			if (parent->linkType() == Element::Simple
+			    && deti->textFrom() == DynamicElementTextItem::ElementInfo
+			    && deti->infoName() == QLatin1String("label")) {
+				const QString label = parent->actualLabel();
+				const int colon = label.lastIndexOf(QLatin1Char(':'));
+				Element *owner = colon > 0 ? by_label.value(label.left(colon)) : nullptr;
+				if (owner && owner != parent)
+					injectLink(deti->mapRectToScene(deti->boundingRect()), owner);
+			}
 			continue;
 		}
 
@@ -248,6 +283,11 @@ void injectCrossRefLinks(QPdfEngine *engine, Diagram *diagram,
 			return a.rect.right() < b.rect.right();
 		return a.url.fragment() < b.url.fragment();
 	});
+		//The same link once: a PLC master's table was found once per
+		//slave, 30 copies of each row in the file
+	links.erase(std::unique(links.begin(), links.end(), [](const Link &a, const Link &b) {
+		return a.rect == b.rect && a.url == b.url;
+	}), links.end());
 	for (const Link &link : std::as_const(links))
 		engine->drawHyperlink(link.rect, link.url);
 }
