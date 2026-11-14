@@ -41,6 +41,8 @@
 #include "dynamicelementtextitem.h"
 #include "elementtextitemgroup.h"
 #include "iostream"
+#include "../utils/qetutils.h"
+#include <QTextDocument>
 
 #include <QAbstractTextDocumentLayout>
 #include <QApplication>
@@ -2678,4 +2680,139 @@ void Element::drawPlcTable(QPainter *painter)
 			}
 		}
 	}
+}
+
+namespace {
+		///The element of the project of element labelled label
+	Element *elementLabelled(Element *element, const QString &label)
+	{
+		if (label.isEmpty() || !element->diagram() || !element->diagram()->project())
+			return nullptr;
+		for (Diagram *diagram : element->diagram()->project()->diagrams())
+			for (Element *other : diagram->elements())
+				if (other != element
+				    && other->elementInformations().value(QStringLiteral("label")).toString() == label)
+					return other;
+		for (Diagram *diagram : element->diagram()->project()->diagrams())
+			for (Element *other : diagram->elements())
+				if (other != element && other->actualLabel() == label)
+					return other;
+		return nullptr;
+	}
+}
+
+/**
+	@brief Element::childAt
+	@param pos : a point of this element, in its own coordinates
+	@return the element labelled "<label of this>:<text>" when pos is on
+	a text of the symbol (the name of a connector drawn in this element),
+	else nullptr
+*/
+Element *Element::childAt(const QPointF &pos)
+{
+	const QString name = childNameAt(pos);
+	return name.isEmpty() ? nullptr : elementLabelled(this, name);
+}
+
+/**
+	@brief Element::childNameAt
+	@return the label "<label of this>:<text>" of the part whose name is
+	the text of the symbol at pos (no search of that part: cheap enough
+	for every mouse move), else an empty string
+*/
+QString Element::childNameAt(const QPointF &pos)
+{
+	const QString label = actualLabel();
+	if (label.isEmpty())
+		return QString();
+	if (!m_named_texts_done)
+	{
+		m_named_texts_done = true;
+		const QDomElement definition = m_location.xml();
+		const QDomNodeList texts = definition.elementsByTagName(QStringLiteral("text"));
+		for (int i = 0 ; i < texts.count() ; ++i)
+		{
+			const QDomElement text = texts.at(i).toElement();
+			const QString name = text.attribute(QStringLiteral("text")).trimmed();
+			if (name.isEmpty() || name.contains(QLatin1Char('\n')))
+				continue;
+			QFont font;
+			if (text.hasAttribute(QStringLiteral("size")))
+				font = QETApp::diagramTextsFont(text.attribute(QStringLiteral("size")).toDouble());
+			else if (text.hasAttribute(QStringLiteral("font")))
+				QETUtils::fontFromString(font, text.attribute(QStringLiteral("font")));
+			QTextDocument document;
+			document.setDefaultFont(font);
+			document.setDocumentMargin(0);
+			document.setPlainText(name);
+				//as ElementPictureFactory::parseText() draws it: x, y is
+				//the baseline-left of the text
+			QTransform transform;
+			transform.translate(text.attribute(QStringLiteral("x")).toDouble(),
+					    text.attribute(QStringLiteral("y")).toDouble());
+			transform.rotate(text.attribute(QStringLiteral("rotation"), QStringLiteral("0")).toDouble());
+			transform.translate(0, -QFontMetricsF(font).ascent());
+			const QRectF rect = QRectF(QPointF(0, 0), document.size()).adjusted(-2, -2, 2, 2);
+			m_named_texts << qMakePair(name, transform.map(QPolygonF(rect)));
+		}
+	}
+	for (const auto &text : std::as_const(m_named_texts))
+		if (text.second.containsPoint(pos, Qt::OddEvenFill))
+			return label + QLatin1Char(':') + text.first;
+	return QString();
+}
+
+/**
+	@brief Element::labelParent
+	@return the element labelled "-A33" when this one is labelled
+	"-A33:CB104", else nullptr
+*/
+Element *Element::labelParent()
+{
+	const QString label = actualLabel();
+	const int colon = label.lastIndexOf(QLatin1Char(':'));
+	if (colon <= 0)
+		return nullptr;
+	return elementLabelled(this, label.left(colon));
+}
+
+/**
+	@brief Element::mouseDoubleClickEvent
+	A double click on the name of a part drawn on its own folio (the
+	text "CB104" of -A33, whose connector is the element -A33:CB104)
+	goes to that part; anywhere else, or when that part is not in the
+	project, edits the element as before.
+*/
+void Element::mouseDoubleClickEvent(QGraphicsSceneMouseEvent *event)
+{
+	if (Element *child = childAt(event->pos()))
+	{
+		event->accept();
+		setSelected(false);
+		ungrabMouse();
+		QetGraphicsItem::showItem(child);
+		return;
+	}
+	QetGraphicsItem::mouseDoubleClickEvent(event);
+}
+
+/**
+	@brief Element::hoverMoveEvent
+	Over the name of a part drawn on its own folio, the tooltip says
+	where a double click goes.
+*/
+void Element::hoverMoveEvent(QGraphicsSceneHoverEvent *event)
+{
+	QString tip = name();
+	const QString child = childNameAt(event->pos());
+	if (child != m_hover_child_name)
+	{
+		m_hover_child_name = child;
+		m_hover_child_found = !child.isEmpty() && elementLabelled(this, child);
+	}
+	if (m_hover_child_found)
+		tip = tr("Duplo clique: ir para %1").arg(child);
+	if (toolTip() != tip)
+		setToolTip(tip);
+	QetGraphicsItem::hoverMoveEvent(event);
 }

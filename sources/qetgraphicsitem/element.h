@@ -290,7 +290,15 @@ class Element : public QetGraphicsItem
 			///Homiservi-SCH: the rectangle of the IO table a PLC master
 			///draws around itself, empty if it draws none
 		QRectF plcTableRect() const;
+			///Homiservi-SCH: parent and children by label. An element
+			///labelled "-A33:CB104" is the part CB104 of the element
+			///labelled "-A33" (a connector drawn on its own folio)
+		Element *childAt(const QPointF &pos);
+		QString childNameAt(const QPointF &pos);
+		Element *labelParent();
 	protected:
+		void mouseDoubleClickEvent(QGraphicsSceneMouseEvent *event) override;
+		void hoverMoveEvent(QGraphicsSceneHoverEvent *event) override;
 		void mouseMoveEvent(QGraphicsSceneMouseEvent *event) override;
 		void mouseReleaseEvent(
 				QGraphicsSceneMouseEvent *event) override;
@@ -313,6 +321,12 @@ class Element : public QetGraphicsItem
 		QString m_F_str;
 
 	ElementsLocation m_location;
+		///texts of the symbol and where they are drawn (childAt())
+	QList<QPair<QString, QPolygonF>> m_named_texts;
+	bool m_named_texts_done = false;
+		///part under the mouse, searched once per text (hoverMoveEvent())
+	QString m_hover_child_name;
+	bool m_hover_child_found = false;
 	QList <Terminal *> m_terminals;
 	QPicture m_picture;
 	QPicture m_low_zoom_picture;

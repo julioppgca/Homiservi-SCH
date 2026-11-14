@@ -770,6 +770,13 @@ void DynamicElementTextItem::hoverEnterEvent(QGraphicsSceneHoverEvent *event)
 			setDefaultTextColor(Qt::blue);
 		}
 	}
+	else if (m_text_from == ElementInfo && m_info_name == "label"
+		 && parentElement()->linkType() == Element::Simple
+		 && parentElement()->labelParent())
+	{
+		m_user_color = color();
+		setDefaultTextColor(Qt::blue);
+	}
 }
 
 /**
@@ -1602,6 +1609,11 @@ void DynamicElementTextItem::zoomToLinkedElement()
 			zoomed_element = m_other_report.data();
 	}
 	
+		//The label "-A33:CB104" of a part drawn on its own folio goes to
+		//the element it is a part of (-A33)
+	if (!zoomed_element && m_text_from == ElementInfo && m_info_name == "label")
+		zoomed_element = parentElement()->labelParent();
+
 	if(zoomed_element)
 	{
 			//Unselect and ungrab mouse to prevent unwanted
