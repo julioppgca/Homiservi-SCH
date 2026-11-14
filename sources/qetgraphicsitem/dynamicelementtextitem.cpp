@@ -1590,6 +1590,10 @@ void DynamicElementTextItem::zoomToLinkedElement()
 		if ((m_text_from == ElementInfo && m_info_name == "label") ||
 			(m_text_from == CompositeText && m_composite_text.contains("%{label}")))
 			zoomed_element = m_master_element.data();
+			//A PLC slave reads its own PLC variables, so m_master_element
+			//is the slave itself: go to the master it is linked to
+		if (zoomed_element == parentElement() && !parentElement()->linkedElements().isEmpty())
+			zoomed_element = parentElement()->linkedElements().first();
 	}
 	if((parentElement()->linkType() & Element::AllReport) && m_other_report)
 	{
