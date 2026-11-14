@@ -115,14 +115,20 @@ void SheetTable::addDot(Diagram *diagram, const QPointF &centre)
 	diagram->addItem(dot);
 }
 
-	///"15.B4": the folio and the cell where element is drawn
+	///"07.02-B4": the folio and the cell where element is drawn ("15.B4"
+	///when the folio has no number)
 QString SheetTable::location(Element *element)
 {
 	Diagram *diagram = element->diagram();
 	if (!diagram)
 		return QString();
-	return QStringLiteral("%1.%2").arg(diagram->project()->folioIndex(diagram) + 1)
-			.arg(diagram->convertPosition(element->scenePos()).toString());
+		//The folio as its title block numbers it (07.02), like the cross
+		//references: the position in the project (29) only when it has none
+	const QString folio = diagram->border_and_titleblock.finalfolio().trimmed();
+	const QString position = diagram->convertPosition(element->scenePos()).toString();
+	if (!folio.isEmpty())
+		return QStringLiteral("%1-%2").arg(folio, position);
+	return QStringLiteral("%1.%2").arg(diagram->project()->folioIndex(diagram) + 1).arg(position);
 }
 
 	///Add at the end of project a folio titled title, marked as generated of kind
