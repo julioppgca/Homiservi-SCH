@@ -102,15 +102,21 @@ namespace {
 		const QDomElement old_definition = definitionFromText(old_text);
 
 		const QList<Element *> placed = placedElements(project, path);
-		QStringList folios;
-		for (Element *element : placed)
-			if (!element->definitionGeometryMatches(definition))
-				folios << element->diagram()->border_and_titleblock.finalfolio();
-		if (!folios.isEmpty())
+			//A new size, hotspot or terminal is taken in place, the wires
+			//following their terminals; not when a terminal with a wire
+			//is gone from the new version
+		QStringList problems;
+		for (Element *element : placed) {
+			QString problem;
+			if (!element->definitionGeometryMatches(definition)
+			    && !element->applyDefinitionGeometry(definition, &problem, true))
+				problems << QStringLiteral("%1, folha %2: %3").arg(
+					element->actualLabel(), element->diagram()->border_and_titleblock.finalfolio(), problem);
+		}
+		if (!problems.isEmpty())
 		{
-			folios.removeDuplicates();
 			result.geometry_changed << QStringLiteral("%1 (%2)").arg(
-				path.section(QLatin1Char('/'), -1), folios.join(QStringLiteral(", ")));
+				path.section(QLatin1Char('/'), -1), problems.join(QStringLiteral("; ")));
 			return false;
 		}
 
@@ -118,6 +124,10 @@ namespace {
 			? ElementsLocation() : placed.first()->location());
 		for (Element *element : placed)
 		{
+			if (!element->definitionGeometryMatches(definition)) {
+				element->applyDefinitionGeometry(definition);
+				++result.geometry_applied;
+			}
 			if (element->reloadPicture() == Element::ReloadPictureResult::Reloaded)
 				++result.elements_redrawn;
 			result.texts_changed += element->applyDefinitionTexts(old_definition, definition);
@@ -228,13 +238,16 @@ ElementLibraryUpdate::Result ElementLibraryUpdate::update(QETProject *project,
 			const QDomElement library = library_document.documentElement();
 			if (!library.isNull() && definitionText(library) != definitionText(current))
 			{
-				QStringList folios;
-				for (Element *element : placedElements(project, path))
-					if (!element->definitionGeometryMatches(library))
-						folios << element->diagram()->border_and_titleblock.finalfolio();
-				if (!folios.isEmpty()) {
-					folios.removeDuplicates();
-					result.geometry_changed << QStringLiteral("%1 (%2)").arg(name, folios.join(QStringLiteral(", ")));
+				QStringList problems;
+				for (Element *element : placedElements(project, path)) {
+					QString problem;
+					if (!element->definitionGeometryMatches(library)
+					    && !element->applyDefinitionGeometry(library, &problem, true))
+						problems << QStringLiteral("%1, folha %2: %3").arg(
+							element->actualLabel(), element->diagram()->border_and_titleblock.finalfolio(), problem);
+				}
+				if (!problems.isEmpty()) {
+					result.geometry_changed << QStringLiteral("%1 (%2)").arg(name, problems.join(QStringLiteral("; ")));
 					continue;
 				}
 				ElementsLocation parent = symbol.parent();

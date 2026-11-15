@@ -310,6 +310,14 @@ class Element : public QetGraphicsItem
 			///Returns the number of texts changed.
 		int applyDefinitionTexts(const QDomElement &old_definition,
 					 const QDomElement &new_definition);
+			///Homiservi-SCH: take the size, hotspot and terminals of a new
+			///version of the symbol in place. A terminal still in it (same
+			///uuid, else same name, else same place) moves, with its wires;
+			///a new one is added; one it dropped goes, unless a wire is on
+			///it: then nothing changes, false is returned and problem says
+			///which terminal.
+		bool applyDefinitionGeometry(const QDomElement &definition, QString *problem = nullptr,
+					     bool check_only = false);
 	protected:
 		void mouseDoubleClickEvent(QGraphicsSceneMouseEvent *event) override;
 		void hoverMoveEvent(QGraphicsSceneHoverEvent *event) override;

@@ -2519,10 +2519,14 @@ void DiagramView::updateSymbolsFromLibrary()
 		lines << tr("Nada novo para %1: a biblioteca não tem versão diferente e a cópia do"
 			    " projeto não mudou desde que os elementos foram desenhados.")
 			 .arg(result.already_up_to_date.join(QStringLiteral(", ")));
+	if (result.geometry_applied)
+		lines << tr("%n elemento(s) com tamanho ou bornes novos: os fios foram junto com os"
+			    " bornes. Confira o traçado deles (Redefinir o traçado, se precisar).",
+			    "", result.geometry_applied);
 	if (!result.geometry_changed.isEmpty())
-		lines << tr("Não atualizado, porque o tamanho, o ponto de inserção ou os bornes mudaram"
-			    " (os fios ligados se perderiam): %1. Para usar a versão nova, apague e"
-			    " insira de novo esses elementos.")
+		lines << tr("Não atualizado, porque a versão nova não tem um borne que está com fio"
+			    " ligado: %1. Tire o fio desse borne (ou mantenha o borne no símbolo) e"
+			    " atualize de novo.")
 			 .arg(result.geometry_changed.join(QStringLiteral("; ")));
 	if (result.symbols_updated)
 		lines << tr("Os textos que você moveu ficaram como estavam. A atualização não pode"

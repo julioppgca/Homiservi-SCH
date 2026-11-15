@@ -64,8 +64,10 @@ namespace ElementLibraryUpdate
 		int texts_changed = 0;
 		QStringList from_library;
 		QStringList already_up_to_date;
-			///symbols whose elements could not be redrawn: their size,
-			///hotspot or terminals changed, with the folios of those elements
+			///elements that took a new size, hotspot or terminals
+		int geometry_applied = 0;
+			///symbols left as they were: a terminal with a wire is gone
+			///from the new version (element, folio and terminal)
 		QStringList geometry_changed;
 	};
 

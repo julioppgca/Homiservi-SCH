@@ -45,6 +45,7 @@
 #include <QTextDocument>
 #include <QLineF>
 #include <QMap>
+#include <functional>
 
 #include <QAbstractTextDocumentLayout>
 #include <QApplication>
@@ -2964,4 +2965,88 @@ int Element::applyDefinitionTexts(const QDomElement &old_definition,
 	if (changed)
 		update();
 	return changed;
+}
+
+bool Element::applyDefinitionGeometry(const QDomElement &definition, QString *problem,
+				      bool check_only)
+{
+	int w = 0, h = 0, hot_x = 0, hot_y = 0;
+	if (!QET::attributeIsAnInteger(definition, QStringLiteral("width"), &w)
+	    || !QET::attributeIsAnInteger(definition, QStringLiteral("height"), &h)
+	    || !QET::attributeIsAnInteger(definition, QStringLiteral("hotspot_x"), &hot_x)
+	    || !QET::attributeIsAnInteger(definition, QStringLiteral("hotspot_y"), &hot_y))
+		return false;
+
+	QList<QDomElement> doms;
+	for (QDomElement description = definition.firstChildElement(QStringLiteral("description")) ;
+	     !description.isNull() ;
+	     description = description.nextSiblingElement(QStringLiteral("description")))
+		for (QDomElement t = description.firstChildElement(QStringLiteral("terminal")) ;
+		     !t.isNull() ;
+		     t = t.nextSiblingElement(QStringLiteral("terminal")))
+			doms << t;
+
+		//Pair each terminal with its place in the new version
+	QHash<Terminal *, int> match;
+	QSet<int> taken;
+	auto pair = [&](const std::function<bool(Terminal *, const QDomElement &)> &same) {
+		for (Terminal *t : std::as_const(m_terminals)) {
+			if (match.contains(t))
+				continue;
+			for (int i = 0 ; i < doms.size() ; ++i)
+				if (!taken.contains(i) && same(t, doms.at(i))) {
+					match.insert(t, i);
+					taken.insert(i);
+					break;
+				}
+		}
+	};
+	pair([](Terminal *t, const QDomElement &dom) {
+		const QUuid uuid(dom.attribute(QStringLiteral("uuid")));
+		return !uuid.isNull() && uuid == t->uuid();
+	});
+	pair([](Terminal *t, const QDomElement &dom) {
+		const QString name = dom.attribute(QStringLiteral("name"));
+		return !name.isEmpty() && name == t->d->m_name;
+	});
+	pair([](Terminal *t, const QDomElement &dom) {
+		return QPointF(dom.attribute(QStringLiteral("x")).toDouble(),
+			       dom.attribute(QStringLiteral("y")).toDouble()) == t->d->m_pos;
+	});
+
+	for (Terminal *t : std::as_const(m_terminals))
+		if (!match.contains(t) && !t->conductors().isEmpty()) {
+			if (problem)
+				*problem = tr("o borne %1 tem fio ligado e não existe na versão nova")
+						.arg(t->d->m_name.isEmpty() ? QStringLiteral("?") : t->d->m_name);
+			return false;
+		}
+	if (check_only)
+		return true;
+
+	prepareGeometryChange();
+	setSize(w, h);
+	setHotspot(QPoint(hot_x, hot_y));
+
+	const QList<Terminal *> terminals = m_terminals;
+	for (Terminal *t : terminals)
+	{
+		if (match.contains(t)) {
+			t->prepareGeometryChange();
+			t->d->fromXml(doms.at(match.value(t)));
+			t->init();
+		} else {
+			m_terminals.removeOne(t);
+			delete t;
+		}
+	}
+	for (int i = 0 ; i < doms.size() ; ++i)
+		if (!taken.contains(i))
+			parseTerminal(doms.at(i));
+
+	for (Terminal *t : std::as_const(m_terminals))
+		for (Conductor *c : t->conductors())
+			c->updatePath();
+	update();
+	return true;
 }

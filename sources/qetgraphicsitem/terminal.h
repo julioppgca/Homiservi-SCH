@@ -48,6 +48,9 @@ class Terminal : public QGraphicsObject
 
 	private:
 		Terminal(const Terminal &);
+			///Homiservi-SCH: moves its terminals to a new version of the
+			///symbol (Element::applyDefinitionGeometry())
+		friend class Element;
 
 	// methods
 	public:
