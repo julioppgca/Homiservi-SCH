@@ -479,7 +479,7 @@ QString XmlElementCollection::addElement(ElementsLocation &location)
 					created_child = m_dom_document.createElement("element");
 					created_child.setAttribute("name", str);
 
-					created_child.appendChild(location.xml().cloneNode(true));
+					created_child.appendChild(m_dom_document.importNode(location.xml(), true));
 				}
 
 				//str is the path of a directory, we integrate a directory.
@@ -547,7 +547,7 @@ bool XmlElementCollection::addElementDefinition(
 
 	QDomElement dom_elmt = m_dom_document.createElement("element");
 	dom_elmt.setAttribute("name", name);
-	dom_elmt.appendChild(xml_definition.cloneNode(true));
+	dom_elmt.appendChild(m_dom_document.importNode(xml_definition, true));
 	dom_dir.appendChild(dom_elmt);
 
 	emit elementAdded(dir_path % "/" % name);
@@ -865,14 +865,15 @@ ElementsLocation XmlElementCollection::copyDirectory(
 	{
 		if (!source.projectCollection()) return ElementsLocation();
 
-		QDomNode other_collection_node = source.projectCollection()->child(source.collectionPath(false)).cloneNode(deep_copy);
+		QDomNode other_collection_node = m_dom_document.importNode(
+			source.projectCollection()->child(source.collectionPath(false)), deep_copy);
 
 		//We don't make a deep copy,
 		// but we must get the local names of the copied directory
 		if (!deep_copy) {
 			QDomNode names = source.projectCollection()->child(source.collectionPath(false)).namedItem("names");
 			if (!names.isNull() && names.isElement())
-				other_collection_node.appendChild(names.cloneNode(true));
+				other_collection_node.appendChild(m_dom_document.importNode(names, true));
 		}
 
 		if (other_collection_node.isNull()) return ElementsLocation();
@@ -929,7 +930,7 @@ ElementsLocation XmlElementCollection::copyElement(
 		QDomElement other_collection = source.xml();
 		elmt_dom = m_dom_document.createElement("element");
 		elmt_dom.setAttribute("name", new_elmt_name);
-		elmt_dom.appendChild(other_collection.cloneNode());
+		elmt_dom.appendChild(m_dom_document.importNode(other_collection, true));
 	}
 
 

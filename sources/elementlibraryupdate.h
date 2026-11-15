@@ -22,6 +22,7 @@
 
 #include <QList>
 #include <QString>
+#include <QStringList>
 
 class Element;
 class QETProject;
@@ -29,35 +30,48 @@ class QETProject;
 /**
 	@brief The ElementLibraryUpdate namespace
 	A project keeps its own copy of every symbol it uses (the embedded
-	collection, "embed://import/..."). Editing the symbol in a library
-	afterwards does not change that copy, so the placed elements keep the
-	old drawing. This brings a symbol of the project up to date with the
-	library it came from: the copy of the project is replaced, every
-	placed element of that symbol is redrawn, and the dynamic texts the
-	user left as the symbol had them follow the new symbol.
+	collection). The placed elements are built from that copy when the
+	project opens, and were not rebuilt when it changed afterwards:
+
+	- the symbol edited in a library: the copy of the project stayed old;
+	- the copy of the project edited in the symbol editor ("Edit the
+	  element"): the placed elements kept the old drawing.
+
+	This brings the placed elements up to date. The version each symbol
+	had when its elements were built is remembered (watch()), so the
+	dynamic texts the user left where the symbol put them can follow the
+	new version, and the ones the user moved stay.
 */
 namespace ElementLibraryUpdate
 {
+		///Remember the symbols of project as its elements were built,
+		///and rebuild the elements whenever the copy of a symbol changes
+		///(the symbol editor saving it). Called once the project is loaded.
+	void watch(QETProject *project);
+
 		///The symbol of a library the embedded symbol embedded came
 		///from: same path in the user, company or common collection,
 		///the most recently saved one when it is in several. Invalid when
-		///there is none (a symbol made in the project).
+		///there is none (a symbol made for the project).
 	ElementsLocation librarySource(const ElementsLocation &embedded);
 
-		///The embedded symbols of elements that have a library source
-	QList<ElementsLocation> updatableSymbols(const QList<Element *> &elements);
+		///The symbols (in the project) of elements, each once
+	QList<ElementsLocation> symbolsOf(const QList<Element *> &elements);
 
 	struct Result {
 		int symbols_updated = 0;
 		int elements_redrawn = 0;
 		int texts_changed = 0;
+		QStringList from_library;
 		QStringList already_up_to_date;
-			///symbols left as they were: their size, hotspot or
-			///terminals changed, with the folios of their elements
+			///symbols whose elements could not be redrawn: their size,
+			///hotspot or terminals changed, with the folios of those elements
 		QStringList geometry_changed;
 	};
 
-		///Bring the embedded symbols up to date with their library source
+		///Bring the elements of symbols up to date: with the library when
+		///it has a newer version of the symbol, else with the copy of the
+		///project when it changed since the elements were built
 	Result update(QETProject *project, const QList<ElementsLocation> &symbols);
 }
 

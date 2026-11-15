@@ -785,9 +785,13 @@ bool ElementsLocation::setXml(const QDomDocument &xml_document) const
 			QDomElement dom_element = xml();
 			QDomNode parent_node = dom_element.parentNode();
 			parent_node.removeChild(dom_element);
-			parent_node.appendChild(xml_document
-						.documentElement()
-						.cloneNode(true));
+				//importNode: a node of xml_document appended as it is
+				//kept pointing at that document, freed on return
+			parent_node.appendChild(parent_node.ownerDocument().importNode(
+						xml_document.documentElement(), true));
+				//Homiservi-SCH: tell it, the elements of the project
+				//drawn with this symbol are rebuilt (ElementLibraryUpdate)
+			emit project()->embeddedElementCollection()->elementChanged(collectionPath(false));
 			return true;
 		}
 		//Element doesn't exist, we create the element
