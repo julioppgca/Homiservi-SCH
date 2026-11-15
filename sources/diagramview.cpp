@@ -55,6 +55,7 @@
 #include "elementdialog.h"
 #include "qetapp.h"
 #include "qetgraphicsitem/element.h"
+#include "elementlibraryupdate.h"
 #include "qetinformation.h"
 #include "qetversion.h"
 #include <QApplication>
@@ -121,6 +122,11 @@ DiagramView::DiagramView(Diagram *diagram, QWidget *parent) :
 		//Setup the action to generate cabinet placement thumbnails (discussion #602)
 	m_generate_cabinet_thumbnail = new QAction(tr("Générer une vignette d'armoire", "context menu action"), this);
 	connect(m_generate_cabinet_thumbnail, &QAction::triggered, this, &DiagramView::generateCabinetThumbnails);
+	m_update_from_library = new QAction(QET::Icons::ViewRefresh, tr("Atualizar o símbolo pela biblioteca"), this);
+	m_update_from_library->setStatusTip(
+		tr("Troca a cópia do símbolo guardada no projeto pela versão atual da biblioteca e"
+		   " redesenha todos os elementos com esse símbolo (não pode ser desfeito)"));
+	connect(m_update_from_library, &QAction::triggered, this, &DiagramView::updateSymbolsFromLibrary);
 
 		//Put the selected wires into the selected cable, or take them out
 	m_join_cable = new QAction(tr("Juntar ao cabo", "context menu action"), this);
@@ -1917,6 +1923,15 @@ QList<QAction *> DiagramView::contextMenuActions() const
 				}));
 			list << m_generate_cabinet_thumbnail;
 			{
+				QList<Element *> elements;
+				for (QGraphicsItem *qgi : selected_items)
+					if (Element *element = qgraphicsitem_cast<Element *>(qgi))
+						elements << element;
+				m_update_from_library->setEnabled(!m_diagram->isReadOnly()
+					&& !ElementLibraryUpdate::updatableSymbols(elements).isEmpty());
+				list << m_update_from_library;
+			}
+			{
 				int cables = 0;
 				bool wires = false, wires_in_cable = false;
 				for (QGraphicsItem *qgi : selected_items)
@@ -2471,4 +2486,43 @@ void DiagramView::mouseDoubleClickEvent(QMouseEvent *e)
 		return;
 	}
 	QGraphicsView::mouseDoubleClickEvent(e);
+}
+
+/**
+	@brief DiagramView::updateSymbolsFromLibrary
+	The symbols of the selected elements: the copy kept in the project is
+	replaced by the current version of the library and every element of
+	the project drawn with them is redrawn, see ElementLibraryUpdate.
+*/
+void DiagramView::updateSymbolsFromLibrary()
+{
+	QList<Element *> elements;
+	for (QGraphicsItem *qgi : m_diagram->selectedItems())
+		if (Element *element = qgraphicsitem_cast<Element *>(qgi))
+			elements << element;
+	const QList<ElementsLocation> symbols = ElementLibraryUpdate::updatableSymbols(elements);
+	if (symbols.isEmpty())
+		return;
+
+	const ElementLibraryUpdate::Result result =
+			ElementLibraryUpdate::update(m_diagram->project(), symbols);
+
+	QStringList lines;
+	if (result.symbols_updated)
+		lines << tr("%n símbolo(s) atualizado(s): %1 elemento(s) redesenhado(s), %2 texto(s) ajustado(s).",
+			    "", result.symbols_updated)
+			 .arg(result.elements_redrawn).arg(result.texts_changed);
+	if (!result.already_up_to_date.isEmpty())
+		lines << tr("Já igual à biblioteca: %1.").arg(result.already_up_to_date.join(QStringLiteral(", ")));
+	if (!result.geometry_changed.isEmpty())
+		lines << tr("Não atualizado, porque o tamanho, o ponto de inserção ou os bornes mudaram"
+			    " (os fios ligados se perderiam): %1. Para usar a versão nova, apague e"
+			    " insira de novo esses elementos.")
+			 .arg(result.geometry_changed.join(QStringLiteral("; ")));
+	if (result.symbols_updated)
+		lines << tr("Os textos que você moveu ou mudou ficaram como estavam. A troca não pode"
+			    " ser desfeita: para voltar, feche o projeto sem salvar.");
+
+	QMessageBox::information(this, tr("Atualizar o símbolo pela biblioteca"),
+				 lines.join(QStringLiteral("\n\n")));
 }

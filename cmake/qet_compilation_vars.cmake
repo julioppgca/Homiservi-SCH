@@ -178,6 +178,8 @@ set(QET_SRC_FILES
   ${QET_DIR}/sources/conductorendlabeling.h
   ${QET_DIR}/sources/wiringlist.cpp
   ${QET_DIR}/sources/wirejunction.cpp
+  ${QET_DIR}/sources/elementlibraryupdate.cpp
+  ${QET_DIR}/sources/elementlibraryupdate.h
   ${QET_DIR}/sources/wirejunction.h
   ${QET_DIR}/sources/wiringlist.h
   ${QET_DIR}/sources/wiringcheck.cpp

@@ -85,8 +85,10 @@ class Element : public QetGraphicsItem
 			int *state = nullptr,
 			Element::kind link_type = Element::Simple);
 		~Element() override;
-	private:
+			///the size, hotspot and terminals of definition are the ones
+			///of this element (its drawing can be replaced in place)
 		bool definitionGeometryMatches(const QDomElement &definition) const;
+	private:
 		Element(const Element &);
 
 		// attributes
@@ -300,6 +302,14 @@ class Element : public QetGraphicsItem
 			///coordinates of this element
 		const QList<QPair<QString, QPolygonF>> &namedTexts();
 		Element *labelParent();
+			///Homiservi-SCH: make the dynamic texts follow a new version of
+			///the symbol (ElementLibraryUpdate): a text still as the old
+			///definition had it takes the new one's position, font and
+			///alignment, a text the new definition dropped goes, a text it
+			///added comes. Texts the user moved or changed are left alone.
+			///Returns the number of texts changed.
+		int applyDefinitionTexts(const QDomElement &old_definition,
+					 const QDomElement &new_definition);
 	protected:
 		void mouseDoubleClickEvent(QGraphicsSceneMouseEvent *event) override;
 		void hoverMoveEvent(QGraphicsSceneHoverEvent *event) override;

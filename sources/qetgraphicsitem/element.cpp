@@ -43,6 +43,8 @@
 #include "iostream"
 #include "../utils/qetutils.h"
 #include <QTextDocument>
+#include <QLineF>
+#include <QMap>
 
 #include <QAbstractTextDocumentLayout>
 #include <QApplication>
@@ -2841,4 +2843,125 @@ void Element::hoverMoveEvent(QGraphicsSceneHoverEvent *event)
 	if (toolTip() != tip)
 		setToolTip(tip);
 	QetGraphicsItem::hoverMoveEvent(event);
+}
+
+namespace {
+		///What a dynamic text of a symbol shows, to find it again among
+		///the texts of a placed element (they get a uuid of their own)
+	QString dynamicTextKey(const QDomElement &dom)
+	{
+		const QString from = dom.attribute(QStringLiteral("text_from"));
+		QString what;
+		if (from == QLatin1String("ElementInfo"))
+			what = dom.firstChildElement(QStringLiteral("info_name")).text();
+		else if (from == QLatin1String("CompositeText"))
+			what = dom.firstChildElement(QStringLiteral("composite_text")).text();
+		else
+			what = dom.firstChildElement(QStringLiteral("text")).text();
+		return from + QLatin1Char('|') + what;
+	}
+
+	QString dynamicTextKey(DynamicElementTextItem *deti)
+	{
+		const QString from = QString::fromLatin1(
+			DynamicElementTextItem::textFromMetaEnum().valueToKey(deti->textFrom()));
+		QString what;
+		if (deti->textFrom() == DynamicElementTextItem::ElementInfo)
+			what = deti->infoName();
+		else if (deti->textFrom() == DynamicElementTextItem::CompositeText)
+			what = deti->compositeText();
+		else
+			what = deti->text();
+		return from + QLatin1Char('|') + what;
+	}
+
+	QMap<QString, QDomElement> dynamicTexts(const QDomElement &definition)
+	{
+		QMap<QString, QDomElement> texts;
+		for (QDomElement description = definition.firstChildElement(QStringLiteral("description")) ;
+		     !description.isNull() ;
+		     description = description.nextSiblingElement(QStringLiteral("description")))
+			for (QDomElement text = description.firstChildElement(QStringLiteral("dynamic_text")) ;
+			     !text.isNull() ;
+			     text = text.nextSiblingElement(QStringLiteral("dynamic_text")))
+				texts.insert(dynamicTextKey(text), text);
+		return texts;
+	}
+
+		///The text is where the definition dom has it: not moved, not
+		///turned. The font does not count: a text style of the project
+		///changes it on every element, not the user on one
+	bool asDefined(DynamicElementTextItem *deti, const QDomElement &dom)
+	{
+		const QPointF pos(dom.attribute(QStringLiteral("x"), QStringLiteral("0")).toDouble(),
+				  dom.attribute(QStringLiteral("y"), QStringLiteral("0")).toDouble());
+		if (QLineF(deti->pos(), pos).length() > 0.5)
+			return false;
+		if (qAbs(deti->rotation() - dom.attribute(QStringLiteral("rotation"), QStringLiteral("0")).toDouble()) > 0.5)
+			return false;
+		return true;
+	}
+
+	bool sameFont(DynamicElementTextItem *deti, const QDomElement &dom)
+	{
+		return !dom.hasAttribute(QStringLiteral("font"))
+				|| QETUtils::fontToString(deti->font()) == dom.attribute(QStringLiteral("font"));
+	}
+}
+
+int Element::applyDefinitionTexts(const QDomElement &old_definition,
+				  const QDomElement &new_definition)
+{
+	const QMap<QString, QDomElement> old_texts = dynamicTexts(old_definition);
+	const QMap<QString, QDomElement> new_texts = dynamicTexts(new_definition);
+	int changed = 0;
+
+	const QList<DynamicElementTextItem *> texts = m_dynamic_text_list;
+	for (DynamicElementTextItem *deti : texts)
+	{
+		const QString key = dynamicTextKey(deti);
+		if (!old_texts.contains(key) || !asDefined(deti, old_texts.value(key)))
+			continue;
+		if (new_texts.contains(key))
+		{
+			const QDomElement new_dom = new_texts.value(key);
+			const QDomElement old_dom = old_texts.value(key);
+			const bool own_font = !sameFont(deti, old_dom);
+			if (asDefined(deti, new_dom)
+			    && (own_font || sameFont(deti, new_dom))
+			    && new_dom.attribute(QStringLiteral("text_width")) == old_dom.attribute(QStringLiteral("text_width"))
+			    && new_dom.attribute(QStringLiteral("Halignment")) == old_dom.attribute(QStringLiteral("Halignment")))
+				continue;
+			QDomElement dom = new_dom.cloneNode(true).toElement();
+			dom.setTagName(DynamicElementTextItem::xmlTagName());
+			const QUuid uuid = deti->m_uuid;
+			const QFont font = deti->font();
+			const QString style = deti->textStyle();
+			deti->fromXml(dom);
+			deti->m_uuid = uuid;
+				//the font a text style of the project gave it stays
+			if (own_font) {
+				deti->setFont(font);
+				deti->setTextStyle(style);
+			}
+		}
+		else
+		{
+			removeDynamicTextItem(deti);
+			if (deti->scene())
+				deti->scene()->removeItem(deti);
+			delete deti;
+		}
+		++changed;
+	}
+
+	for (auto it = new_texts.cbegin() ; it != new_texts.cend() ; ++it)
+		if (!old_texts.contains(it.key())) {
+			parseDynamicText(it.value());
+			++changed;
+		}
+
+	if (changed)
+		update();
+	return changed;
 }
