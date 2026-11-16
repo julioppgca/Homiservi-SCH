@@ -2876,17 +2876,61 @@ namespace {
 		return from + QLatin1Char('|') + what;
 	}
 
-	QMap<QString, QDomElement> dynamicTexts(const QDomElement &definition)
+	QList<QDomElement> dynamicTexts(const QDomElement &definition)
 	{
-		QMap<QString, QDomElement> texts;
+		QList<QDomElement> texts;
 		for (QDomElement description = definition.firstChildElement(QStringLiteral("description")) ;
 		     !description.isNull() ;
 		     description = description.nextSiblingElement(QStringLiteral("description")))
 			for (QDomElement text = description.firstChildElement(QStringLiteral("dynamic_text")) ;
 			     !text.isNull() ;
 			     text = text.nextSiblingElement(QStringLiteral("dynamic_text")))
-				texts.insert(dynamicTextKey(text), text);
+				texts << text;
 		return texts;
+	}
+
+		///Which text of the new definition each text of the old one
+		///became: the same uuid (the symbol editor keeps it), else the
+		///text showing the same thing in the same rank among the texts
+		///showing it. -1: gone from the new definition; -2: can not tell
+		///(several texts show the same thing and their number changed)
+	QVector<int> textCounterparts(const QList<QDomElement> &old_texts,
+				      const QList<QDomElement> &new_texts)
+	{
+		QVector<int> to(old_texts.size(), -1);
+		QVector<bool> taken(new_texts.size(), false);
+		for (int i = 0 ; i < old_texts.size() ; ++i)
+		{
+			const QString uuid = old_texts[i].attribute(QStringLiteral("uuid"));
+			if (uuid.isEmpty())
+				continue;
+			for (int j = 0 ; j < new_texts.size() ; ++j)
+				if (!taken[j] && new_texts[j].attribute(QStringLiteral("uuid")) == uuid) {
+					to[i] = j;
+					taken[j] = true;
+					break;
+				}
+		}
+		for (int i = 0 ; i < old_texts.size() ; ++i)
+		{
+			if (to[i] >= 0 || old_texts[i].attribute(QStringLiteral("uuid")).size())
+				continue;
+			const QString key = dynamicTextKey(old_texts[i]);
+			QList<int> olds, news;
+			for (int k = 0 ; k < old_texts.size() ; ++k)
+				if (to[k] < 0 && dynamicTextKey(old_texts[k]) == key)
+					olds << k;
+			for (int k = 0 ; k < new_texts.size() ; ++k)
+				if (!taken[k] && dynamicTextKey(new_texts[k]) == key)
+					news << k;
+			if (olds.size() == news.size()) {
+				to[i] = news[olds.indexOf(i)];
+				taken[to[i]] = true;
+			}
+			else if (!news.isEmpty())
+				to[i] = -2;
+		}
+		return to;
 	}
 
 		///The text is where the definition dom has it: not moved, not
@@ -2913,22 +2957,42 @@ namespace {
 int Element::applyDefinitionTexts(const QDomElement &old_definition,
 				  const QDomElement &new_definition)
 {
-	const QMap<QString, QDomElement> old_texts = dynamicTexts(old_definition);
-	const QMap<QString, QDomElement> new_texts = dynamicTexts(new_definition);
+		//A list, not a map by what the text shows: a symbol may show the
+		//same information twice (the label above and beside it)
+	const QList<QDomElement> old_texts = dynamicTexts(old_definition);
+	const QList<QDomElement> new_texts = dynamicTexts(new_definition);
+	const QVector<int> counterpart = textCounterparts(old_texts, new_texts);
+	QVector<bool> new_has_old(new_texts.size(), false);
+	for (int i = 0 ; i < counterpart.size() ; ++i)
+		if (counterpart[i] >= 0)
+			new_has_old[counterpart[i]] = true;
+		else if (counterpart[i] == -2)		//not added again either
+			for (int j = 0 ; j < new_texts.size() ; ++j)
+				if (dynamicTextKey(new_texts[j]) == dynamicTextKey(old_texts[i]))
+					new_has_old[j] = true;
 	int changed = 0;
 
+	QVector<bool> old_claimed(old_texts.size(), false);
 	const QList<DynamicElementTextItem *> texts = m_dynamic_text_list;
 	for (DynamicElementTextItem *deti : texts)
 	{
+			//the text of the old definition this one still is
 		const QString key = dynamicTextKey(deti);
-		if (!old_texts.contains(key) || !asDefined(deti, old_texts.value(key)))
+		int i = -1;
+		for (int k = 0 ; k < old_texts.size() && i < 0 ; ++k)
+			if (!old_claimed[k] && dynamicTextKey(old_texts[k]) == key
+			    && asDefined(deti, old_texts[k]))
+				i = k;
+		if (i < 0 || counterpart[i] == -2)
 			continue;
-		if (new_texts.contains(key))
+		old_claimed[i] = true;
+		const QDomElement old_dom = old_texts[i];
+		if (counterpart[i] >= 0)
 		{
-			const QDomElement new_dom = new_texts.value(key);
-			const QDomElement old_dom = old_texts.value(key);
+			const QDomElement new_dom = new_texts[counterpart[i]];
 			const bool own_font = !sameFont(deti, old_dom);
-			if (asDefined(deti, new_dom)
+			if (dynamicTextKey(new_dom) == key
+			    && asDefined(deti, new_dom)
 			    && (own_font || sameFont(deti, new_dom))
 			    && new_dom.attribute(QStringLiteral("text_width")) == old_dom.attribute(QStringLiteral("text_width"))
 			    && new_dom.attribute(QStringLiteral("Halignment")) == old_dom.attribute(QStringLiteral("Halignment")))
@@ -2956,9 +3020,9 @@ int Element::applyDefinitionTexts(const QDomElement &old_definition,
 		++changed;
 	}
 
-	for (auto it = new_texts.cbegin() ; it != new_texts.cend() ; ++it)
-		if (!old_texts.contains(it.key())) {
-			parseDynamicText(it.value());
+	for (int j = 0 ; j < new_texts.size() ; ++j)
+		if (!new_has_old[j]) {
+			parseDynamicText(new_texts[j]);
 			++changed;
 		}
 
