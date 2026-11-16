@@ -965,9 +965,16 @@ void Conductor::handlerMousePressEvent(QetGraphicsHandlerItem *qghi, QGraphicsSc
 		//we get the segment corresponding to the handler
 	if (m_vector_index > -1)
 	{
+			//A handler with no segment behind it (the path changed since
+			//the handlers were made): nothing to move
+		const QList<ConductorSegment *> segments = segmentsList();
+		if (m_vector_index + 1 >= segments.size()) {
+			m_vector_index = -1;
+			return;
+		}
 		qghi->setColor(Qt::cyan);
 		m_moving_segment = true;
-		m_moved_segment = segmentsList().at(m_vector_index+1);
+		m_moved_segment = segments.at(m_vector_index+1);
 		before_mov_text_pos_ = m_text_item -> pos();
 
 		for(QetGraphicsHandlerItem *handler : m_handler_vector)
@@ -985,6 +992,13 @@ void Conductor::handlerMouseMoveEvent(QetGraphicsHandlerItem *qghi, QGraphicsSce
 {
 	if (m_moving_segment)
 	{
+			//The path was rebuilt during the drag (its segments were
+			//deleted): stop moving instead of using a deleted segment
+		if (!segmentsList().contains(m_moved_segment)) {
+			m_moving_segment = false;
+			m_moved_segment = nullptr;
+			return;
+		}
 			//Snap the mouse pos to grid
 		QPointF pos_ = Diagram::snapToGrid(mapFromScene(event->scenePos()));
 
