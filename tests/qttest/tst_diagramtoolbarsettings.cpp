@@ -124,7 +124,8 @@ private slots:
 		QToolBar toolbar;
 		DiagramToolbarSettings::fill(&toolbar, DiagramToolbarSettings::defaultIds(QStringLiteral("toolbar")),
 					     [this](const QString &id) { return resolve(id); });
-		QCOMPARE(toolbar.actions().size(), 18);
+			//18 before, plus the format painter
+		QCOMPARE(toolbar.actions().size(), 19);
 		QCOMPARE(shape(&toolbar).mid(6, 2),
 			 (QStringList{QStringLiteral("diagrameditor.export_to_pdf"), QStringLiteral("|")}));
 		QCOMPARE(shape(&toolbar).count(QStringLiteral("|")), 3);

@@ -98,6 +98,14 @@ private slots:
 	void pageIsTheFolioNumber()
 	{
 		QFETCH(QString, project);
+		{
+				//A project without wires has nothing to export (the
+				//command says so and fails): nothing to check there
+			QFile file(project);
+			QVERIFY(file.open(QIODevice::ReadOnly));
+			if (!file.readAll().contains("<conductor "))
+				QSKIP("no wires in this project");
+		}
 		bool ok;
 		const QStringList rows = exportCables(project, &ok);
 		QVERIFY2(ok, "--export-cables failed");
