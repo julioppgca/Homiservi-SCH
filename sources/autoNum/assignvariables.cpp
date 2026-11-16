@@ -415,7 +415,7 @@ namespace autonum
 		QSettings settings;
 		if (m_context.has_element)
 		{
-		if (settings.value("border-columns_0", true).toBool()){
+		if (settings.value("border-columns_0", false).toBool()){
 			m_assigned_label.replace("%c", QString::number(m_context.element_position.number() - 1));
 			}else{
 			m_assigned_label.replace("%c", QString::number(m_context.element_position.number()));

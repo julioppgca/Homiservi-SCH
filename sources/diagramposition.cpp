@@ -69,7 +69,7 @@ QString DiagramPosition::toString()
 	}
 	QSettings settings;
 
-	if (settings.value("border-columns_0", true).toBool()){
+	if (settings.value("border-columns_0", false).toBool()){
 	return(QString("%1%2").arg(letter_).arg(number_ - 1));
 	}else{
 	return(QString("%1%2").arg(letter_).arg(number_));

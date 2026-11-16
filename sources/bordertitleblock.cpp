@@ -537,7 +537,7 @@ void BorderTitleBlock::draw(QPainter *painter)
 		//Draw the nums of columns
 	if (display_border_ && display_columns_) {
 		const bool columns_start_at_zero =
-				settings.value("border-columns_0", true).toBool();
+				settings.value("border-columns_0", false).toBool();
 		for (int i = 1 ; i <= columns_count_ ; ++ i) {
 			QRectF numbered_rectangle = QRectF(
 				diagram_rect_.topLeft().x()
@@ -642,7 +642,7 @@ void BorderTitleBlock::drawDxf(
 	// dessine la numerotation des colonnes
 	if (display_border_ &&
 		display_columns_) {
-	int offset = settings.value("border-columns_0", true).toBool() ? -1 : 0;
+	int offset = settings.value("border-columns_0", false).toBool() ? -1 : 0;
 		for (int i = 1 ; i <= columns_count_ ; ++ i) {
 	    double xCoord = diagram_rect_.topLeft().x() * Createdxf::xScale +
 					(rows_header_width_ + ((i - 1) *
@@ -972,7 +972,7 @@ QRectF BorderTitleBlock::cellRect(const QString &cell) const
 
 	int column = match.captured(2).toInt();
 	QSettings settings;
-	if (settings.value("border-columns_0", true).toBool())
+	if (settings.value("border-columns_0", false).toBool())
 		++column;
 
 	if (row < 1 || column < 1 || column > columns_count_)
