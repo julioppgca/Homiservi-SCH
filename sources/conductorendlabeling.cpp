@@ -63,6 +63,11 @@ QString ConductorEndLabeling::terminalCrossRefId(Terminal *terminal)
 		//IEC 81346: the device, then its terminal after a colon (-K1:A1).
 		//A label already starting with its prefix (-, +, =) keeps it.
 	QString label = element->actualLabel().trimmed();
+		//A contact has no label of its own: it is the one of its master
+		//(the coil, the breaker), as its cross reference shows it
+	if (label.isEmpty() && element->linkType() == Element::Slave
+	    && !element->linkedElements().isEmpty())
+		label = element->linkedElements().first()->actualLabel().trimmed();
 	if (!label.isEmpty() && !label.startsWith(QLatin1Char('-'))
 	    && !label.startsWith(QLatin1Char('+')) && !label.startsWith(QLatin1Char('=')))
 		label.prepend(QLatin1Char('-'));
