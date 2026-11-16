@@ -1,0 +1,112 @@
+<definition version="0.100.0" type="element" link_type="simple" width="300" height="140" hotspot_x="80" hotspot_y="10">
+    <uuid uuid="{bb167c7d-31cc-5ce6-9f07-c080e9e202b7}" />
+    <names>
+        <name lang="pt_BR">Sub-painel BK10 A02B-0323-C240 (overrides, chave de edição, ON/OFF)</name>
+        <name lang="en">Sub-painel BK10 A02B-0323-C240 (overrides, chave de edição, ON/OFF)</name>
+    </names>
+    <informations>FANUC sub panel-BK10 (B-64693EN 8.8.10.5)</informations>
+    <description>
+        <rect x="-10" y="4" width="216" height="120" rx="0" ry="0" style="line-style:normal;line-weight:normal;filling:none;color:black" antialias="false" />
+        <line x1="10" y1="0" x2="10" y2="4" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" antialias="false" />
+        <text text="flat" x="12" y="11" rotation="0" font="Liberation Sans,4,-1,5,50,0,0,0,0,0,Regular" color="#000000" />
+        <line x1="40" y1="0" x2="40" y2="4" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" antialias="false" />
+        <text text="flat" x="42" y="11" rotation="0" font="Liberation Sans,4,-1,5,50,0,0,0,0,0,Regular" color="#000000" />
+        <line x1="70" y1="0" x2="70" y2="4" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" antialias="false" />
+        <text text="1" x="72" y="11" rotation="0" font="Liberation Sans,4,-1,5,50,0,0,0,0,0,Regular" color="#000000" />
+        <line x1="80" y1="0" x2="80" y2="4" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" antialias="false" />
+        <text text="2" x="82" y="11" rotation="0" font="Liberation Sans,4,-1,5,50,0,0,0,0,0,Regular" color="#000000" />
+        <line x1="100" y1="0" x2="100" y2="4" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" antialias="false" />
+        <text text="12" x="102" y="11" rotation="0" font="Liberation Sans,4,-1,5,50,0,0,0,0,0,Regular" color="#000000" />
+        <line x1="110" y1="0" x2="110" y2="4" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" antialias="false" />
+        <text text="11" x="112" y="11" rotation="0" font="Liberation Sans,4,-1,5,50,0,0,0,0,0,Regular" color="#000000" />
+        <line x1="120" y1="0" x2="120" y2="4" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" antialias="false" />
+        <text text="21" x="122" y="11" rotation="0" font="Liberation Sans,4,-1,5,50,0,0,0,0,0,Regular" color="#000000" />
+        <line x1="130" y1="0" x2="130" y2="4" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" antialias="false" />
+        <text text="24" x="132" y="11" rotation="0" font="Liberation Sans,4,-1,5,50,0,0,0,0,0,Regular" color="#000000" />
+        <line x1="140" y1="0" x2="140" y2="4" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" antialias="false" />
+        <text text="X1" x="142" y="11" rotation="0" font="Liberation Sans,4,-1,5,50,0,0,0,0,0,Regular" color="#000000" />
+        <line x1="150" y1="0" x2="150" y2="4" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" antialias="false" />
+        <text text="X2" x="152" y="11" rotation="0" font="Liberation Sans,4,-1,5,50,0,0,0,0,0,Regular" color="#000000" />
+        <line x1="210" y1="20" x2="206" y2="20" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" antialias="false" />
+        <text text="11" x="198" y="18" rotation="0" font="Liberation Sans,4,-1,5,50,0,0,0,0,0,Regular" color="#000000" />
+        <line x1="210" y1="60" x2="206" y2="60" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" antialias="false" />
+        <text text="14" x="198" y="58" rotation="0" font="Liberation Sans,4,-1,5,50,0,0,0,0,0,Regular" color="#000000" />
+        <line x1="10" y1="4" x2="10" y2="18" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" antialias="false" />
+        <rect x="6" y="18" width="8" height="3" rx="0" ry="0" style="line-style:normal;line-weight:normal;filling:black;color:black" antialias="false" />
+        <ellipse x="2" y="23" width="16" height="16" style="line-style:normal;line-weight:normal;filling:none;color:black" antialias="true" />
+        <line x1="10" y1="31" x2="15" y2="25" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" antialias="false" />
+        <line x1="15" y1="25" x2="12" y2="26" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" antialias="false" />
+        <line x1="15" y1="25" x2="14" y2="28" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" antialias="false" />
+        <text text="SA1" x="3" y="49" rotation="0" font="Liberation Sans,6,-1,5,50,0,0,0,0,0,Regular" color="#000000" />
+        <line x1="40" y1="4" x2="40" y2="18" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" antialias="false" />
+        <rect x="36" y="18" width="8" height="3" rx="0" ry="0" style="line-style:normal;line-weight:normal;filling:black;color:black" antialias="false" />
+        <ellipse x="32" y="23" width="16" height="16" style="line-style:normal;line-weight:normal;filling:none;color:black" antialias="true" />
+        <line x1="40" y1="31" x2="45" y2="25" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" antialias="false" />
+        <line x1="45" y1="25" x2="42" y2="26" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" antialias="false" />
+        <line x1="45" y1="25" x2="44" y2="28" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" antialias="false" />
+        <text text="SA2" x="33" y="49" rotation="0" font="Liberation Sans,6,-1,5,50,0,0,0,0,0,Regular" color="#000000" />
+        <line x1="80" y1="4" x2="80" y2="22" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" antialias="false" />
+        <line x1="80" y1="38" x2="73" y2="21" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" antialias="false" />
+        <line x1="80" y1="38" x2="80" y2="50" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" antialias="false" />
+        <line x1="80" y1="50" x2="70" y2="50" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" antialias="false" />
+        <line x1="70" y1="4" x2="70" y2="50" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" antialias="false" />
+        <line x1="76" y1="30" x2="88" y2="30" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:dashed;line-weight:normal;filling:none;color:black" antialias="false" />
+        <ellipse x="88.5" y="27.5" width="5.0" height="5.0" style="line-style:normal;line-weight:normal;filling:none;color:black" antialias="true" />
+        <line x1="93.5" y1="30" x2="97" y2="30" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" antialias="false" />
+        <line x1="96" y1="30" x2="96" y2="33" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" antialias="false" />
+        <text text="SA3" x="66" y="60" rotation="0" font="Liberation Sans,6,-1,5,50,0,0,0,0,0,Regular" color="#000000" />
+        <line x1="110" y1="4" x2="110" y2="22" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" antialias="false" />
+        <line x1="110" y1="22" x2="116" y2="22" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" antialias="false" />
+        <line x1="110" y1="38" x2="117" y2="19" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" antialias="false" />
+        <line x1="110" y1="38" x2="110" y2="50" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" antialias="false" />
+        <line x1="110" y1="50" x2="100" y2="50" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" antialias="false" />
+        <line x1="100" y1="4" x2="100" y2="50" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" antialias="false" />
+        <line x1="113" y1="31" x2="113" y2="44" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:dashed;line-weight:normal;filling:none;color:black" antialias="false" />
+        <line x1="110" y1="44" x2="116" y2="44" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" antialias="false" />
+        <text text="SB2" x="97" y="60" rotation="0" font="Liberation Sans,6,-1,5,50,0,0,0,0,0,Regular" color="#000000" />
+        <text text="(O)" x="99" y="67" rotation="0" font="Liberation Sans,5,-1,5,50,0,0,0,0,0,Regular" color="#000000" />
+        <line x1="130" y1="4" x2="130" y2="22" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" antialias="false" />
+        <line x1="130" y1="38" x2="123" y2="21" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" antialias="false" />
+        <line x1="130" y1="38" x2="130" y2="50" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" antialias="false" />
+        <line x1="130" y1="50" x2="120" y2="50" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" antialias="false" />
+        <line x1="120" y1="4" x2="120" y2="50" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" antialias="false" />
+        <line x1="140" y1="4" x2="140" y2="40" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" antialias="false" />
+        <line x1="150" y1="4" x2="150" y2="40" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" antialias="false" />
+        <ellipse x="140" y="35" width="10" height="10" style="line-style:normal;line-weight:normal;filling:none;color:black" antialias="true" />
+        <line x1="141.5" y1="36.5" x2="148.5" y2="43.5" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" antialias="false" />
+        <line x1="148.5" y1="36.5" x2="141.5" y2="43.5" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" antialias="false" />
+        <line x1="206" y1="20" x2="180" y2="20" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" antialias="false" />
+        <line x1="180" y1="20" x2="180" y2="28" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" antialias="false" />
+        <line x1="180" y1="44" x2="173" y2="27" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" antialias="false" />
+        <line x1="180" y1="44" x2="180" y2="60" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" antialias="false" />
+        <line x1="180" y1="60" x2="206" y2="60" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" antialias="false" />
+        <line x1="126.5" y1="30" x2="126.5" y2="56" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:dashed;line-weight:normal;filling:none;color:black" antialias="false" />
+        <line x1="126.5" y1="56" x2="176.5" y2="56" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:dashed;line-weight:normal;filling:none;color:black" antialias="false" />
+        <line x1="176.5" y1="56" x2="176.5" y2="36" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:dashed;line-weight:normal;filling:none;color:black" antialias="false" />
+        <line x1="160" y1="56" x2="160" y2="62" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" antialias="false" />
+        <line x1="155" y1="62" x2="165" y2="62" end1="none" end2="none" length1="1.5" length2="1.5" style="line-style:normal;line-weight:normal;filling:none;color:black" antialias="false" />
+        <text text="SB1 (I)" x="153" y="72" rotation="0" font="Liberation Sans,6,-1,5,50,0,0,0,0,0,Regular" color="#000000" />
+        <text text="SA1/SA2 override de avanço 0–200 % / spindle 50–120 %" x="-6" y="83" rotation="0" font="Liberation Sans,5,-1,5,50,0,0,0,0,0,Regular" color="#000000" />
+        <text text="código Gray + paridade, cabos flat p/ CM65 / CM66" x="-6" y="90" rotation="0" font="Liberation Sans,5,-1,5,50,0,0,0,0,0,Regular" color="#000000" />
+        <text text="SA3 chave de proteção de edição" x="-6" y="97" rotation="0" font="Liberation Sans,5,-1,5,50,0,0,0,0,0,Regular" color="#000000" />
+        <text text="SB1 (I) ON: 2 contatos c + LED 24 Vcc   SB2 (O) OFF: 1 c" x="-6" y="104" rotation="0" font="Liberation Sans,5,-1,5,50,0,0,0,0,0,Regular" color="#000000" />
+        <text text="S1 emergência (2 NF): desenhada à parte" x="-6" y="111" rotation="0" font="Liberation Sans,5,-1,5,50,0,0,0,0,0,Regular" color="#000000" />
+        <text text="SUB-PAINEL BK10   A02B-0323-C240" x="-6" y="120" rotation="0" font="Liberation Sans,6,-1,5,75,0,0,0,0,0,Bold" color="#000000" />
+        <dynamic_text x="-74" y="46" z="87" text_width="60" Halignment="AlignRight" Valignment="AlignTop" frame="false" rotation="0" keep_visual_rotation="false" text_from="ElementInfo" uuid="{29ca811c-ae6c-5df9-9853-8af4a2066816}" font="Liberation Sans,9,-1,5,50,0,0,0,0,0,Regular">
+            <text />
+            <info_name>label</info_name>
+        </dynamic_text>
+        <terminal uuid="{1277a1e3-8ffa-53f8-9d5f-d9611a62a07b}" name="SA1" x="10" y="0" orientation="n" type="Generic" />
+        <terminal uuid="{c45e0d65-1790-5d24-8089-69c8216a6b40}" name="SA2" x="40" y="0" orientation="n" type="Generic" />
+        <terminal uuid="{3aef3bd9-a197-5cc7-9054-109ae8aeba16}" name="SA3:1" x="70" y="0" orientation="n" type="Generic" />
+        <terminal uuid="{1b70d5e6-6eb7-597c-aec2-8f26ba5f96f5}" name="SA3:2" x="80" y="0" orientation="n" type="Generic" />
+        <terminal uuid="{2c9c6501-4c6e-5354-bf35-33aa395ef4eb}" name="SB2:12" x="100" y="0" orientation="n" type="Generic" />
+        <terminal uuid="{0d8d4eb5-67e6-57d2-9da4-5103ceb93022}" name="SB2:11" x="110" y="0" orientation="n" type="Generic" />
+        <terminal uuid="{cb5c14e8-4a0b-511a-bf31-0763f43fcaeb}" name="SB1:21" x="120" y="0" orientation="n" type="Generic" />
+        <terminal uuid="{813baaf0-a45f-586f-8b0f-8675a5b98a6b}" name="SB1:24" x="130" y="0" orientation="n" type="Generic" />
+        <terminal uuid="{dbd0a5d9-591c-5fc4-9111-64c01ea4946c}" name="SB1:X1" x="140" y="0" orientation="n" type="Generic" />
+        <terminal uuid="{0c007a1b-fa69-5e38-9ec5-ecdd60c746da}" name="SB1:X2" x="150" y="0" orientation="n" type="Generic" />
+        <terminal uuid="{5d62c6eb-644a-5974-a2d6-c8a2f2d9e606}" name="SB1:11" x="210" y="20" orientation="e" type="Generic" />
+        <terminal uuid="{07541be7-b68a-5396-807e-a5387223ba0a}" name="SB1:14" x="210" y="60" orientation="e" type="Generic" />
+    </description>
+</definition>
