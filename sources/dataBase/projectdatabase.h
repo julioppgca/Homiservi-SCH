@@ -144,6 +144,9 @@ class projectDataBase : public QObject
 		void populateDiagramInfoTable();
 		void populateSectionTables();
 		void populateRevisionTable();
+		void populateWireTable();
+		void scheduleWireTable();
+		bool wireTableShown() const;
 		void populateConductorTable();
 		void populateDrawingItemTables();
 		bool populateFromDocument(const QDomDocument &document, QString *why = nullptr);
@@ -177,6 +180,8 @@ class projectDataBase : public QObject
 			//updateDB(). Callers reach the database from outside only through
 			//newQuery(), and every such call site reads.
 		bool m_content_changed = true;
+			///Homiservi-SCH: a refresh of project_wire is on its way
+		bool m_wire_table_scheduled = false;
 		QSqlDatabase m_data_base;
 		QSqlQuery m_insert_elements_query,
 				  m_insert_element_info_query,

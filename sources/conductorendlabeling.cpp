@@ -19,20 +19,22 @@
 
 #include "diagram.h"
 #include "diagramcommands.h"
+#include "projectnumbering.h"
+#include "qetproject.h"
 #include "qetgraphicsitem/conductor.h"
 #include "qetgraphicsitem/conductortextitem.h"
 #include "qetgraphicsitem/element.h"
 #include "qetgraphicsitem/terminal.h"
+#include "wirejunction.h"
 
 /**
 	@param terminal a terminal belonging to some element on the diagram
 	@return the "target designation" identifier for @p terminal, EPLAN
 	"Ziel" style, e.g. a terminal named "A1" on element labeled "K1"
-	returns "-K1A1". If @p terminal belongs to a report/off-page connector
+	returns "-K1:A1" (IEC 81346). If @p terminal belongs to a report/off-page connector
 	("renvoi") element, its own label is meaningless as a target (it's not
 	a real device), so the folio its linked counterpart lives on is used
-	instead, e.g. "→F2" - genuinely useful here since this function is used
-	to describe *the far end* at the other, real-device end of the wire.
+	instead, e.g. "→F02.04": where the wire goes on.
 	Returns an empty string if the terminal has no parent element
 	(shouldn't happen for a terminal that is actually wired).
 */
@@ -58,17 +60,107 @@ QString ConductorEndLabeling::terminalCrossRefId(Terminal *terminal)
 		return QStringLiteral("→?");
 	}
 
-	return "-" + element->actualLabel() + terminal->name();
+		//IEC 81346: the device, then its terminal after a colon (-K1:A1).
+		//A label already starting with its prefix (-, +, =) keeps it.
+	QString label = element->actualLabel().trimmed();
+		//A contact has no label of its own: it is the one of its master
+		//(the coil, the breaker), as its cross reference shows it
+	if (label.isEmpty() && element->linkType() == Element::Slave
+	    && !element->linkedElements().isEmpty())
+		label = element->linkedElements().first()->actualLabel().trimmed();
+	if (!label.isEmpty() && !label.startsWith(QLatin1Char('-'))
+	    && !label.startsWith(QLatin1Char('+')) && !label.startsWith(QLatin1Char('=')))
+		label.prepend(QLatin1Char('-'));
+	QString name = terminal->name().trimmed();
+	if (name == QLatin1String("_")) name.clear();
+	if (label.isEmpty()) return name;
+	return name.isEmpty() ? label : label + QLatin1Char(':') + name;
+}
+
+PotentialRules::EndLabels ConductorEndLabeling::rule(Conductor *conductor)
+{
+	Diagram *diagram = conductor ? conductor->diagram() : nullptr;
+	QETProject *project = diagram ? diagram->project() : nullptr;
+	return project ? project->potentialRules().end_labels : PotentialRules::OwnTerminal;
+}
+
+/**
+	@brief ConductorEndLabeling::endLabel
+	@return the label of the end of conductor at terminal1 if end1, else at
+	terminal2, as rule says. At the end plugged into a folio report, the
+	voltage of the wire when it has one: the report already shows where
+	the wire goes on.
+*/
+QString ConductorEndLabeling::endLabel(Conductor *conductor, bool end1, PotentialRules::EndLabels rule)
+{
+	if (!conductor) return QString();
+	Terminal *own = end1 ? conductor->terminal1 : conductor->terminal2;
+		//No ferrule at a junction: the wire of the panel goes on to the
+		//terminal on the other side of it (WireJunction::partner())
+	if (WireJunction::isJunction(own)) return QString();
+	return label(own, WireJunction::partner(conductor, end1), conductor, rule);
+}
+
+/**
+	@return the label of the end at own of a wire like conductor (its
+	number and voltage) going to other, as rule says
+*/
+QString ConductorEndLabeling::label(Terminal *own, Terminal *other, Conductor *conductor,
+				    PotentialRules::EndLabels rule)
+{
+	if (!conductor) return QString();
+	const QString tension = conductor->properties().m_tension_protocol.trimmed();
+	if (!tension.isEmpty() && own && own->parentElement()
+	    && (own->parentElement()->linkType() & Element::AllReport))
+		return tension;
+
+	QString number = conductor->properties().text.trimmed();
+	if (ProjectNumbering::isNoWireNumber(number)) number.clear();
+
+	switch (rule) {
+		case PotentialRules::Destination:
+			return terminalCrossRefId(other);
+		case PotentialRules::WireNumber:
+			return number;
+		case PotentialRules::NumberAndTerminal: {
+			const QString terminal = terminalCrossRefId(own);
+			if (number.isEmpty()) return terminal;
+			return terminal.isEmpty() ? number : number + QLatin1Char(' ') + terminal;
+		}
+		case PotentialRules::OwnTerminal:
+		default:
+			return terminalCrossRefId(own);
+	}
+}
+
+/**
+	@return the label of the end of conductor at terminal1 (end1) or
+	terminal2 as drawn on its folio, edited or not; when the folio shows
+	none, as the rule of the project gives it
+*/
+QString ConductorEndLabeling::shownLabel(Conductor *conductor, bool end1)
+{
+	if (!conductor) return QString();
+	ConductorTextItem *item = end1 ? conductor->textItemEnd1() : conductor->textItemEnd2();
+	const QString shown = item ? item->toPlainText().trimmed() : QString();
+	return shown.isEmpty() ? endLabel(conductor, end1, rule(conductor)) : shown;
+}
+
+bool ConductorEndLabeling::needsLabels(Conductor *conductor)
+{
+	if (!conductor || !conductor->isValid() || !conductor->diagram()) return false;
+	const PotentialRules::EndLabels end_rule = rule(conductor);
+	ConductorTextItem *end1 = conductor->textItemEnd1();
+	ConductorTextItem *end2 = conductor->textItemEnd2();
+	return (end1 && end1->toPlainText() != endLabel(conductor, true, end_rule))
+		|| (end2 && end2->toPlainText() != endLabel(conductor, false, end_rule));
 }
 
 /**
 	@param conductor the conductor to (re)label
-	Sets textItemEnd1() to terminal2's cross-reference id (what's on the
-	*other* end, seen from terminal1) and textItemEnd2() to terminal1's id
-	(seen from terminal2) — EPLAN "Ziel" (target designation) convention:
-	each end shows where the wire *goes*, e.g. the end plugged into -D1/2,
-	whose far end is -K1/A1, is tagged "-K1A1". Only pushes an undo command
-	for an end whose text actually changes.
+	Gives both ends of conductor their label by the rule of its project
+	(endLabel()). Only pushes an undo command for an end whose text
+	actually changes.
 */
 void ConductorEndLabeling::applyToConductor(Conductor *conductor)
 {
@@ -79,23 +171,9 @@ void ConductorEndLabeling::applyToConductor(Conductor *conductor)
 	if (!diagram)
 		return;
 
-	QString label_end1 = terminalCrossRefId(conductor->terminal2);
-	QString label_end2 = terminalCrossRefId(conductor->terminal1);
-
-		// At the renvoi's own end (not the real-device end), the far-side
-		// folio pointer would just repeat what the renvoi symbol itself
-		// already shows on screen - show the conductor's tension there
-		// instead, when the user filled it in (e.g. a 24V supply feed).
-	const QString tension = conductor->properties().m_tension_protocol.trimmed();
-	if (!tension.isEmpty())
-	{
-		if (conductor->terminal1 && conductor->terminal1->parentElement() &&
-			(conductor->terminal1->parentElement()->linkType() & Element::AllReport))
-			label_end1 = tension;
-		if (conductor->terminal2 && conductor->terminal2->parentElement() &&
-			(conductor->terminal2->parentElement()->linkType() & Element::AllReport))
-			label_end2 = tension;
-	}
+	const PotentialRules::EndLabels end_rule = rule(conductor);
+	const QString label_end1 = endLabel(conductor, true, end_rule);
+	const QString label_end2 = endLabel(conductor, false, end_rule);
 
 	if (ConductorTextItem *item = conductor->textItemEnd1())
 	{

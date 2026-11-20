@@ -176,6 +176,16 @@ set(QET_SRC_FILES
   ${QET_DIR}/sources/conductorautonumerotation.h
   ${QET_DIR}/sources/conductorendlabeling.cpp
   ${QET_DIR}/sources/conductorendlabeling.h
+  ${QET_DIR}/sources/wiringlist.cpp
+  ${QET_DIR}/sources/wirejunction.cpp
+  ${QET_DIR}/sources/elementlibraryupdate.cpp
+  ${QET_DIR}/sources/elementlibraryupdate.h
+  ${QET_DIR}/sources/wirejunction.h
+  ${QET_DIR}/sources/wiringlist.h
+  ${QET_DIR}/sources/wiringcheck.cpp
+  ${QET_DIR}/sources/wiringcheck.h
+  ${QET_DIR}/sources/ui/wiringcheckdialog.cpp
+  ${QET_DIR}/sources/ui/wiringcheckdialog.h
   ${QET_DIR}/sources/projectdiff.cpp
   ${QET_DIR}/sources/projectdiff.h
   ${QET_DIR}/sources/projecthistory.cpp
@@ -412,6 +422,8 @@ set(QET_SRC_FILES
   ${QET_DIR}/sources/diagramevent/diagrameventaddshape.h
   ${QET_DIR}/sources/diagramevent/diagrameventfillet.cpp
   ${QET_DIR}/sources/diagramevent/diagrameventfillet.h
+  ${QET_DIR}/sources/diagramevent/diagrameventaddconductor.cpp
+  ${QET_DIR}/sources/diagramevent/diagrameventaddconductor.h
   ${QET_DIR}/sources/diagramevent/diagrameventaddpath.cpp
   ${QET_DIR}/sources/diagramevent/diagrameventaddpath.h
   ${QET_DIR}/sources/diagramevent/diagrameventaddtext.cpp

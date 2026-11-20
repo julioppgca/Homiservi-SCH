@@ -36,6 +36,8 @@
 #include <QFont>
 #if QT_VERSION >= QT_VERSION_CHECK(6, 2, 0)
 #include <QHashSeed>
+#include <QLibraryInfo>
+#include <QTranslator>
 #endif
 
 #include <QSettings>
@@ -164,6 +166,28 @@ static void installHeadlessMessageHandler()
 	qInstallMessageHandler(headlessMessageHandler);
 }
 
+/**
+	Homiservi-SCH: the headless runs (export, scripts) speak the language of
+	the application too, as QETApp::setLanguage() loads it: the exported
+	PDF of a project must not come out with the French source texts.
+*/
+static void installHeadlessTranslators(QApplication &app)
+{
+	static QTranslator qt_translator, qet_translator;
+	const QString language = QETApp::langFromSetting();
+	const QString base = language.section('_', 0, 0);
+	if (qt_translator.load("qt_" + language, QLibraryInfo::path(QLibraryInfo::TranslationsPath)))
+		app.installTranslator(&qt_translator);
+	const QString path = QETApp::languagesPath();
+	auto load = [&path](const QString &name) {
+		return qet_translator.load(name, path) && !qet_translator.isEmpty();
+	};
+	bool loaded = load("qet_" + language);
+	if (!loaded && base != language) loaded = load("qet_" + base);
+	if (!loaded && base != "fr") loaded = load("qet_en");
+	if (loaded) app.installTranslator(&qet_translator);
+}
+
 int main(int argc, char **argv)
 {
 	// before creating Application:
@@ -239,6 +263,7 @@ int main(int argc, char **argv)
 		if (CLIExport::isExportRequest(raw_args)) {
 			installHeadlessMessageHandler();
 			QApplication export_app(argc, argv);
+			installHeadlessTranslators(export_app);
 			// No crash-recovery backups in one-shot CLI mode: the backup write
 			// runs on a background thread referencing the project and races the
 			// process exit (intermittent segfault in QET::writeToFile).
@@ -257,6 +282,7 @@ int main(int argc, char **argv)
 		if (QetScripting::isRunRequest(raw_args)) {
 			installHeadlessMessageHandler();
 			QApplication script_app(argc, argv);
+			installHeadlessTranslators(script_app);
 			QETProject::setBackupEnabled(false);
 			QET::QetMessageBox::setNonInteractive(true);
 			return QetScripting::run(headlessArguments(script_app.arguments()));

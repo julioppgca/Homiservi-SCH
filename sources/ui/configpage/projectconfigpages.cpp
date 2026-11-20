@@ -17,6 +17,9 @@
 */
 #include "projectconfigpages.h"
 
+#include <QLabel>
+#include <QVBoxLayout>
+
 #include "../autoNum/autonumschemecommand.h"
 #include "../autoNum/elementautonumschemecommand.h"
 #include "../autoNum/ui/counterwarning.h"
@@ -518,7 +521,21 @@ void ProjectAutoNumConfigPage::initWidgets()
 		//Conductor tab
 	m_saw_conductor = new SelectAutonumW(1);
 	m_saw_conductor->setExplicitNaming();
-	tab_widget->addTab(schemeTab(m_saw_conductor, m_conductor_users_box, m_conductor_users), tr("Conducteurs"));
+	QWidget *conductor_tab = schemeTab(m_saw_conductor, m_conductor_users_box, m_conductor_users);
+		//Homiservi-SCH: the wires numbered by the numbering of the project
+	if (project() && project()->numbersWires()) {
+		auto locked_tab = new QWidget(this);
+		auto locked_layout = new QVBoxLayout(locked_tab);
+		auto notice = new QLabel(tr("Os fios deste projeto são numerados pela numeração do projeto"
+					    " (Projeto > Fiação > Numeração dos fios): estas regras não são"
+					    " usadas enquanto ela numera os fios."), locked_tab);
+		notice->setWordWrap(true);
+		locked_layout->addWidget(notice);
+		locked_layout->addWidget(conductor_tab, 1);
+		conductor_tab->setEnabled(false);
+		conductor_tab = locked_tab;
+	}
+	tab_widget->addTab(conductor_tab, tr("Condutores"));
 	
 		//Element tab
 	m_saw_element = new SelectAutonumW(0);

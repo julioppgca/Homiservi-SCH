@@ -48,6 +48,9 @@ class Terminal : public QGraphicsObject
 
 	private:
 		Terminal(const Terminal &);
+			///Homiservi-SCH: moves its terminals to a new version of the
+			///symbol (Element::applyDefinitionGeometry())
+		friend class Element;
 
 	// methods
 	public:
@@ -93,6 +96,8 @@ class Terminal : public QGraphicsObject
 		void updateConductor();
 		bool isLinkedTo(Terminal *);
 		bool canBeLinkedTo(Terminal *);
+		Conductor *connectTo(Terminal *other_terminal,
+				     const QList<QPointF> &path_points = QList<QPointF>());
 		int wireLimit() const;
 		bool hasRoomForWire() const;
 

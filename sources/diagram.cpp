@@ -2088,6 +2088,7 @@ void Diagram::addItem(QGraphicsItem *item)
 				});
 			}
 			conductor->calculateTextItemPosition();
+			conductor->calculateEndLabelsPosition();
 			m_project->dataBase()->addConductor(conductor);
 			break;
 		}

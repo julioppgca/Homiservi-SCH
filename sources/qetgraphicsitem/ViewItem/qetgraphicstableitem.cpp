@@ -886,7 +886,8 @@ Qt::Alignment QetGraphicsTableItem::columnAlignment(int column) const
 	if (m_layout_keys.isEmpty())
 		return table_alignment;
 	static const QStringList centred {QStringLiteral("indexrev"), QStringLiteral("folio_count"),
-		QStringLiteral("edition"), QStringLiteral("date"), QStringLiteral("variant")};
+		QStringLiteral("edition"), QStringLiteral("date"), QStringLiteral("variant"),
+		QStringLiteral("color"), QStringLiteral("section")};
 	return centred.contains(m_layout_keys.value(column)) ? Qt::AlignHCenter : Qt::AlignLeft;
 }
 

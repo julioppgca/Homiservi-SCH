@@ -19,15 +19,20 @@
 #define POTENTIALRULESDIALOG_H
 
 #include "../potentialrules.h"
+#include "../wiringrules.h"
 
 #include <QDialog>
 
 class QCheckBox;
+class QComboBox;
+class QSpinBox;
 class QTableWidget;
 
 /**
 	@brief The PotentialRulesDialog class
-	Edit the colour and section rules of a project's wires. Besides OK, the
+	Edit the wiring rules of a project: what the end labels of the wires
+	say, how many wires a terminal takes (WiringRules), and the colour and
+	section rules. Besides OK, the
 	dialog can be closed asking to apply the rules to every wire, or to
 	insert their legend on the current folio: see action().
 */
@@ -42,6 +47,10 @@ class PotentialRulesDialog : public QDialog
 					      QWidget *parent = nullptr);
 
 		PotentialRules::Settings settings() const;
+			///The wires per terminal of the project (Settings::own false:
+			///the application's)
+		void setWiringRules(const WiringRules::Settings &rules);
+		WiringRules::Settings wiringRules() const;
 		Action action() const {return m_action;}
 
 	private:
@@ -52,6 +61,10 @@ class PotentialRulesDialog : public QDialog
 		void closeWith(Action action);
 
 		QCheckBox *m_automatic = nullptr;
+		QComboBox *m_end_labels = nullptr;
+		QCheckBox *m_own_wiring = nullptr;
+		QSpinBox *m_max_wires = nullptr;
+		QCheckBox *m_one_per_report = nullptr;
 		QTableWidget *m_table = nullptr;
 		Action m_action = NoAction;
 };

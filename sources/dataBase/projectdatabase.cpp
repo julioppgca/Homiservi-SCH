@@ -17,6 +17,9 @@
 */
 #include "projectdatabase.h"
 #include "../projectnumbering.h"
+#include "../wiringlist.h"
+#include "../qetgraphicsitem/ViewItem/projectdbmodel.h"
+#include "../qetgraphicsitem/ViewItem/qetgraphicstableitem.h"
 
 #include "sqlreadonly.h"
 
@@ -38,6 +41,8 @@
 #include "../qetproject.h"
 #include "../qet.h"
 #include "../titleblockproperties.h"
+
+#include <QTimer>
 #include "../ElementsCollection/xmlelementcollection.h"
 #include "../properties/elementdata.h"
 
@@ -897,6 +902,7 @@ void projectDataBase::removeElement(Element *element)
 */
 void projectDataBase::elementInfoChanged(Element *element)
 {
+	scheduleWireTable();
 	m_content_changed = true;
 	auto hash = elementInfoToString(element);
 	for (auto str : QETInformation::elementInfoKeys()) {
@@ -912,6 +918,7 @@ void projectDataBase::elementInfoChanged(Element *element)
 
 void projectDataBase::elementInfoChanged(QList<Element *> elements)
 {
+	scheduleWireTable();
 	m_content_changed = true;
 	this->blockSignals(true);
 		//Block signal for not emit dataBaseUpdated at
@@ -1067,6 +1074,7 @@ void projectDataBase::diagramOrderChanged()
 */
 void projectDataBase::addConductor(Conductor *conductor)
 {
+	scheduleWireTable();
 	m_content_changed = true;
 	if (!conductor || !conductor->diagram()) {
 		qDebug() << "projectDataBase::addConductor: null conductor or diagram";
@@ -1101,6 +1109,7 @@ void projectDataBase::addConductor(Conductor *conductor)
 */
 void projectDataBase::removeConductor(Conductor *conductor)
 {
+	scheduleWireTable();
 	m_content_changed = true;
 	m_remove_conductor_query.bindValue(":uuid", conductor->uuid().toString());
 	if (!m_remove_conductor_query.exec()) {
@@ -1132,6 +1141,9 @@ void projectDataBase::updateConductor(Conductor *conductor)
 	if (!m_update_conductor_query.exec()) {
 		qDebug() << "projectDataBase::updateConductor update error : " << m_update_conductor_query.lastError();
 	}
+		//Homiservi-SCH: the wiring list on a folio (project_wire), once
+		//the edit is over
+	scheduleWireTable();
 
 		//Deliberately no dataBaseUpdated() here, unlike add/remove. The only
 		//column this touches is the wire text, which no view watched by
@@ -1700,7 +1712,14 @@ bool projectDataBase::createDataBase()
 				//numbers of the folios they change
 			QStringLiteral("CREATE TABLE project_revision (rank INTEGER, edition VARCHAR(20),"
 				       " description VARCHAR(500), modified_by VARCHAR(100), approved_by VARCHAR(100),"
-				       " date VARCHAR(50), folios VARCHAR(1000))") })
+				       " date VARCHAR(50), folios VARCHAR(1000))"),
+				//The wires as the wiring list shows them (WiringList), in
+				//its order: the folio number, the ends and their labels
+			QStringLiteral("CREATE TABLE project_wire (rank INTEGER, conductor_uuid VARCHAR(50),"
+				       " folio VARCHAR(50), number VARCHAR(100), from_terminal VARCHAR(200),"
+				       " to_terminal VARCHAR(200), from_label VARCHAR(200), to_label VARCHAR(200),"
+				       " function VARCHAR(200), color VARCHAR(50), section VARCHAR(50),"
+				       " cable VARCHAR(100), voltage VARCHAR(100), bus VARCHAR(100))") })
 	{
 		if (!query_.exec(table)) {
 			qDebug() << "section table query : " << query_.lastError();
@@ -1897,6 +1916,7 @@ void projectDataBase::populateSectionTables()
 	query.exec(QStringLiteral("DELETE FROM project_section"));
 	query.exec(QStringLiteral("DELETE FROM diagram_section"));
 	populateRevisionTable();
+	populateWireTable();
 
 	const ProjectNumbering::Settings numbering = m_project->numbering();
 	if (numbering.sections.isEmpty())
@@ -1969,6 +1989,79 @@ void projectDataBase::populateRevisionTable()
 		if (!insert.exec())
 			qDebug() << "projectDataBase::populateRevisionTable error : " << insert.lastError();
 	}
+}
+
+/**
+	@brief projectDataBase::populateWireTable
+	Homiservi-SCH: fill project_wire with the wires of the project, as the
+	wiring list reads them (WiringList)
+*/
+void projectDataBase::populateWireTable()
+{
+	QSqlQuery query(m_data_base);
+	query.exec(QStringLiteral("DELETE FROM project_wire"));
+	if (!m_project) return;
+	const QList<WiringList::Wire> wires = WiringList::wires(m_project);
+	if (wires.isEmpty()) return;
+	m_data_base.transaction();
+	QSqlQuery insert(m_data_base);
+	insert.prepare(QStringLiteral("INSERT INTO project_wire (rank, conductor_uuid, folio, number,"
+				      " from_terminal, to_terminal, from_label, to_label, function, color, section,"
+				      " cable, voltage, bus) VALUES (:rank, :uuid, :folio, :number, :from, :to,"
+				      " :from_label, :to_label, :function, :color, :section, :cable, :voltage, :bus)"));
+	for (int rank = 0; rank < wires.size(); ++rank) {
+		const WiringList::Wire &w = wires.at(rank);
+		insert.bindValue(QStringLiteral(":rank"), rank);
+		insert.bindValue(QStringLiteral(":uuid"), w.conductor ? w.conductor->uuid().toString() : QString());
+		insert.bindValue(QStringLiteral(":folio"), w.folio);
+		insert.bindValue(QStringLiteral(":number"), w.number);
+		insert.bindValue(QStringLiteral(":from"), w.from);
+		insert.bindValue(QStringLiteral(":to"), w.to);
+		insert.bindValue(QStringLiteral(":from_label"), w.from_label);
+		insert.bindValue(QStringLiteral(":to_label"), w.to_label);
+		insert.bindValue(QStringLiteral(":function"), w.function);
+		insert.bindValue(QStringLiteral(":color"), w.color);
+		insert.bindValue(QStringLiteral(":section"), w.section);
+		insert.bindValue(QStringLiteral(":cable"), w.cable);
+		insert.bindValue(QStringLiteral(":voltage"), w.voltage);
+		insert.bindValue(QStringLiteral(":bus"), w.bus);
+		if (!insert.exec())
+			qDebug() << "projectDataBase::populateWireTable error : " << insert.lastError();
+	}
+	m_data_base.commit();
+}
+
+/**
+	@return true if a table of a folio reads project_wire: only then is it
+	worth filling it again at each change of a wire
+*/
+bool projectDataBase::wireTableShown() const
+{
+	if (!m_project) return false;
+	for (Diagram *diagram : m_project->diagrams())
+		for (QGraphicsItem *item : diagram->items())
+			if (auto table = dynamic_cast<QetGraphicsTableItem *>(item))
+				if (auto model = dynamic_cast<ProjectDBModel *>(table->model()))
+					if (model->queryString().contains(QLatin1String("project_wire")))
+						return true;
+	return false;
+}
+
+/**
+	@brief projectDataBase::scheduleWireTable
+	A wire changed: fill project_wire again once the edit is over (many
+	wires change in one edit), and tell the tables, when a folio shows it
+*/
+void projectDataBase::scheduleWireTable()
+{
+	if (m_wire_table_scheduled) return;
+	m_wire_table_scheduled = true;
+	QTimer::singleShot(0, this, [this]() {
+		m_wire_table_scheduled = false;
+		if (!wireTableShown()) return;	// filled by the next updateDB()
+		populateWireTable();
+		emit dataBaseUpdated();
+	});
 }
 
 /**

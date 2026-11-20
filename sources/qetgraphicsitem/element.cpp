@@ -16,6 +16,7 @@
 	along with QElectroTech.  If not, see <http://www.gnu.org/licenses/>.
 */
 #include "element.h"
+#include <QFontMetricsF>
 #include "../qetapp.h"
 #include "../qetproject.h"
 #include "../PropertiesEditor/propertieseditordialog.h"
@@ -42,6 +43,11 @@
 #include "dynamicelementtextitem.h"
 #include "elementtextitemgroup.h"
 #include "iostream"
+#include "../utils/qetutils.h"
+#include <QTextDocument>
+#include <QLineF>
+#include <QMap>
+#include <functional>
 
 #include <QAbstractTextDocumentLayout>
 #include <QApplication>
@@ -521,8 +527,71 @@ void Element::paint(
 */
 QRectF Element::boundingRect() const
 {
-	return(QRectF(QPointF(-hotspot_coord.x(), -hotspot_coord.y()),
-			  dimensions));
+	const QRectF symbol(QPointF(-hotspot_coord.x(), -hotspot_coord.y()), dimensions);
+		//A PLC master draws its IO table outside its symbol: the view
+		//must repaint (and erase) it with the element, or the table
+		//vanishes where the mouse passes over it
+	const QRectF table = plcTableRect();
+	return table.isNull() ? symbol : symbol.united(table);
+}
+
+/**
+	@brief Element::shape
+	Where the element takes the mouse: its symbol and, for a PLC master,
+	its IO table, not the empty space between them (boundingRect()
+	spans both): the texts and elements there stay clickable.
+*/
+QPainterPath Element::shape() const
+{
+	QPainterPath path;
+	path.addRect(QRectF(QPointF(-hotspot_coord.x(), -hotspot_coord.y()), dimensions));
+	const QRectF table = plcTableRect();
+	if (!table.isNull())
+		path.addRect(table);
+	return path;
+}
+
+/**
+	@brief Element::plcTableRect
+	The same geometry drawPlcTable() draws with: visible columns, row
+	height, header, blocks side by side at the break positions.
+*/
+QRectF Element::plcTableRect() const
+{
+	if (m_data.m_type != ElementData::Master || m_data.m_master_type != ElementData::PLC)
+		return QRectF();
+	const auto &plc = m_data.plcMasterData();
+	if (plc.ios.isEmpty())
+		return QRectF();
+	static const qreal default_widths[5] = {35, 25, 50, 40, 30};
+	qreal width = 0;
+	for (int col = 0; col < 5; ++col) {
+		if (!plc.colVisible.value(col, true)) continue;
+		width += plc.colWidths.value(col, 0) > 0 ? plc.colWidths.value(col) : default_widths[col];
+	}
+	if (width <= 0)
+		return QRectF();
+	const qreal row_h = plc.rowHeight > 0 ? plc.rowHeight : 8.0;
+	const qreal header_h = plc.showHeaders ? (row_h + 2.0) : 0;
+	const int total = int(plc.ios.size());
+	QList<int> starts {0};
+	QList<int> breaks;
+	for (int bp : plc.breakPositions)
+		if (bp > 0 && bp < total && !breaks.contains(bp)) breaks << bp;
+	std::sort(breaks.begin(), breaks.end());
+	starts << breaks;
+	int rows = 0;
+	for (int b = 0; b < starts.size(); ++b)
+		rows = qMax(rows, (b + 1 < starts.size() ? starts.at(b + 1) : total) - starts.at(b));
+	const QSizeF size(starts.size() * width + (starts.size() - 1) * 3, header_h + rows * row_h);
+	QList<QPointF> positions = m_plc_table_positions;
+	if (positions.isEmpty())
+		positions << QPointF(0, 0);
+	QRectF rect;
+		//A little margin for the border pen
+	for (const QPointF &pos : positions)
+		rect = rect.united(QRectF(pos, size).adjusted(-1, -1, 1, 1));
+	return rect;
 }
 
 /**
@@ -1644,6 +1713,7 @@ void Element::initLink(QETProject *prj)
 		}
 	}
 	tmp_uuids_link.clear();
+	syncPlcSlaves();
 }
 
 /**
@@ -1671,6 +1741,55 @@ void Element::initLink(const QList<Element *> &candidates)
 		}
 	}
 	tmp_uuids_link.clear();
+	syncPlcSlaves();
+}
+
+/**
+	@brief Element::syncPlcSlaves
+	Homiservi-SCH: the PLC variables of a slave (address, function,
+	comment, label, cross reference, terminals) are copied from the IO
+	entry of its master when the link is made by hand. A project written
+	by a script, or one whose master moved while the slaves stayed, has
+	them missing or stale: they are given again from the master when the
+	links are made on loading. Only the slaves whose data differ change.
+*/
+void Element::syncPlcSlaves()
+{
+	if (m_data.m_type != ElementData::Master || m_data.m_master_type != ElementData::PLC
+	    || m_group_index_map.isEmpty())
+		return;
+	const auto &plc = m_data.plcMasterData();
+	QString cross_ref;
+	if (diagram() && diagram()->project()) {
+		XRefProperties xrp = diagram()->project()->defaultXRefProperties("plc");
+		autonum::sequentialNumbers seq;
+		cross_ref = autonum::AssignVariables::formulaToLabel(xrp.slaveLabel(), seq, diagram(), this);
+	}
+	for (auto it = m_group_index_map.constBegin(); it != m_group_index_map.constEnd(); ++it) {
+		Element *slave = it.key();
+		const int io_idx = it.value();
+		if (!slave || io_idx < 0 || io_idx >= plc.ios.size()) continue;
+		const auto &io = plc.ios.at(io_idx);
+		DiagramContext ctx = slave->elementInformations();
+		ctx.addValue(QETInformation::ELMT_PLC_TYPE, ElementData::translatedPlcIOType(io.type));
+		ctx.addValue(QETInformation::ELMT_PLC_ADDRESS, io.address);
+		ctx.addValue(QETInformation::ELMT_PLC_FUNCTION, io.functionText);
+		ctx.addValue(QETInformation::ELMT_PLC_COMMENT, io.comment);
+		ctx.addValue(QETInformation::ELMT_PLC_CROSSREF, cross_ref);
+		ctx.addValue(QETInformation::ELMT_LABEL, actualLabel());
+		ctx.addValue(QETInformation::ELMT_PLC_TC, QString::number(io.terminalCount));
+		const QStringList terminals = io.effectiveTerminals();
+		for (int t = 0; t < io.terminalCount && t < 4; ++t)
+			ctx.addValue(plcTerminalKeys[t], t < terminals.size() ? terminals.at(t) : QString());
+		if (!(ctx == slave->elementInformations()))
+			slave->setElementInformations(ctx);
+		const QList<Terminal *> slave_terms = slave->terminals();
+		for (int t = 0; t < slave_terms.size(); ++t) {
+			const bool use = t < terminals.size();
+			if (slave_terms.at(t)->useMasterLabel() != use) slave_terms.at(t)->setUseMasterLabel(use);
+			if (use && slave_terms.at(t)->masterLabelIndex() != t) slave_terms.at(t)->setMasterLabelIndex(t);
+		}
+	}
 }
 
 /**
@@ -1838,6 +1957,8 @@ void Element::setElementData(ElementData data)
 	auto old_info = m_data.m_informations;
 	auto old_plc = m_data.m_type == ElementData::Master && m_data.m_master_type == ElementData::PLC
 		? m_data.plcMasterData() : ElementData::PlcMasterData();
+		//The IO table of a PLC master may change size
+	prepareGeometryChange();
 	m_data = data;
 
 	if (old_info != m_data.m_informations) {
@@ -2584,7 +2705,21 @@ void Element::drawPlcTable(QPainter *painter)
 					QRectF text_rect = cr.adjusted(1, 0, -1, 0);
 					painter->save();
 					painter->setClipRect(text_rect, Qt::IntersectClip);
-					painter->drawText(text_rect, Qt::AlignLeft | Qt::AlignVCenter | Qt::TextWordWrap, cell_text);
+						//One line in the row: a text too long for its cell
+						//is drawn smaller (down to 60 %), then cut with "…",
+						//instead of wrapping onto a line the row has no room for
+					QFont fit_font = painter->font();
+					const qreal full_size = fit_font.pointSizeF() > 0 ? fit_font.pointSizeF() : 6.0;
+					qreal size = full_size;
+					while (size > full_size * 0.6
+					       && QFontMetricsF(fit_font).horizontalAdvance(cell_text) > text_rect.width()) {
+						size -= 0.25;
+						fit_font.setPointSizeF(size);
+					}
+					painter->setFont(fit_font);
+					const QString shown = QFontMetricsF(fit_font).elidedText(
+						cell_text, Qt::ElideRight, text_rect.width());
+					painter->drawText(text_rect, Qt::AlignLeft | Qt::AlignVCenter, shown);
 					painter->restore();
 
 					cx += col_widths[col];
@@ -2592,4 +2727,418 @@ void Element::drawPlcTable(QPainter *painter)
 			}
 		}
 	}
+}
+
+namespace {
+		///The element of the project of element labelled label
+	Element *elementLabelled(Element *element, const QString &label)
+	{
+		if (label.isEmpty() || !element->diagram() || !element->diagram()->project())
+			return nullptr;
+		for (Diagram *diagram : element->diagram()->project()->diagrams())
+			for (Element *other : diagram->elements())
+				if (other != element
+				    && other->elementInformations().value(QStringLiteral("label")).toString() == label)
+					return other;
+		for (Diagram *diagram : element->diagram()->project()->diagrams())
+			for (Element *other : diagram->elements())
+				if (other != element && other->actualLabel() == label)
+					return other;
+		return nullptr;
+	}
+}
+
+/**
+	@brief Element::childAt
+	@param pos : a point of this element, in its own coordinates
+	@return the element labelled "<label of this>:<text>" when pos is on
+	a text of the symbol (the name of a connector drawn in this element),
+	else nullptr
+*/
+Element *Element::childAt(const QPointF &pos)
+{
+	const QString name = childNameAt(pos);
+	return name.isEmpty() ? nullptr : elementLabelled(this, name);
+}
+
+/**
+	@brief Element::childNameAt
+	@return the label "<label of this>:<text>" of the part whose name is
+	the text of the symbol at pos (no search of that part: cheap enough
+	for every mouse move), else an empty string
+*/
+QString Element::childNameAt(const QPointF &pos)
+{
+	const QString label = actualLabel();
+	if (label.isEmpty())
+		return QString();
+	for (const auto &text : namedTexts())
+		if (text.second.containsPoint(pos, Qt::OddEvenFill))
+			return label + QLatin1Char(':') + text.first;
+	return QString();
+}
+
+/**
+	@brief Element::namedTexts
+	@return the texts of the symbol (read once from its definition) with
+	the polygon each one covers, in the coordinates of this element
+*/
+const QList<QPair<QString, QPolygonF>> &Element::namedTexts()
+{
+	if (!m_named_texts_done)
+	{
+		m_named_texts_done = true;
+		const QDomElement definition = m_location.xml();
+		const QDomNodeList texts = definition.elementsByTagName(QStringLiteral("text"));
+		for (int i = 0 ; i < texts.count() ; ++i)
+		{
+			const QDomElement text = texts.at(i).toElement();
+			const QString name = text.attribute(QStringLiteral("text")).trimmed();
+			if (name.isEmpty() || name.contains(QLatin1Char('\n')))
+				continue;
+			QFont font;
+			if (text.hasAttribute(QStringLiteral("size")))
+				font = QETApp::diagramTextsFont(text.attribute(QStringLiteral("size")).toDouble());
+			else if (text.hasAttribute(QStringLiteral("font")))
+				QETUtils::fontFromString(font, text.attribute(QStringLiteral("font")));
+			QTextDocument document;
+			document.setDefaultFont(font);
+			document.setDocumentMargin(0);
+			document.setPlainText(name);
+				//as ElementPictureFactory::parseText() draws it: x, y is
+				//the baseline-left of the text
+			QTransform transform;
+			transform.translate(text.attribute(QStringLiteral("x")).toDouble(),
+					    text.attribute(QStringLiteral("y")).toDouble());
+			transform.rotate(text.attribute(QStringLiteral("rotation"), QStringLiteral("0")).toDouble());
+			transform.translate(0, -QFontMetricsF(font).ascent());
+			const QRectF rect = QRectF(QPointF(0, 0), document.size()).adjusted(-2, -2, 2, 2);
+			m_named_texts << qMakePair(name, transform.map(QPolygonF(rect)));
+		}
+	}
+	return m_named_texts;
+}
+
+/**
+	@brief Element::labelParent
+	@return the element labelled "-A33" when this one is labelled
+	"-A33:CB104", else nullptr
+*/
+Element *Element::labelParent()
+{
+	const QString label = actualLabel();
+	const int colon = label.lastIndexOf(QLatin1Char(':'));
+	if (colon <= 0)
+		return nullptr;
+	return elementLabelled(this, label.left(colon));
+}
+
+/**
+	@brief Element::mouseDoubleClickEvent
+	A double click on the name of a part drawn on its own folio (the
+	text "CB104" of -A33, whose connector is the element -A33:CB104)
+	goes to that part; anywhere else, or when that part is not in the
+	project, edits the element as before.
+*/
+void Element::mouseDoubleClickEvent(QGraphicsSceneMouseEvent *event)
+{
+	if (Element *child = childAt(event->pos()))
+	{
+		event->accept();
+		setSelected(false);
+		ungrabMouse();
+		QetGraphicsItem::showItem(child);
+		return;
+	}
+	QetGraphicsItem::mouseDoubleClickEvent(event);
+}
+
+/**
+	@brief Element::hoverMoveEvent
+	Over the name of a part drawn on its own folio, the tooltip says
+	where a double click goes.
+*/
+void Element::hoverMoveEvent(QGraphicsSceneHoverEvent *event)
+{
+	QString tip = name();
+	const QString child = childNameAt(event->pos());
+	if (child != m_hover_child_name)
+	{
+		m_hover_child_name = child;
+		m_hover_child_found = !child.isEmpty() && elementLabelled(this, child);
+	}
+	if (m_hover_child_found)
+		tip = tr("Duplo clique: ir para %1").arg(child);
+	if (toolTip() != tip)
+		setToolTip(tip);
+	QetGraphicsItem::hoverMoveEvent(event);
+}
+
+namespace {
+		///What a dynamic text of a symbol shows, to find it again among
+		///the texts of a placed element (they get a uuid of their own)
+	QString dynamicTextKey(const QDomElement &dom)
+	{
+		const QString from = dom.attribute(QStringLiteral("text_from"));
+		QString what;
+		if (from == QLatin1String("ElementInfo"))
+			what = dom.firstChildElement(QStringLiteral("info_name")).text();
+		else if (from == QLatin1String("CompositeText"))
+			what = dom.firstChildElement(QStringLiteral("composite_text")).text();
+		else
+			what = dom.firstChildElement(QStringLiteral("text")).text();
+		return from + QLatin1Char('|') + what;
+	}
+
+	QString dynamicTextKey(DynamicElementTextItem *deti)
+	{
+		const QString from = QString::fromLatin1(
+			DynamicElementTextItem::textFromMetaEnum().valueToKey(deti->textFrom()));
+		QString what;
+		if (deti->textFrom() == DynamicElementTextItem::ElementInfo)
+			what = deti->infoName();
+		else if (deti->textFrom() == DynamicElementTextItem::CompositeText)
+			what = deti->compositeText();
+		else
+			what = deti->text();
+		return from + QLatin1Char('|') + what;
+	}
+
+	QList<QDomElement> dynamicTexts(const QDomElement &definition)
+	{
+		QList<QDomElement> texts;
+		for (QDomElement description = definition.firstChildElement(QStringLiteral("description")) ;
+		     !description.isNull() ;
+		     description = description.nextSiblingElement(QStringLiteral("description")))
+			for (QDomElement text = description.firstChildElement(QStringLiteral("dynamic_text")) ;
+			     !text.isNull() ;
+			     text = text.nextSiblingElement(QStringLiteral("dynamic_text")))
+				texts << text;
+		return texts;
+	}
+
+		///Which text of the new definition each text of the old one
+		///became: the same uuid (the symbol editor keeps it), else the
+		///text showing the same thing in the same rank among the texts
+		///showing it. -1: gone from the new definition; -2: can not tell
+		///(several texts show the same thing and their number changed)
+	QVector<int> textCounterparts(const QList<QDomElement> &old_texts,
+				      const QList<QDomElement> &new_texts)
+	{
+		QVector<int> to(old_texts.size(), -1);
+		QVector<bool> taken(new_texts.size(), false);
+		for (int i = 0 ; i < old_texts.size() ; ++i)
+		{
+			const QString uuid = old_texts[i].attribute(QStringLiteral("uuid"));
+			if (uuid.isEmpty())
+				continue;
+			for (int j = 0 ; j < new_texts.size() ; ++j)
+				if (!taken[j] && new_texts[j].attribute(QStringLiteral("uuid")) == uuid) {
+					to[i] = j;
+					taken[j] = true;
+					break;
+				}
+		}
+		for (int i = 0 ; i < old_texts.size() ; ++i)
+		{
+			if (to[i] >= 0 || old_texts[i].attribute(QStringLiteral("uuid")).size())
+				continue;
+			const QString key = dynamicTextKey(old_texts[i]);
+			QList<int> olds, news;
+			for (int k = 0 ; k < old_texts.size() ; ++k)
+				if (to[k] < 0 && dynamicTextKey(old_texts[k]) == key)
+					olds << k;
+			for (int k = 0 ; k < new_texts.size() ; ++k)
+				if (!taken[k] && dynamicTextKey(new_texts[k]) == key)
+					news << k;
+			if (olds.size() == news.size()) {
+				to[i] = news[olds.indexOf(i)];
+				taken[to[i]] = true;
+			}
+			else if (!news.isEmpty())
+				to[i] = -2;
+		}
+		return to;
+	}
+
+		///The text is where the definition dom has it: not moved, not
+		///turned. The font does not count: a text style of the project
+		///changes it on every element, not the user on one
+	bool asDefined(DynamicElementTextItem *deti, const QDomElement &dom)
+	{
+		const QPointF pos(dom.attribute(QStringLiteral("x"), QStringLiteral("0")).toDouble(),
+				  dom.attribute(QStringLiteral("y"), QStringLiteral("0")).toDouble());
+		if (QLineF(deti->pos(), pos).length() > 0.5)
+			return false;
+		if (qAbs(deti->rotation() - dom.attribute(QStringLiteral("rotation"), QStringLiteral("0")).toDouble()) > 0.5)
+			return false;
+		return true;
+	}
+
+	bool sameFont(DynamicElementTextItem *deti, const QDomElement &dom)
+	{
+		return !dom.hasAttribute(QStringLiteral("font"))
+				|| QETUtils::fontToString(deti->font()) == dom.attribute(QStringLiteral("font"));
+	}
+}
+
+int Element::applyDefinitionTexts(const QDomElement &old_definition,
+				  const QDomElement &new_definition)
+{
+		//A list, not a map by what the text shows: a symbol may show the
+		//same information twice (the label above and beside it)
+	const QList<QDomElement> old_texts = dynamicTexts(old_definition);
+	const QList<QDomElement> new_texts = dynamicTexts(new_definition);
+	const QVector<int> counterpart = textCounterparts(old_texts, new_texts);
+	QVector<bool> new_has_old(new_texts.size(), false);
+	for (int i = 0 ; i < counterpart.size() ; ++i)
+		if (counterpart[i] >= 0)
+			new_has_old[counterpart[i]] = true;
+		else if (counterpart[i] == -2)		//not added again either
+			for (int j = 0 ; j < new_texts.size() ; ++j)
+				if (dynamicTextKey(new_texts[j]) == dynamicTextKey(old_texts[i]))
+					new_has_old[j] = true;
+	int changed = 0;
+
+	QVector<bool> old_claimed(old_texts.size(), false);
+	const QList<DynamicElementTextItem *> texts = m_dynamic_text_list;
+	for (DynamicElementTextItem *deti : texts)
+	{
+			//the text of the old definition this one still is
+		const QString key = dynamicTextKey(deti);
+		int i = -1;
+		for (int k = 0 ; k < old_texts.size() && i < 0 ; ++k)
+			if (!old_claimed[k] && dynamicTextKey(old_texts[k]) == key
+			    && asDefined(deti, old_texts[k]))
+				i = k;
+		if (i < 0 || counterpart[i] == -2)
+			continue;
+		old_claimed[i] = true;
+		const QDomElement old_dom = old_texts[i];
+		if (counterpart[i] >= 0)
+		{
+			const QDomElement new_dom = new_texts[counterpart[i]];
+			const bool own_font = !sameFont(deti, old_dom);
+			if (dynamicTextKey(new_dom) == key
+			    && asDefined(deti, new_dom)
+			    && (own_font || sameFont(deti, new_dom))
+			    && new_dom.attribute(QStringLiteral("text_width")) == old_dom.attribute(QStringLiteral("text_width"))
+			    && new_dom.attribute(QStringLiteral("Halignment")) == old_dom.attribute(QStringLiteral("Halignment")))
+				continue;
+			QDomElement dom = new_dom.cloneNode(true).toElement();
+			dom.setTagName(DynamicElementTextItem::xmlTagName());
+			const QUuid uuid = deti->m_uuid;
+			const QFont font = deti->font();
+			const QString style = deti->textStyle();
+			deti->fromXml(dom);
+			deti->m_uuid = uuid;
+				//the font a text style of the project gave it stays
+			if (own_font) {
+				deti->setFont(font);
+				deti->setTextStyle(style);
+			}
+		}
+		else
+		{
+			removeDynamicTextItem(deti);
+			if (deti->scene())
+				deti->scene()->removeItem(deti);
+			delete deti;
+		}
+		++changed;
+	}
+
+	for (int j = 0 ; j < new_texts.size() ; ++j)
+		if (!new_has_old[j]) {
+			parseDynamicText(new_texts[j]);
+			++changed;
+		}
+
+	if (changed)
+		update();
+	return changed;
+}
+
+bool Element::applyDefinitionGeometry(const QDomElement &definition, QString *problem,
+				      bool check_only)
+{
+	int w = 0, h = 0, hot_x = 0, hot_y = 0;
+	if (!QET::attributeIsAnInteger(definition, QStringLiteral("width"), &w)
+	    || !QET::attributeIsAnInteger(definition, QStringLiteral("height"), &h)
+	    || !QET::attributeIsAnInteger(definition, QStringLiteral("hotspot_x"), &hot_x)
+	    || !QET::attributeIsAnInteger(definition, QStringLiteral("hotspot_y"), &hot_y))
+		return false;
+
+	QList<QDomElement> doms;
+	for (QDomElement description = definition.firstChildElement(QStringLiteral("description")) ;
+	     !description.isNull() ;
+	     description = description.nextSiblingElement(QStringLiteral("description")))
+		for (QDomElement t = description.firstChildElement(QStringLiteral("terminal")) ;
+		     !t.isNull() ;
+		     t = t.nextSiblingElement(QStringLiteral("terminal")))
+			doms << t;
+
+		//Pair each terminal with its place in the new version
+	QHash<Terminal *, int> match;
+	QSet<int> taken;
+	auto pair = [&](const std::function<bool(Terminal *, const QDomElement &)> &same) {
+		for (Terminal *t : std::as_const(m_terminals)) {
+			if (match.contains(t))
+				continue;
+			for (int i = 0 ; i < doms.size() ; ++i)
+				if (!taken.contains(i) && same(t, doms.at(i))) {
+					match.insert(t, i);
+					taken.insert(i);
+					break;
+				}
+		}
+	};
+	pair([](Terminal *t, const QDomElement &dom) {
+		const QUuid uuid(dom.attribute(QStringLiteral("uuid")));
+		return !uuid.isNull() && uuid == t->uuid();
+	});
+	pair([](Terminal *t, const QDomElement &dom) {
+		const QString name = dom.attribute(QStringLiteral("name"));
+		return !name.isEmpty() && name == t->d->m_name;
+	});
+	pair([](Terminal *t, const QDomElement &dom) {
+		return QPointF(dom.attribute(QStringLiteral("x")).toDouble(),
+			       dom.attribute(QStringLiteral("y")).toDouble()) == t->d->m_pos;
+	});
+
+	for (Terminal *t : std::as_const(m_terminals))
+		if (!match.contains(t) && !t->conductors().isEmpty()) {
+			if (problem)
+				*problem = tr("o borne %1 tem fio ligado e não existe na versão nova")
+						.arg(t->d->m_name.isEmpty() ? QStringLiteral("?") : t->d->m_name);
+			return false;
+		}
+	if (check_only)
+		return true;
+
+	prepareGeometryChange();
+	setSize(w, h);
+	setHotspot(QPoint(hot_x, hot_y));
+
+	const QList<Terminal *> terminals = m_terminals;
+	for (Terminal *t : terminals)
+	{
+		if (match.contains(t)) {
+			t->prepareGeometryChange();
+			t->d->fromXml(doms.at(match.value(t)));
+			t->init();
+		} else {
+			m_terminals.removeOne(t);
+			delete t;
+		}
+	}
+	for (int i = 0 ; i < doms.size() ; ++i)
+		if (!taken.contains(i))
+			parseTerminal(doms.at(i));
+
+	for (Terminal *t : std::as_const(m_terminals))
+		for (Conductor *c : t->conductors())
+			c->updatePath();
+	update();
+	return true;
 }

@@ -16,6 +16,7 @@
 	along with QElectroTech.  If not, see <http://www.gnu.org/licenses/>.
 */
 #include "../qetgraphicsitem/conductor.h"
+#include "../wirejunction.h"
 #include "../shownkinds.h"
 #include "../lastusedstyle.h"
 #include "../qetproject.h"
@@ -428,6 +429,28 @@ void Conductor::generateConductorPath(const QPointF &p1, Qet::Orientation o1, co
 
 	// s'assure qu'il n'y a ni points
 	QList<QPointF> points;
+
+		//Homiservi-SCH: a junction is a dot, no side to leave it by: an L
+		//(or a straight line) to it, along the axis of the terminal at
+		//the other end
+	const bool junction1 = WireJunction::isJunction(terminal1);
+	const bool junction2 = WireJunction::isJunction(terminal2);
+	if (junction1 || junction2) {
+		const QPointF a = mapFromScene(p1);
+		const QPointF b = mapFromScene(p2);
+		const auto vertical = [](Qet::Orientation o) { return o == Qet::North || o == Qet::South; };
+		points << a;
+		if (qAbs(a.x() - b.x()) > 0.01 && qAbs(a.y() - b.y()) > 0.01) {
+			bool vertical_first = false;
+			if (!junction1) vertical_first = vertical(o1);
+			else if (!junction2) vertical_first = !vertical(o2);
+			points << (vertical_first ? QPointF(a.x(), b.y()) : QPointF(b.x(), a.y()));
+		}
+		points << b;
+		pointsToSegments(points);
+		segmentsToPath();
+		return;
+	}
 
 	// mappe les points par rapport a la scene
 	sp1 = mapFromScene(p1);
@@ -942,9 +965,16 @@ void Conductor::handlerMousePressEvent(QetGraphicsHandlerItem *qghi, QGraphicsSc
 		//we get the segment corresponding to the handler
 	if (m_vector_index > -1)
 	{
+			//A handler with no segment behind it (the path changed since
+			//the handlers were made): nothing to move
+		const QList<ConductorSegment *> segments = segmentsList();
+		if (m_vector_index + 1 >= segments.size()) {
+			m_vector_index = -1;
+			return;
+		}
 		qghi->setColor(Qt::cyan);
 		m_moving_segment = true;
-		m_moved_segment = segmentsList().at(m_vector_index+1);
+		m_moved_segment = segments.at(m_vector_index+1);
 		before_mov_text_pos_ = m_text_item -> pos();
 
 		for(QetGraphicsHandlerItem *handler : m_handler_vector)
@@ -962,6 +992,13 @@ void Conductor::handlerMouseMoveEvent(QetGraphicsHandlerItem *qghi, QGraphicsSce
 {
 	if (m_moving_segment)
 	{
+			//The path was rebuilt during the drag (its segments were
+			//deleted): stop moving instead of using a deleted segment
+		if (!segmentsList().contains(m_moved_segment)) {
+			m_moving_segment = false;
+			m_moved_segment = nullptr;
+			return;
+		}
 			//Snap the mouse pos to grid
 		QPointF pos_ = Diagram::snapToGrid(mapFromScene(event->scenePos()));
 
@@ -1204,6 +1241,9 @@ bool Conductor::fromXml(QDomElement &dom_element)
 	m_freeze_label = dom_element.attribute("freezeLabel") == "true" ? true : false;
 
 	setProperties(pr);
+		//The end labels were placed when the conductor was added to the
+		//folio, before their text was read: their size was not known yet
+	calculateEndLabelsPosition();
 
 	return retval;
 }
@@ -1871,13 +1911,20 @@ void Conductor::calculateEndLabelsPosition()
 
 		QPointF anchor = terminal->dockConductor();
 		QPointF offset;
+			// On a vertical end the label runs along the wire, like a
+			// ferrule: horizontal labels of side by side pins overlap
+		const bool vertical = terminal->orientation() == Qet::North
+				|| terminal->orientation() == Qet::South;
+		if (!item->wasRotatedByUser())
+			item->setRotation(vertical ? 270 : 0);
 		switch (terminal->orientation())
 		{
 			case Qet::North:
-				offset = QPointF(3, -(item->boundingRect().height() + 2));
+					//rotated by 270: the text goes up from its position
+				offset = QPointF(1, -2);
 				break;
 			case Qet::South:
-				offset = QPointF(3, 2);
+				offset = QPointF(1, 2 + item->boundingRect().width());
 				break;
 			case Qet::East:
 				offset = QPointF(3, -(item->boundingRect().height() / 2));

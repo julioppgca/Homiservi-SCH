@@ -18,6 +18,8 @@
 #ifndef CONDUCTORENDLABELING_H
 #define CONDUCTORENDLABELING_H
 
+#include "potentialrules.h"
+
 #include <QString>
 
 class Conductor;
@@ -25,18 +27,32 @@ class Terminal;
 
 /**
 	@brief The ConductorEndLabeling namespace
-	Computes and applies wire end (ferrule) marking: each end of a conductor
-	is labeled with the identifier ("-<element label><pin name>") of *that
-	same end's own terminal* - e.g. the wire end plugged into -D1's pin L2 is
-	tagged "-D1L2", and the other end, plugged into -K1's pin A1, is tagged
-	"-K1A1". This is the standard convention for physically printed
-	ferrules/wire-end labels: it tells whoever is holding one loose end
-	where that end belongs, once the two ends are no longer next to each
-	other on a diagram.
+	Computes and applies the wire end (ferrule) labels. What a label says
+	is a rule of the project (PotentialRules::Settings::end_labels): by
+	default the terminal of that end itself (the end plugged into -D1's
+	pin L2 is tagged "-D1:L2"), the convention of the ferrules printed for
+	the workshop: whoever holds a loose end knows where it goes. The other
+	rules: the terminal at the other end (EPLAN "Ziel"), the number of the
+	wire, or the number and the terminal.
+
+	The labels drawn on the folios, the printed tag list and the label
+	printer file all come from here (see WiringList), so they say the
+	same thing.
 */
 namespace ConductorEndLabeling
 {
 	QString terminalCrossRefId(Terminal *terminal);
+
+		///The rule of the project of conductor
+	PotentialRules::EndLabels rule(Conductor *conductor);
+		///The label of the end of conductor at terminal1 (end1) or at
+		///terminal2, by rule
+	QString endLabel(Conductor *conductor, bool end1, PotentialRules::EndLabels rule);
+		///The label of that end as drawn on the folio, else as rule gives it
+	QString shownLabel(Conductor *conductor, bool end1);
+		///The label at own of a wire like conductor going to other
+	QString label(Terminal *own, Terminal *other, Conductor *conductor,
+		      PotentialRules::EndLabels rule);
 
 	/**
 		Compute and apply both end labels of @p conductor, pushing one
@@ -46,6 +62,8 @@ namespace ConductorEndLabeling
 		so the whole batch becomes a single undo step.
 	*/
 	void applyToConductor(Conductor *conductor);
+		///true if applyToConductor() would change a label of conductor
+	bool needsLabels(Conductor *conductor);
 }
 
 #endif

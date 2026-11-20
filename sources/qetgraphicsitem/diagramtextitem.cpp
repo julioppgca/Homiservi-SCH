@@ -16,6 +16,9 @@
 	along with QElectroTech.  If not, see <http://www.gnu.org/licenses/>.
 */
 #include "diagramtextitem.h"
+#include <QTextDocument>
+#include <QTextCursor>
+#include <QTextBlock>
 
 #include "../diagram.h"
 #include "../diagramcommands.h"
@@ -209,6 +212,35 @@ void DiagramTextItem::setTextStyle(const QString &style)
 void DiagramTextItem::setStyledLook(const QFont &font, const QColor &color)
 {
 	m_applying_style = true;
+		//A rich text saved by the application names its font size, family
+		//and weight in its HTML (body style="font-size:9pt..."): they win
+		//over the font of the document, so the style would only change the
+		//colour. The style gives the whole look: they are cleared.
+	QTextDocument *doc = document();
+	bool cleared = false;
+	for (QTextBlock block = doc->begin(); block.isValid(); block = block.next()) {
+		for (auto it = block.begin(); !it.atEnd(); ++it) {
+			const QTextFragment fragment = it.fragment();
+			if (!fragment.isValid()) continue;
+			QTextCharFormat format = fragment.charFormat();
+			bool changed = false;
+			for (int property : {int(QTextFormat::FontPointSize), int(QTextFormat::FontPixelSize),
+					     int(QTextFormat::FontFamilies), int(QTextFormat::FontWeight),
+					     int(QTextFormat::FontStyleName)}) {
+				if (format.hasProperty(property)) {
+					format.clearProperty(property);
+					changed = true;
+				}
+			}
+			if (!changed) continue;
+			QTextCursor cursor(doc);
+			cursor.setPosition(fragment.position());
+			cursor.setPosition(fragment.position() + fragment.length(), QTextCursor::KeepAnchor);
+			cursor.setCharFormat(format);
+			cleared = true;
+		}
+	}
+	if (cleared) QGraphicsTextItem::setFont(QFont());	// setFont() below then applies
 	setFont(font);
 	if (color != defaultTextColor()) setColor(color);
 	m_applying_style = false;

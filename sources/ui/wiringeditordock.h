@@ -20,19 +20,25 @@
 
 #include <QAbstractTableModel>
 #include <QDockWidget>
+#include <QPersistentModelIndex>
 #include <QPointer>
+#include <QSet>
 
 class Conductor;
+class QAction;
 class QCheckBox;
+class QHBoxLayout;
 class QLabel;
 class QETProject;
 class QSortFilterProxyModel;
 class QTableView;
+class QTimer;
 
 /**
 	@brief The WiringTableModel class
-	One row per conductor of a project: folio, number, the two ends and
-	the wire properties (function, colour, section, cable, voltage /
+	One row per conductor of a project: folio, number, the two ends, the
+	labels of the ends and the wire properties (see WiringList, which the
+	exports read with the same columns) (function, colour, section, cable, voltage /
 	protocol, bus). The wire properties are editable: setValues() writes
 	one of them to several conductors, and by default to every conductor
 	of their potentials, as one undo step.
@@ -43,8 +49,8 @@ class WiringTableModel : public QAbstractTableModel
 
 	public:
 		enum Column {
-			Folio, Number, From, To, Function, WireColor, Section,
-			Cable, Voltage, Bus, ColumnCount
+			Folio, Number, From, To, FromLabel, ToLabel, Function, WireColor,
+			Section, Cable, Voltage, Bus, ColumnCount
 		};
 
 		explicit WiringTableModel(QObject *parent = nullptr);
@@ -87,6 +93,12 @@ class WiringEditorDock : public QDockWidget
 	public:
 		explicit WiringEditorDock(QWidget *parent = nullptr);
 		void setProject(QETProject *project);
+		void addTools(const QList<QAction *> &actions);
+		void selectConductors(const QSet<Conductor *> &conductors);
+
+	signals:
+			///A double click on a function: edit the wiring rules
+		void rulesRequested();
 
 	private:
 		void showConductor(const QModelIndex &proxy_index);
@@ -97,8 +109,13 @@ class WiringEditorDock : public QDockWidget
 		QSortFilterProxyModel *m_proxy = nullptr;
 		QTableView *m_view = nullptr;
 		QLabel *m_summary = nullptr;
+		QHBoxLayout *m_tools = nullptr;
 		QCheckBox *m_whole_potential = nullptr;
 		QMetaObject::Connection m_undo_connection;
+		QTimer *m_function_click = nullptr;
+		QPersistentModelIndex m_function_index;
+			///showConductor() is selecting a wire on its folio
+		bool m_showing = false;
 };
 
 #endif // WIRINGEDITORDOCK_H

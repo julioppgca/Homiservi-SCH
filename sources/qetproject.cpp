@@ -18,6 +18,7 @@
 
 #include "qetproject.h"
 #include "ioaddress.h"
+#include "elementlibraryupdate.h"
 #include "QPropertyUndoCommand/qpropertyundocommand.h"
 
 #include <tuple>
@@ -81,6 +82,7 @@ m_project_properties_handler{this}
 
 	m_elements_collection = new XmlElementCollection(this);
 	init();
+	ElementLibraryUpdate::watch(this);
 
 		//A new project keeps the texts of its turned symbols horizontal; a
 		//project saved without the setting is read with it off, so it looks
@@ -1489,6 +1491,7 @@ void QETProject::setNumbering(const ProjectNumbering::Settings &numbering)
 		for (Diagram *diagram : std::as_const(m_diagrams_list))
 			for (Conductor *conductor : diagram->conductors())
 				conductor->calculateTextItemPosition();
+	emit numberingChanged();
 }
 
 /**
@@ -2427,6 +2430,9 @@ void QETProject::readProjectXml(QDomDocument &xml_project)
 			<< ", database " << database_ms / 1000.0 << ")";
 
 	m_state = Ok;
+		//The symbols as the elements were just built with them (see
+		//ElementLibraryUpdate: the elements follow a later change)
+	ElementLibraryUpdate::watch(this);
 }
 
 /**

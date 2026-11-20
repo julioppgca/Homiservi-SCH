@@ -46,6 +46,20 @@
 #include <QTableView>
 #include <QVBoxLayout>
 
+namespace {
+		///The settings key of the columns chosen for kind
+	QString columnsKey(ProjectIndex::Kind kind)
+	{
+		switch (kind) {
+			case ProjectIndex::Sections:  return QStringLiteral("section_columns");
+			case ProjectIndex::Revisions: return QStringLiteral("revision_columns");
+			case ProjectIndex::Wires:     return QStringLiteral("wire_columns");
+			case ProjectIndex::Folios:
+			default:                      return QStringLiteral("folio_columns");
+		}
+	}
+}
+
 namespace
 {
 	const QString settings_group = QStringLiteral("homiservi/index/");
@@ -136,10 +150,9 @@ void ProjectIndexDialog::build(Diagram *current)
 	const bool has_sections = ProjectIndex::hasSections(project);
 
 	QSettings settings;
-	for (ProjectIndex::Kind kind : {ProjectIndex::Folios, ProjectIndex::Sections, ProjectIndex::Revisions}) {
-		const QStringList saved = settings.value(settings_group + (kind == ProjectIndex::Folios
-					? QStringLiteral("folio_columns") : kind == ProjectIndex::Sections
-					? QStringLiteral("section_columns") : QStringLiteral("revision_columns"))).toStringList();
+	for (ProjectIndex::Kind kind : {ProjectIndex::Folios, ProjectIndex::Sections, ProjectIndex::Revisions,
+					ProjectIndex::Wires}) {
+		const QStringList saved = settings.value(settings_group + columnsKey(kind)).toStringList();
 		m_chosen.insert(kind, saved.isEmpty() ? ProjectIndex::defaultColumns(kind) : saved);
 	}
 
@@ -151,13 +164,16 @@ void ProjectIndexDialog::build(Diagram *current)
 	if (!has_sections)
 		m_sections->setToolTip(tr("O projeto não tem seções: configure-as em Projeto > Numeração"));
 	m_revisions = new QRadioButton(tr("Lista de revisões – edição, modificação e folhas alteradas"), type_box);
+	m_wires = new QRadioButton(tr("Lista de fiação – número, origem, destino, cor, seção e cabo de cada fio"), type_box);
 	const int saved_kind = settings.value(settings_group + QStringLiteral("kind")).toInt();
 	(has_sections && saved_kind == ProjectIndex::Sections ? m_sections
-	 : saved_kind == ProjectIndex::Revisions ? m_revisions : m_folios)->setChecked(true);
+	 : saved_kind == ProjectIndex::Revisions ? m_revisions
+	 : saved_kind == ProjectIndex::Wires ? m_wires : m_folios)->setChecked(true);
 	auto type_layout = new QVBoxLayout(type_box);
 	type_layout->addWidget(m_folios);
 	type_layout->addWidget(m_sections);
 	type_layout->addWidget(m_revisions);
+	type_layout->addWidget(m_wires);
 
 		//Columns
 	auto columns_box = new QGroupBox(tr("Colunas (marque e ordene)"), this);
@@ -248,6 +264,7 @@ void ProjectIndexDialog::build(Diagram *current)
 
 	connect(m_folios, &QRadioButton::toggled, this, [this]() { fillColumns(); });
 	connect(m_revisions, &QRadioButton::toggled, this, [this]() { fillColumns(); });
+	connect(m_wires, &QRadioButton::toggled, this, [this]() { fillColumns(); });
 	connect(m_columns, &QListWidget::itemChanged, this, [this]() {
 		if (m_filling) return;
 		m_chosen[kind()] = checkedColumns();
@@ -266,7 +283,8 @@ void ProjectIndexDialog::build(Diagram *current)
 						    &edited_kind, &edited_keys, &edited_grouped)) {
 		m_chosen[edited_kind] = edited_keys;
 		(edited_kind == ProjectIndex::Sections ? m_sections
-		 : edited_kind == ProjectIndex::Revisions ? m_revisions : m_folios)->setChecked(true);
+		 : edited_kind == ProjectIndex::Revisions ? m_revisions
+		 : edited_kind == ProjectIndex::Wires ? m_wires : m_folios)->setChecked(true);
 		m_grouped->setChecked(edited_grouped);
 		m_style->setCurrentIndex(m_style->findData(int(m_table->tableStyle())));
 		where_box->hide();
@@ -294,7 +312,8 @@ QString ProjectIndexDialog::baseName() const
 ProjectIndex::Kind ProjectIndexDialog::kind() const
 {
 	return m_sections->isChecked() ? ProjectIndex::Sections
-	     : m_revisions->isChecked() ? ProjectIndex::Revisions : ProjectIndex::Folios;
+	     : m_revisions->isChecked() ? ProjectIndex::Revisions
+	     : m_wires->isChecked() ? ProjectIndex::Wires : ProjectIndex::Folios;
 }
 
 /**
@@ -326,7 +345,8 @@ void ProjectIndexDialog::fillColumns()
 	m_grouped->setVisible(k == ProjectIndex::Folios);
 		//A name of one's own stays; the usual name follows the kind
 	bool usual_name = !m_table;
-	for (ProjectIndex::Kind other : {ProjectIndex::Folios, ProjectIndex::Sections, ProjectIndex::Revisions})
+	for (ProjectIndex::Kind other : {ProjectIndex::Folios, ProjectIndex::Sections, ProjectIndex::Revisions,
+					 ProjectIndex::Wires})
 		usual_name |= m_name->text() == ProjectIndex::defaultName(other);
 	if (usual_name)
 		m_name->setText(ProjectIndex::defaultName(k));
@@ -392,6 +412,7 @@ void ProjectIndexDialog::saveChoices() const
 	settings.setValue(settings_group + QStringLiteral("folio_columns"), m_chosen.value(ProjectIndex::Folios));
 	settings.setValue(settings_group + QStringLiteral("section_columns"), m_chosen.value(ProjectIndex::Sections));
 	settings.setValue(settings_group + QStringLiteral("revision_columns"), m_chosen.value(ProjectIndex::Revisions));
+	settings.setValue(settings_group + columnsKey(ProjectIndex::Wires), m_chosen.value(ProjectIndex::Wires));
 	if (m_grouped->isEnabled())
 		settings.setValue(settings_group + QStringLiteral("grouped"), m_grouped->isChecked());
 	settings.setValue(settings_group + QStringLiteral("style"), m_style->currentData().toInt());

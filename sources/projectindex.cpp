@@ -68,6 +68,18 @@ namespace
 */
 QList<ProjectIndex::Column> ProjectIndex::columns(Kind kind)
 {
+	if (kind == Wires)
+		return {{QStringLiteral("number"), tr("Nº do fio")},
+			{QStringLiteral("from_terminal"), tr("Origem")},
+			{QStringLiteral("to_terminal"), tr("Destino")},
+			{QStringLiteral("color"), tr("Cor")},
+			{QStringLiteral("section"), tr("Seção (mm²)")},
+			{QStringLiteral("cable"), tr("Cabo")},
+			{QStringLiteral("function"), tr("Função")},
+			{QStringLiteral("voltage"), tr("Tensão")},
+			{QStringLiteral("from_label"), tr("Etiqueta da origem")},
+			{QStringLiteral("to_label"), tr("Etiqueta do destino")},
+			{QStringLiteral("folio"), tr("Folha")}};
 	if (kind == Revisions)
 		return {{QStringLiteral("edition"), tr("Ed.")},
 			{QStringLiteral("description"), tr("Modificação")},
@@ -102,6 +114,10 @@ QStringList ProjectIndex::defaultColumns(Kind kind, bool revisions)
 		for (const Column &column : columns(kind)) keys << column.key;
 		return keys;
 	}
+	if (kind == Wires)
+		return {QStringLiteral("number"), QStringLiteral("from_terminal"), QStringLiteral("to_terminal"),
+			QStringLiteral("color"), QStringLiteral("section"), QStringLiteral("cable"),
+			QStringLiteral("folio")};
 	if (kind == Sections)
 		return {QStringLiteral("code"), QStringLiteral("name"), QStringLiteral("folios"),
 			QStringLiteral("folio_count")};
@@ -122,7 +138,8 @@ QString ProjectIndex::columnTitle(Kind kind, const QString &key)
 QString ProjectIndex::defaultName(Kind kind)
 {
 	return kind == Sections ? tr("Índice de seções")
-				: kind == Revisions ? tr("Lista de revisões") : tr("Índice de folhas");
+				: kind == Revisions ? tr("Lista de revisões")
+				: kind == Wires ? tr("Lista de fiação") : tr("Índice de folhas");
 }
 
 /**
@@ -134,12 +151,13 @@ QString ProjectIndex::defaultName(Kind kind)
 */
 QString ProjectIndex::query(Kind kind, const QStringList &keys, bool grouped)
 {
-	if (kind == Revisions) {
+	if (kind == Revisions || kind == Wires) {
 		QStringList select;
 		for (const QString &key : keys)
 			select << QStringLiteral("COALESCE(%1, '')").arg(key) + QStringLiteral(" AS ") + quoted(columnTitle(kind, key));
-		if (select.isEmpty()) select << QStringLiteral("edition");
-		return QStringLiteral("SELECT %1 FROM project_revision ORDER BY rank").arg(select.join(QStringLiteral(", ")));
+		if (select.isEmpty()) select << (kind == Wires ? QStringLiteral("number") : QStringLiteral("edition"));
+		return QStringLiteral("SELECT %1 FROM %2 ORDER BY rank").arg(select.join(QStringLiteral(", ")),
+			kind == Wires ? QStringLiteral("project_wire") : QStringLiteral("project_revision"));
 	}
 	if (kind == Sections) {
 		QStringList select;
@@ -268,7 +286,7 @@ bool ProjectIndex::recognize(const QString &query, Kind *kind, QStringList *keys
 	while (it.hasNext())
 		titles << it.next().captured(1).replace(QStringLiteral("\"\""), QStringLiteral("\""));
 
-	for (Kind k : {Folios, Sections, Revisions}) {
+	for (Kind k : {Folios, Sections, Revisions, Wires}) {
 		QStringList found;
 		for (const QString &title : std::as_const(titles))
 			for (const Column &column : columns(k))

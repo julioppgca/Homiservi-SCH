@@ -247,6 +247,9 @@ class QETProject : public QObject
 		void setRevisions(const QList<ProjectRevisions::Revision> &revisions) {m_revisions = revisions;}
 		ProjectNumbering::Settings numbering() const {return m_numbering;}
 		void setNumbering(const ProjectNumbering::Settings &numbering);
+			///The wires take their number from the numbering of the
+			///project, not from the autonumbering rules of QElectroTech
+		bool numbersWires() const {return m_numbering.wire_mode != ProjectNumbering::WiresUnchanged;}
 		QList<ProjectNumbering::FolioInfo> numberingFolios() const;
 		QList<ProjectNumbering::ComponentInfo> numberingComponents(QList<Element *> *elements) const;
 		void completeComponentTag(Element *element);
@@ -315,6 +318,9 @@ class QETProject : public QObject
 		void folioAutoNumRemoved();
 		void defaultTitleBlockPropertiesChanged();
 		void conductorAutoNumChanged();
+			///Homiservi-SCH: the numbering of the project changed
+			///(setNumbering())
+		void numberingChanged();
 
 	private slots:
 		void updateDiagramsFolioData();

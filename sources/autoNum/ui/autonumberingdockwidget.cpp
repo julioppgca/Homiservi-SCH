@@ -260,6 +260,7 @@ void AutoNumberingDockWidget::setProject(QETProject *project,
 			   this, &AutoNumberingDockWidget::refreshValueFields);
 		disconnect(m_project, &QETProject::destroyed,
 			   this, &AutoNumberingDockWidget::projectClosed);
+		disconnect(m_project, &QETProject::numberingChanged, this, nullptr);
 	}
 	
 	m_project = project;
@@ -270,6 +271,8 @@ void AutoNumberingDockWidget::setProject(QETProject *project,
 	connect(m_project, &QETProject::conductorAutoNumRemoved, this, &AutoNumberingDockWidget::conductorAutoNumChanged);
 	connect(m_project, &QETProject::conductorAutoNumAdded, this, &AutoNumberingDockWidget::conductorAutoNumChanged);
 	connect(m_project_view, &ProjectView::diagramActivated, this, &AutoNumberingDockWidget::setConductorActive);
+		//Homiservi-SCH: the wires numbered by the project
+	connect(m_project, &QETProject::numberingChanged, this, &AutoNumberingDockWidget::updateConductorLock);
 	connect(m_project_view, &ProjectView::diagramActivated, this, &AutoNumberingDockWidget::followSelectionOf);
 	followSelectionOf(m_project_view->currentDiagram());
 
@@ -311,6 +314,8 @@ void AutoNumberingDockWidget::setContext()
 		foreach (QString str, keys_conductor)
 		{ ui->m_conductor_cb-> addItem(str); }
 	}
+
+	updateConductorLock();
 
 	//Element Combobox
 	ui->m_element_cb->addItem("");
@@ -878,4 +883,22 @@ void AutoNumberingDockWidget::resetAutoNum(QComboBox *combo_box, AutoNumCategory
 
 	storeContext(combo_box, category, context);
 	refreshRow(category);
+}
+
+/**
+	@brief AutoNumberingDockWidget::updateConductorLock
+	Homiservi-SCH: when the numbering of the project numbers the wires
+	(Projeto > Fiação > Numeração dos fios), the autonumbering rule of
+	the conductors is not used: its fields are locked and say so
+*/
+void AutoNumberingDockWidget::updateConductorLock()
+{
+	const bool locked = m_project && m_project->numbersWires();
+	const QString tip = locked ? tr("Os fios são numerados pela numeração do projeto"
+					" (Projeto > Fiação > Numeração dos fios)") : QString();
+	for (QWidget *widget : std::initializer_list<QWidget *>{ui->m_conductor_cb, ui->m_conductor_value_le,
+				 ui->m_conductor_increase_sb, ui->m_conductor_next_le}) {
+		widget->setEnabled(!locked);
+		widget->setToolTip(tip);
+	}
 }

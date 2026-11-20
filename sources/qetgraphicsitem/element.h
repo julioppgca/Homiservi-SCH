@@ -85,8 +85,10 @@ class Element : public QetGraphicsItem
 			int *state = nullptr,
 			Element::kind link_type = Element::Simple);
 		~Element() override;
-	private:
+			///the size, hotspot and terminals of definition are the ones
+			///of this element (its drawing can be replaced in place)
 		bool definitionGeometryMatches(const QDomElement &definition) const;
+	private:
 		Element(const Element &);
 
 		// attributes
@@ -249,6 +251,9 @@ class Element : public QetGraphicsItem
 		QList<Element *> linkedElements ();
 
 		int groupIndexForElement(Element *elmt) const;
+			///Homiservi-SCH: give each slave of a PLC master the data of
+			///its IO entry (address, function, label, cross reference)
+		void syncPlcSlaves();
 		void setGroupIndexForElement(Element *elmt, int index);
 
 		/**
@@ -289,7 +294,38 @@ class Element : public QetGraphicsItem
 				const QStyleOptionGraphicsItem *,
 				QWidget *) override;
 		QRectF boundingRect() const override;
+		QPainterPath shape() const override;
+			///Homiservi-SCH: the rectangle of the IO table a PLC master
+			///draws around itself, empty if it draws none
+		QRectF plcTableRect() const;
+			///Homiservi-SCH: parent and children by label. An element
+			///labelled "-A33:CB104" is the part CB104 of the element
+			///labelled "-A33" (a connector drawn on its own folio)
+		Element *childAt(const QPointF &pos);
+		QString childNameAt(const QPointF &pos);
+			///the texts of the symbol and where they are drawn, in the
+			///coordinates of this element
+		const QList<QPair<QString, QPolygonF>> &namedTexts();
+		Element *labelParent();
+			///Homiservi-SCH: make the dynamic texts follow a new version of
+			///the symbol (ElementLibraryUpdate): a text still as the old
+			///definition had it takes the new one's position, font and
+			///alignment, a text the new definition dropped goes, a text it
+			///added comes. Texts the user moved or changed are left alone.
+			///Returns the number of texts changed.
+		int applyDefinitionTexts(const QDomElement &old_definition,
+					 const QDomElement &new_definition);
+			///Homiservi-SCH: take the size, hotspot and terminals of a new
+			///version of the symbol in place. A terminal still in it (same
+			///uuid, else same name, else same place) moves, with its wires;
+			///a new one is added; one it dropped goes, unless a wire is on
+			///it: then nothing changes, false is returned and problem says
+			///which terminal.
+		bool applyDefinitionGeometry(const QDomElement &definition, QString *problem = nullptr,
+					     bool check_only = false);
 	protected:
+		void mouseDoubleClickEvent(QGraphicsSceneMouseEvent *event) override;
+		void hoverMoveEvent(QGraphicsSceneHoverEvent *event) override;
 		void mouseMoveEvent(QGraphicsSceneMouseEvent *event) override;
 		void mouseReleaseEvent(
 				QGraphicsSceneMouseEvent *event) override;
@@ -313,6 +349,12 @@ class Element : public QetGraphicsItem
 		QString m_F_str;
 
 	ElementsLocation m_location;
+		///texts of the symbol and where they are drawn (childAt())
+	QList<QPair<QString, QPolygonF>> m_named_texts;
+	bool m_named_texts_done = false;
+		///part under the mouse, searched once per text (hoverMoveEvent())
+	QString m_hover_child_name;
+	bool m_hover_child_found = false;
 	QList <Terminal *> m_terminals;
 	QPicture m_picture;
 	QPicture m_low_zoom_picture;

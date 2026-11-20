@@ -80,6 +80,7 @@ class ProjectIndexDialog : public QDialog
 		QRadioButton *m_folios = nullptr;
 		QRadioButton *m_sections = nullptr;
 		QRadioButton *m_revisions = nullptr;
+		QRadioButton *m_wires = nullptr;
 		QListWidget *m_columns = nullptr;
 		QCheckBox *m_grouped = nullptr;
 		QComboBox *m_style = nullptr;
