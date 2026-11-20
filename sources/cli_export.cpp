@@ -35,6 +35,8 @@
 #include "projectdiff.h"
 #include "qetproject.h"
 #include "titleblockproperties.h"
+#include "conductorendlabeling.h"
+#include "wiringlist.h"
 #include "wiringlistexport.h"
 
 // Private Qt PDF engine for drawHyperlink() — see pdf_links / projectprintwindow.
@@ -81,6 +83,7 @@ const QHash<QString, QString> &exportFlags()
 		{"--export-wires", "wires"},
 		{"--export-bom", "bom"},
 		{"--export-wiring", "wiring"},
+		{"--export-wirelist", "wirelist"},
 		{"--export-nets", "nets"},
 		{"--export-links", "links"},
 		{"--info", "info"},
@@ -383,6 +386,39 @@ int exportDxf(QETProject &project, const QString &out_dir, bool showTerminals,
 		err << "Note: DXF has no pictures in this format; "
 			   "each picture is exported as an outline box.\n";
 	out << "Exported " << diagrams.size() << " diagram(s) -> " << out_dir << "\n";
+	return 0;
+}
+
+/// The wiring list of the wiring editor (WiringList): a wire per row, from
+/// end to end across folio reports, with the labels of its two ends
+int exportWireList(QETProject &project, const QString &output)
+{
+		//The labels as the rule of the project gives them, not as drawn: a
+		//label drawn before the components were tagged again is out of
+		//date. Only in memory, the project is not saved.
+	int relabelled = 0;
+	for (Diagram *diagram : project.diagrams())
+		for (Conductor *conductor : diagram->conductors())
+			if (ConductorEndLabeling::needsLabels(conductor)) {
+				ConductorEndLabeling::applyToConductor(conductor);
+				++relabelled;
+			}
+	if (relabelled)
+		out << relabelled << " wires had end labels out of date (labelled again for the export)\n";
+	const QList<WiringList::Wire> wires = WiringList::wires(&project);
+	if (wires.isEmpty()) {
+		err << "Nothing to export (empty list).\n";
+		return 1;
+	}
+	QFile file(output);
+	if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+		err << "Cannot open '" << output << "' for writing.\n";
+		return 1;
+	}
+	QTextStream fout(&file);
+	fout << WiringList::toCsv(wires);
+	file.close();
+	out << "Exported " << wires.size() << " wires -> " << output << "\n";
 	return 0;
 }
 
@@ -1089,6 +1125,8 @@ int run(const QStringList &args)
 		return exportBom(project, output, includeSlaves, includeJunctions);
 	if (format == "wiring")
 		return exportWiring(project, output);
+	if (format == "wirelist")
+		return exportWireList(project, output);
 	if (format == "nets")
 		return exportNets(project, output);
 	if (format == "links")
