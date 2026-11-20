@@ -197,6 +197,9 @@ namespace ProjectNumbering
 	QStringList folioLabels(const Settings &settings, const QList<FolioInfo> &folios);
 	QStringList folioLabels(const Settings &settings, const QStringList &codes);
 	QString folioLabel(const Settings &settings, const QString &code, int page, int position);
+		///The section a folio number typed by hand ("11.01") is in, empty
+		///when it names none of settings
+	QString sectionOfLabel(const Settings &settings, const QString &label);
 
 	QHash<QString, QString> startsOf(const QList<FolioInfo> &folios, const QStringList &codes);
 	QList<int> groupedOrder(const Settings &settings, const QStringList &codes);

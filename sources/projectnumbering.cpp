@@ -245,6 +245,27 @@ QString ProjectNumbering::folioLabel(const Settings &settings, const QString &co
 	return section + settings.separator + padded(page, settings.page_digits);
 }
 
+QString ProjectNumbering::sectionOfLabel(const Settings &settings, const QString &label)
+{
+	if (settings.format == Sequential)
+		return QString();
+	const QString text = label.trimmed();
+	QString part;
+	if (!settings.separator.isEmpty()) {
+		const int at = int(text.lastIndexOf(settings.separator));
+		if (at <= 0) return QString();
+		part = text.left(at).trimmed();
+	} else {
+		if (text.size() <= settings.section_digits) return QString();
+		part = text.left(settings.section_digits);
+	}
+	for (const Section &section : settings.sections)
+		if (section.code == part
+		    || (isNumber(section.code) && isNumber(part) && section.code.toInt() == part.toInt()))
+			return section.code;
+	return QString();
+}
+
 /**
 	@brief ProjectNumbering::startsOf
 	@return the folios starting a section, for the section of every folio:

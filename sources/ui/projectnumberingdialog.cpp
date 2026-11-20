@@ -1030,13 +1030,17 @@ void ProjectNumberingDialog::readSectionsTable()
 		if (!code.isEmpty())
 			sections << ProjectNumbering::Section {code, name};
 	}
-		//A renamed section keeps its folios
+		//A renamed section keeps its folios. All at once: 11 -> 12 and
+		//12 -> 13 must not take the folios of 11 to 13
+	QHash<QString, QString> renamed;
 	for (int row = 0; row < m_settings.sections.size() && row < sections.size(); ++row) {
 		const QString old_code = m_settings.sections.at(row).code;
 		if (old_code != sections.at(row).code)
-			for (QString &code : m_codes)
-				if (code == old_code) code = sections.at(row).code;
+			renamed.insert(old_code, sections.at(row).code);
 	}
+	if (!renamed.isEmpty())
+		for (QString &code : m_codes)
+			code = renamed.value(code, code);
 	m_settings.sections = sections;
 
 	QString previous = sections.isEmpty() ? QString() : sections.first().code;

@@ -21,6 +21,8 @@
 #include "../diagramcommands.h"
 #include "../qetgraphicsitem/conductor.h"
 #include "../qetgraphicsitem/conductortextitem.h"
+#include "../qetproject.h"
+#include "../undocommand/projectnumberingcommand.h"
 #include "../undocommand/changetitleblockcommand.h"
 #include "borderpropertieswidget.h"
 #include "conductorpropertieswidget.h"
@@ -106,7 +108,28 @@ DiagramPropertiesDialog::DiagramPropertiesDialog(Diagram *diagram, QWidget *pare
 
 		// Title block have change
 		if (new_titleblock != titleblock) {
-			diagram -> undoStack().push(new ChangeTitleBlockCommand(diagram, titleblock, new_titleblock));
+				//Homiservi-SCH: the folios are numbered by section and the
+				//number typed names another section ("11.01"): the folio
+				//goes to it, the folios after it keep theirs
+			QETProject *project = diagram->project();
+			const ProjectNumbering::Settings numbering = project ? project->numbering()
+									     : ProjectNumbering::Settings();
+			const QString typed = numbering.enabled && new_titleblock.folio != titleblock.folio
+					? ProjectNumbering::sectionOfLabel(numbering, new_titleblock.folio) : QString();
+			const QList<ProjectNumbering::FolioInfo> folios = project ? project->numberingFolios()
+										  : QList<ProjectNumbering::FolioInfo>();
+			QStringList codes = ProjectNumbering::sectionCodes(numbering, folios);
+			const int index = project ? int(project->diagrams().indexOf(diagram)) : -1;
+			if (!typed.isEmpty() && index >= 0 && codes.value(index) != typed) {
+				codes[index] = typed;
+				ProjectNumbering::Settings new_numbering = numbering;
+				new_numbering.starts = ProjectNumbering::startsOf(folios, codes);
+				new_titleblock.folio = ProjectNumbering::folioLabels(new_numbering, codes).value(index);
+				auto command = new ProjectNumberingCommand(project, numbering, new_numbering);
+				command->addTitleBlock(diagram, titleblock, new_titleblock);
+				project->undoStack()->push(command);
+			} else
+				diagram -> undoStack().push(new ChangeTitleBlockCommand(diagram, titleblock, new_titleblock));
 		}
 
 		// Border have change
